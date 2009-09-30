@@ -1,0 +1,68 @@
+# cd
+alias ..='cd ..'
+alias cdd='cd -'
+
+# edit
+alias ea='vi ~/.dotfiles/bash/aliases && reload'
+alias ec='vi ~/.dotfiles/bash/config && reload'
+alias ee='vi ~/.dotfiles/bash/env && reload'
+alias eg='vi .git/config'
+
+# exit
+alias e='exit'
+
+# git
+alias gaa='git add --all'
+alias gb='git branch'
+alias gba='git branch -a'
+alias gc='git commit --verbose'
+alias gca='git commit --verbose --all'
+alias gco='git checkout'
+alias gd='git diff'
+alias gdm='git diff master'
+alias ge='vi .git/config'
+alias gg='git log --graph --all'
+alias gl='git pull'
+alias gp='git push'
+alias gs='git status'
+
+# git functions
+function gch() {
+  git clone git://github.com/$USER/$1.git
+}
+
+# ls
+alias l='ls -AFhl'
+alias ll='ls -Fl'
+
+# mkdir
+alias md='mkdir -p'
+
+# mkdir functions
+function mdc() {
+  mkdir -p "$1"
+  cd "$1"
+}
+
+# osx
+alias dsunhook="find . -name '.DS_Store' -exec rm -rf {} \;"
+
+# rails
+alias a='autotest -rails'
+alias migrate='rake db:migrate db:test:clone'
+alias rst='touch tmp/restart.txt'
+alias sc='./script/console'
+alias ss='./script/server'
+alias sg='./script/generate'
+
+# reload
+alias reload='source ~/.dotfiles/bashrc'
+
+# subversion
+alias scom='svn commit'
+alias sd='svn diff \!*'
+alias sdd='svn diff -r PREV'
+alias sex='svn export'
+alias slog='svn log | more'
+alias sst='svn status'
+alias sup='svn update'
