@@ -1,10 +1,21 @@
 # ~/.dotfiles
 
+Configuration files for `bash`, `vim`, `git`, and more. Compatible with Linux
+and OS X environments.
+
 ## Installation
 
-    git clone git://github.com/sidwood/dotfiles.git ~/.dotfiles
+Installation requires `bash`.
 
-    ln -s ~/.dotfiles/bash_profile ~/.bash_profile
-    ln -s ~/.dotfiles/bashrc ~/.bashrc
-    ln -s ~/.dotfiles/gitconfig ~/.gitconfig
-    ln -s ~/.dotfiles/vimrc ~/.vimrc
+    git clone git://github.com/sidwood/dotfiles.git ~/.dotfiles
+    cd ~/.dotfiles
+    ./install.sh
+
+## Uninstall
+
+Dotfiles? What dotfiles?
+
+    cd ~/.dotfiles
+    ./uninstall.sh
+    cd -
+    rm -rf ~/.dotfiles
