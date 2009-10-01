@@ -2,6 +2,9 @@
 alias ..='cd ..'
 alias cdd='cd -'
 
+# cucumber
+alias cuc='cucumber -r ./features'
+
 # edit
 alias ea='vi ~/.dotfiles/bash/aliases && reload'
 alias ec='vi ~/.dotfiles/bash/config && reload'
