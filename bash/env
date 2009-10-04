@@ -1,3 +1,2 @@
 export EDITOR='mate -w'
-
 export PATH=~/.bin:$PATH
