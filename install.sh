@@ -8,7 +8,7 @@ for name in *; do
       echo "WARNING: $target exists but is not a symbolic link"
     fi
   else
-    skip=(bash install.sh README.md uninstall.sh)
+    skip=(README.md bash install.sh uninstall.sh zsh)
     if [[ ! ${skip[*]} =~ "$name" ]]; then
       echo "Creating $target"
       ln -s "$PWD/$name" "$target"
