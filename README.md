@@ -1,7 +1,7 @@
 # ~/.dotfiles
 
-Configuration files for `bash`, `vim`, `git`, and more. Compatible with Linux
-and OS X environments.
+Configuration files for `bash`, `zsh`, `vim`, `git`, and more. Compatible with
+Linux and OS X environments.
 
 ## Installation
 

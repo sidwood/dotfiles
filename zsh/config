@@ -1,0 +1,46 @@
+# Initialise zsh's colour variables
+autoload -Uz colors && colors
+
+# Prompt configuration
+PROMPT='
+%n@%m:%~
+%{$fg_bold[green]%}→%{$reset_color%} '
+
+HISTFILE=~/.zsh-history
+HISTSIZE=100000
+SAVEHIST=$HISTSIZE
+
+REPORTTIME=10 # print elapsed time when more than 10 seconds
+LISTMAX=0 # ask to complete if top of list would scroll off screen
+
+setopt APPEND_HISTORY # adds history
+setopt EXTENDED_HISTORY # add timestamps to history
+setopt HIST_IGNORE_ALL_DUPS  # don't record duplicates to history
+setopt HIST_REDUCE_BLANKS
+setopt HIST_VERIFY
+setopt INC_APPEND_HISTORY # adds history incrementally
+setopt SHARE_HISTORY # share history across sessions
+
+setopt NO_CORRECT
+setopt COMPLETE_IN_WORD
+setopt IGNORE_EOF
+setopt LOCAL_OPTIONS # allow functions to have local options
+setopt LOCAL_TRAPS # allow functions to have local traps
+setopt MENUCOMPLETE # show completion on first TAB
+setopt NO_BG_NICE # don't nice background tasks
+setopt NO_HUP
+setopt NO_LIST_BEEP
+setopt PROMPT_SUBST
+
+# Bind ctrl-r to history search
+bindkey '^R' history-incremental-search-backward
+
+# initialise zsh's completion
+autoload -U compinit
+compinit
+
+# matches case insensitive for lowercase
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
+
+# pasting with tabs doesn't perform completion
+zstyle ':completion:*' insert-tab pending
