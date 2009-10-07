@@ -3,7 +3,7 @@ autoload -Uz colors && colors
 
 # Prompt configuration
 PROMPT='
-%n@%m:%~
+%n@%M:%~
 %{$fg_bold[green]%}→%{$reset_color%} '
 
 HISTFILE=~/.zsh-history

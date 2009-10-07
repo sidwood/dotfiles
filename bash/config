@@ -44,4 +44,4 @@ BCYAN='\e[46m'
 BWHITE='\e[47m'
 
 # Update the command prompt to be <user>:<current_directory>
-PS1="\n\u@\h:\w\n\[$EGREEN\]→\[$RESET_COLOR\] "
+PS1="\n\u@\H:\w\n\[$EGREEN\]→\[$RESET_COLOR\] "
