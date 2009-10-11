@@ -2,6 +2,11 @@
 alias ..='cd ..'
 alias cdd='cd -'
 
+# cd functions
+function c() {
+  cd ~/code/$1;
+}
+
 # cucumber
 alias cuc='cucumber -r ./features'
 
