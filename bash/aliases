@@ -57,6 +57,7 @@ alias dsunhook="find . -name '.DS_Store' -exec rm -rf {} \;"
 
 # rails
 alias a='autotest -rails'
+alias freeze='rake rails:freeze:gems'
 alias migrate='rake db:migrate db:test:clone'
 alias rst='touch tmp/restart.txt'
 alias sc='./script/console'
