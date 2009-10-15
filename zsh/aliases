@@ -1,5 +1,10 @@
 . ~/.dotfiles/bash/aliases
 
+# code directory shortcut
+function c() {
+  cd ~/code/$1;
+}
+
 # edit
 alias ea='vi ~/.dotfiles/zsh/aliases && reload'
 alias ec='vi ~/.dotfiles/zsh/config && reload'
