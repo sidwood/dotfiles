@@ -2,9 +2,12 @@
 autoload -Uz colors && colors
 
 # Prompt configuration
-PROMPT='
-%n@%M:%~
-%{$fg_bold[green]%}→%{$reset_color%} '
+NEWLINE=$'\n'
+if [[ -n $SSH_CONNECTION ]]; then
+  PROMPT='${NEWLINE}%n@%M:%~${NEWLINE}%{$fg_bold[green]%}→%{$reset_color%} '
+else
+  PROMPT='${NEWLINE}%n:%~${NEWLINE}%{$fg_bold[green]%}→%{$reset_color%} '
+fi
 
 HISTFILE=~/.zsh-history
 HISTSIZE=100000
