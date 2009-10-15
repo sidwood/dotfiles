@@ -47,7 +47,7 @@ alias ll='ls -Fl'
 alias md='mkdir -p'
 
 # mkdir functions
-function mdc() {
+function mdcd() {
   mkdir -p "$1"
   cd "$1"
 }
