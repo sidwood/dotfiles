@@ -4,9 +4,9 @@ autoload -Uz colors && colors
 # Prompt configuration
 NEWLINE=$'\n'
 if [[ -n $SSH_CONNECTION ]]; then
-  PROMPT='${NEWLINE}%n@%M:%~${NEWLINE}%{$fg_bold[green]%}→%{$reset_color%} '
+  PROMPT='${NEWLINE}%n@%M:%~${NEWLINE}%{$fg[green]%}→%{$reset_color%} '
 else
-  PROMPT='${NEWLINE}%n:%~${NEWLINE}%{$fg_bold[green]%}→%{$reset_color%} '
+  PROMPT='${NEWLINE}%n:%~${NEWLINE}%{$fg[green]%}→%{$reset_color%} '
 fi
 
 HISTFILE=~/.zsh-history
