@@ -3,12 +3,13 @@ autoload -Uz colors && colors
 
 # Prompt configuration
 CR=$'\n'
-VCP=%{$fg[black]%}$(vcprompt)%{$reset_color%}
+VCP=
 if [[ -n $SSH_CONNECTION ]]; then
-  PROMPT='${CR}%n@%M:%~ ${VCP}${CR}%{$fg[green]%}→%{$reset_color%} '
+  PROMPT='${CR}%n@%M:%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
 else
-  PROMPT='${CR}%n:%~ ${VCP}${CR}%{$fg[green]%}→%{$reset_color%} '
+  PROMPT='${CR}%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
 fi
+PROMPT="${PROMPT}${CR}%{$fg[green]%}➥%{$reset_color%} "
 
 HISTFILE=~/.zsh-history
 HISTSIZE=100000
