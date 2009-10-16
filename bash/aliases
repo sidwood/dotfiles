@@ -1,6 +1,6 @@
 # cd
 alias ..='cd ..'
-alias cdd='cd -'
+alias cdd='cd - 1>/dev/null'
 
 # cucumber
 alias cuc='cucumber -r ./features'
