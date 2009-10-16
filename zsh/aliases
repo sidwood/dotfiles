@@ -17,3 +17,7 @@ function h() {
 
 # reload
 alias reload='source ~/.dotfiles/zshrc'
+
+# top (osx)
+alias tu='top -o cpu'
+alias tm='top -o vsize'
