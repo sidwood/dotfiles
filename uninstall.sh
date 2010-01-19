@@ -14,5 +14,5 @@ for name in *; do
 done
 
 echo "Uninstalling vcprompt"
-rm ~/.dotfiles/bin/vcprompt 2>/dev/null
-rm -rf ~/.dotfiles/tmp 2>/dev/null
+rm bin/vcprompt 2>/dev/null
+rm -rf tmp 2>/dev/null
