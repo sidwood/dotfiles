@@ -12,6 +12,12 @@ set noswapfile
 " Fix backspace
 set backspace=indent,eol,start
 
+" Whitespace
+set tabstop=2     " width of tab characters (default 8)
+set softtabstop=2 " width of edit operations using <Tab> and <BS> (default 0)
+set shiftwidth=2  " width of normal mode block shift (default 8)
+set expandtab     " use spaces instead of tabs (default noexpandtab)
+
 " Appearance
 set ruler
 set cursorline
