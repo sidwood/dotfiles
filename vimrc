@@ -19,6 +19,8 @@ set shiftwidth=2  " width of normal mode block shift (default 8)
 set expandtab     " use spaces instead of tabs (default noexpandtab)
 
 " Appearance
+syntax enable
+set autoindent
 set ruler
 set cursorline
 set number
