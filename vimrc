@@ -36,3 +36,6 @@ map <Left> <Nop>
 map <Right> <Nop>
 map <Up> <Nop>
 map <Down> <Nop>
+
+" Plugins
+source ~/.vim/plugins/tabsize.vim
