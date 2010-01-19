@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
 #
+# Constants
+#
+
+VCPROMPT_VERSION=712d7740f135
+
+#
 # Exit with given message
 #
 
@@ -34,22 +40,30 @@ for name in *; do
   fi
 done
 
-echo "Downloading vcprompt source"
-rm ~/.dotfiles/bin/vcprompt 2>/dev/null
-rm -rf tmp 2>/dev/null
-mkdir \
-  tmp 2>/dev/null
-cd tmp
-wget \
-  -O vcprompt.tar.gz \
-  http://hg.gerg.ca/vcprompt/archive/07f110976599.tar.gz
-tar -xzf vcprompt.tar.gz
-cd -
-echo "Building vcprompt from source"
-cd tmp/vcprompt-07f110976599
-make
-mv vcprompt ~/.bin
-cd -
-echo "Cleaning up"
-rm -rf tmp
-echo "vcprompt installed"
+#
+# Install vcprompt
+#
+
+echo "Installing vcprompt"
+if [[ ! -x "bin/vcprompt" ]]; then
+  echo "Downloading vcprompt source"
+  rm bin/vcprompt 2>/dev/null
+  rm -rf tmp 2>/dev/null
+  mkdir tmp 2>/dev/null
+  cd tmp
+  wget \
+    -O vcprompt.tar.gz \
+    http://hg.gerg.ca/vcprompt/archive/$VCPROMPT_VERSION.tar.gz
+  tar -xzf vcprompt.tar.gz
+  cd -
+  echo "Building vcprompt from source"
+  cd tmp/vcprompt-$VCPROMPT_VERSION
+  make
+  mv vcprompt ../../bin
+  cd -
+  echo "Cleaning up"
+  rm -rf tmp
+  echo "vcprompt installed"
+else
+  echo "vcprompt already installed"
+fi
