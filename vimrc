@@ -40,4 +40,4 @@ map <Up> <Nop>
 map <Down> <Nop>
 
 " Plugins
-source ~/.vim/plugins/tabsize.vim
+source ~/.vim/plugin/tabsize.vim
