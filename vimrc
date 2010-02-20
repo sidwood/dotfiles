@@ -18,6 +18,15 @@ set softtabstop=2 " width of edit operations using <Tab> and <BS> (default 0)
 set shiftwidth=2  " width of normal mode block shift (default 8)
 set expandtab     " use spaces instead of tabs (default noexpandtab)
 
+" Whitespace preferences
+if has("autocmd")
+  " Enable file type detection
+  filetype on
+
+  autocmd filetype make setlocal ts=8 sts=8 sw=8 noexpandtab
+  autocmd filetype yaml setlocal ts=2 sts=2 sw=2 expandtab
+endif
+
 " Appearance
 syntax enable
 set autoindent
