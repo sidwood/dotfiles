@@ -9,6 +9,9 @@ set nobackup
 set nowritebackup
 set noswapfile
 
+" Allow hidden buffers without warning
+set hidden
+
 " Fix backspace
 set backspace=indent,eol,start
 
