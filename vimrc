@@ -18,13 +18,31 @@ set softtabstop=2 " width of edit operations using <Tab> and <BS> (default 0)
 set shiftwidth=2  " width of normal mode block shift (default 8)
 set expandtab     " use spaces instead of tabs (default noexpandtab)
 
-" Whitespace preferences
+
+" Strip trailing whitespace function
+function! <SID>StripTrailingWhitespaces()
+  " Save search history and cursor position
+  let _s = @/
+  let l = line(".")
+  let c = col(".")
+  " Remove the whitespace
+  %s/\s\+$//e
+  " Restore search history and cursor position
+  let @/ = _s
+  call cursor(l, c)
+endfunction
+
+" Only do this when vim is compiled with support for autocommands
 if has("autocmd")
   " Enable file type detection
   filetype on
 
+  " Whitespace preferences
   autocmd filetype make setlocal ts=8 sts=8 sw=8 noexpandtab
   autocmd filetype yaml setlocal ts=2 sts=2 sw=2 expandtab
+
+  " Remove trailing whitespace
+  autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
 endif
 
 " Appearance
