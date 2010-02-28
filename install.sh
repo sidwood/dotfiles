@@ -4,7 +4,7 @@
 # Constants
 #
 
-VCPROMPT_VERSION=712d7740f135
+VCPROMPT_VERSION=ea6c8f680e11
 
 #
 # Exit with given message
