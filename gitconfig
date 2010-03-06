@@ -12,9 +12,14 @@
 	frag = magenta
 	old = red
 	new = green
+[color "decorate"]
+	branch = red
+	HEAD = red reverse
+	stash = yellow reverse
+	tag = green
 [color "status"]
 	added = green
 	changed = yellow
 	untracked = yellow
 [format]
-	pretty = %C(yellow)%h%Creset %s %Cgreen%an, %cr%Creset
+	pretty = %C(yellow)%h%Creset%Cred%d%Creset %s %Cgreen%an, %cr%Creset
