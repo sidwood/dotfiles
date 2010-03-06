@@ -1,3 +1,5 @@
 [user]
 	name = Sid Wood
 	email = sidwood@me.com
+[format]
+	pretty = %C(yellow)%h%Creset %s %Cgreen%an, %cr%Creset
