@@ -42,6 +42,7 @@ if has("autocmd")
   " Whitespace preferences
   autocmd filetype make setlocal ts=8 sts=8 sw=8 noexpandtab
   autocmd filetype yaml setlocal ts=2 sts=2 sw=2 expandtab
+  autocmd Bufread,BufNewFile *gitconfig setlocal ts=8 sts=8 sw=8 noexpandtab
 
   " Remove trailing whitespace
   autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
