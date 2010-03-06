@@ -21,7 +21,6 @@ set softtabstop=2 " width of edit operations using <Tab> and <BS> (default 0)
 set shiftwidth=2  " width of normal mode block shift (default 8)
 set expandtab     " use spaces instead of tabs (default noexpandtab)
 
-
 " Strip trailing whitespace function
 function! <SID>StripTrailingWhitespaces()
   " Save search history and cursor position
@@ -68,6 +67,12 @@ map <Left> <Nop>
 map <Right> <Nop>
 map <Up> <Nop>
 map <Down> <Nop>
+
+" Window focus
+map <C-h> <C-w>h
+map <C-j> <C-w>j
+map <C-k> <C-w>k
+map <C-l> <C-w>l
 
 " Plugins
 source ~/.vim/plugin/tabsize.vim
