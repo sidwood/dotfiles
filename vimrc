@@ -1,9 +1,16 @@
 set nocompatible
 call pathogen#runtime_append_all_bundles()
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"                                  SETTINGS
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""
+" SETTINGS
+""""""""""""
+
+" Enable 256 colors
+set t_Co=256
+
+" Color scheme
+set background=dark
+colorscheme lucius
 
 " Set leader
 let mapleader=","
@@ -53,9 +60,9 @@ set expandtab     " use spaces instead of tabs (default noexpandtab)
 let NERDTreeIgnore = ['\.git$']
 let NERDTreeShowHidden = 1
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"                                  MAPPINGS
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""
+" MAPPINGS
+"""""""""""
 
 " Navigate displayed lines over numbered lines
 nmap k gk
@@ -85,9 +92,9 @@ map <leader>es :sp <C-R>=expand("%:p:h") . "/" <CR>
 map <leader>ev :vsp <C-R>=expand("%:p:h") . "/" <CR>
 map <leader>et :tabe <C-R>=expand("%:p:h") . "/" <CR>
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"                                  AUTOCMD
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""
+" AUTOCMD
+"""""""""""
 
 if has("autocmd")
   " Enable file type detection
@@ -103,9 +110,9 @@ if has("autocmd")
   autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
 endif
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"                              UTIL FUNCTIONS
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""
+" UTIL FUNCTIONS
+"""""""""""""""""
 
 " Strip trailing whitespace function
 function! <SID>StripTrailingWhitespaces()
