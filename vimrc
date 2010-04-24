@@ -26,6 +26,14 @@ set cursorline
 set showmatch
 set nowrap
 
+" Windows
+set splitbelow
+set splitright
+set winwidth=84
+set winheight=5
+set winminheight=5
+set winheight=999
+
 " Cursor position info
 set ruler
 
