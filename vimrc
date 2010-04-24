@@ -56,6 +56,9 @@ nmap j gj
 " Toggle whitespace characters
 nmap <leader>l :set list!<CR>
 
+" Toggle NERDTree
+nmap <leader>m :NERDTreeToggle<CR>
+
 " Window focus
 map <C-h> <C-w>h
 map <C-j> <C-w>j
