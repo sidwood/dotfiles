@@ -1,5 +1,8 @@
-" Use Vim over Vi settings (must come first)
 set nocompatible
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                                  SETTINGS
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Set leader
 let mapleader=","
@@ -15,26 +18,61 @@ set hidden
 " Fix backspace
 set backspace=indent,eol,start
 
+" Appearance
+syntax enable
+set autoindent
+set cursorline
+set showmatch
+set nowrap
+
+" Cursor position info
+set ruler
+
+" Line numbers
+set number
+set numberwidth=4
+
 " Whitespace
+set nolist
+set listchars=tab:▸\ ,eol:¬
 set tabstop=2     " width of tab characters (default 8)
 set softtabstop=2 " width of edit operations using <Tab> and <BS> (default 0)
 set shiftwidth=2  " width of normal mode block shift (default 8)
 set expandtab     " use spaces instead of tabs (default noexpandtab)
 
-" Strip trailing whitespace function
-function! <SID>StripTrailingWhitespaces()
-  " Save search history and cursor position
-  let _s = @/
-  let l = line(".")
-  let c = col(".")
-  " Remove the whitespace
-  %s/\s\+$//e
-  " Restore search history and cursor position
-  let @/ = _s
-  call cursor(l, c)
-endfunction
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                                  MAPPINGS
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-" Only do this when vim is compiled with support for autocommands
+" Navigate displayed lines over numbered lines
+nmap k gk
+nmap j gj
+
+" Toggle whitespace characters
+nmap <leader>l :set list!<CR>
+
+" Window focus
+map <C-h> <C-w>h
+map <C-j> <C-w>j
+map <C-k> <C-w>k
+map <C-l> <C-w>l
+
+" Disable arrow keys
+map <Left> <Nop>
+map <Right> <Nop>
+map <Up> <Nop>
+map <Down> <Nop>
+
+" Open file from current file directory
+map <leader>ew :e <C-R>=expand("%:p:h") . "/" <CR>
+map <leader>es :sp <C-R>=expand("%:p:h") . "/" <CR>
+map <leader>ev :vsp <C-R>=expand("%:p:h") . "/" <CR>
+map <leader>et :tabe <C-R>=expand("%:p:h") . "/" <CR>
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                                  AUTOCMD
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 if has("autocmd")
   " Enable file type detection
   filetype on
@@ -48,39 +86,19 @@ if has("autocmd")
   autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
 endif
 
-" Appearance
-syntax enable
-set autoindent
-set ruler
-set cursorline
-set number
-set numberwidth=4
-set showmatch
-set nowrap
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"                              UTIL FUNCTIONS
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-" Invisible characters
-set nolist
-set listchars=tab:▸\ ,eol:¬
-nmap <leader>l :set list!<CR>
-
-" Disable arrow keys
-map <Left> <Nop>
-map <Right> <Nop>
-map <Up> <Nop>
-map <Down> <Nop>
-
-" Window focus
-map <C-h> <C-w>h
-map <C-j> <C-w>j
-map <C-k> <C-w>k
-map <C-l> <C-w>l
-
-" Open file from current file directory
-map <leader>ew :e <C-R>=expand("%:p:h") . "/" <CR>
-map <leader>es :sp <C-R>=expand("%:p:h") . "/" <CR>
-map <leader>ev :vsp <C-R>=expand("%:p:h") . "/" <CR>
-map <leader>et :tabe <C-R>=expand("%:p:h") . "/" <CR>
-
-" Navigate displayed lines over numbered lines
-nmap k gk
-nmap j gj
+" Strip trailing whitespace function
+function! <SID>StripTrailingWhitespaces()
+  " Save search history and cursor position
+  let _s = @/
+  let l = line(".")
+  let c = col(".")
+  " Remove the whitespace
+  %s/\s\+$//e
+  " Restore search history and cursor position
+  let @/ = _s
+  call cursor(l, c)
+endfunction
