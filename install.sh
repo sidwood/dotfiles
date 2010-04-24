@@ -68,3 +68,10 @@ if [[ ! -x "bin/vcprompt" ]]; then
 else
   echo "vcprompt already installed"
 fi
+
+#
+# Install vim plugins
+#
+
+echo "Installing vim plugins"
+git submodule update --init
