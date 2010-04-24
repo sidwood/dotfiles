@@ -41,6 +41,10 @@ set softtabstop=2 " width of edit operations using <Tab> and <BS> (default 0)
 set shiftwidth=2  " width of normal mode block shift (default 8)
 set expandtab     " use spaces instead of tabs (default noexpandtab)
 
+" NERDTree settings
+let NERDTreeIgnore = ['\.git$']
+let NERDTreeShowHidden = 1
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "                                  MAPPINGS
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
