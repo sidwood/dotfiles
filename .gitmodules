@@ -19,3 +19,6 @@
 [submodule "vim/bundle/vim-surround"]
 	path = vim/bundle/vim-surround
 	url = http://github.com/tpope/vim-surround.git
+[submodule "vim/bundle/vim-endwise"]
+	path = vim/bundle/vim-endwise
+	url = http://github.com/tpope/vim-endwise.git
