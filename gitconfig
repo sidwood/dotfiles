@@ -20,6 +20,6 @@
 [color "status"]
 	added = green
 	changed = yellow
-	untracked = yellow
+	untracked = red
 [format]
 	pretty = %C(yellow)%h%Creset%Cred%d%Creset %s %Cgreen%an, %cr%Creset
