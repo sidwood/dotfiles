@@ -1,7 +1,3 @@
---ignore-dir=log
---ignore-dir=public/generated
---ignore-dir=temp
 --ignore-dir=tmp
 --ignore-dir=vendor
 --sort-files
--a
