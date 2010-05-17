@@ -76,6 +76,9 @@ nmap j gj
 " Toggle spell checking
 nmap <leader>sc :set spell!<CR>
 
+" Edit vimrc in new tab
+nmap <leader>vi :tabe ~/.vimrc<CR>
+
 " Source current file
 nmap <leader>so :so %<CR>
 
