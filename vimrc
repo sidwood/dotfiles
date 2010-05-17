@@ -76,6 +76,9 @@ nmap j gj
 " Toggle spell checking
 nmap <leader>s :set spell!<CR>
 
+" Source current file
+nmap <leader>so :so %<CR>
+
 " Toggle whitespace characters
 nmap <leader>l :set list!<CR>
 
