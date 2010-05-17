@@ -28,6 +28,9 @@ set hidden
 " Fix backspace
 set backspace=indent,eol,start
 
+" Spelling
+set spelllang=en_gb
+
 " Appearance
 syntax enable
 set autoindent
@@ -69,6 +72,9 @@ let NERDTreeShowHidden = 1
 " Navigate displayed lines over numbered lines
 nmap k gk
 nmap j gj
+
+" Toggle spell checking
+nmap <leader>s :set spell!<CR>
 
 " Toggle whitespace characters
 nmap <leader>l :set list!<CR>
