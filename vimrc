@@ -74,7 +74,7 @@ nmap k gk
 nmap j gj
 
 " Toggle spell checking
-nmap <leader>s :set spell!<CR>
+nmap <leader>sc :set spell!<CR>
 
 " Source current file
 nmap <leader>so :so %<CR>
