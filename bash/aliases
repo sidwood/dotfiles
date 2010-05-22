@@ -1,3 +1,5 @@
+PLATFORM=`uname`
+
 # cd
 alias ..='cd ..'
 alias cdd='cd - 1>/dev/null'
@@ -36,8 +38,13 @@ function gch() {
 }
 
 # ls
-alias l='ls -AFhl'
-alias ll='ls -Fl'
+alias l='ls -Ahl'
+# platform specific override of ls
+if [[ $PLATFORM == 'Linux' ]]; then
+  alias ls='ls -F --color'
+elif [[ $PLATFORM == 'Darwin' ]]; then
+  alias ls='ls -FG'
+fi
 
 # mkdir
 alias md='mkdir -p'
