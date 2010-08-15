@@ -111,9 +111,6 @@ map <leader>et :tabe <C-R>=expand("%:p:h") . "/" <CR>
 """""""""""
 
 if has("autocmd")
-  " Enable file type detection
-  filetype on
-
   " Whitespace preferences
   autocmd filetype make setlocal ts=8 sts=8 sw=8 noexpandtab
   autocmd filetype yaml setlocal ts=2 sts=2 sw=2 expandtab
