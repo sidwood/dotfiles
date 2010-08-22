@@ -91,6 +91,9 @@ nmap <leader>vi :tabe ~/.vimrc<CR>
 " Source current file
 nmap <leader>so :so %<CR>
 
+" View current file in new tab
+nmap <leader>nt <C-W>T
+
 " Toggle whitespace characters
 nmap <leader>l :set list!<CR>
 
