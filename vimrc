@@ -7,6 +7,11 @@ filetype on
 " SETTINGS
 """"""""""""
 
+" GNOME terminal supports 256 colors but reports 8 colors
+if $COLORTERM == 'gnome-terminal'
+  set t_Co=256
+endif
+
 " Color scheme
 if &t_Co == 256
   set background=dark
