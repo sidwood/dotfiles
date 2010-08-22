@@ -7,12 +7,11 @@ filetype on
 " SETTINGS
 """"""""""""
 
-" Enable 256 colors
-set t_Co=256
-
 " Color scheme
-set background=dark
-colorscheme lucius
+if &t_Co == 256
+  set background=dark
+  colorscheme lucius
+endif
 
 " Set leader
 let mapleader=","
