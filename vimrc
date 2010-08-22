@@ -31,6 +31,12 @@ set backspace=indent,eol,start
 " Spelling
 set spelllang=en_gb
 
+" Seach ignores case
+set ignorecase
+
+" Highlight search results
+set hlsearch
+
 " Appearance
 syntax enable
 set autoindent
@@ -72,6 +78,9 @@ let NERDTreeShowHidden = 1
 " Navigate displayed lines over numbered lines
 nmap k gk
 nmap j gj
+
+" Clear search results
+nmap <leader>c :nohlsearch<CR>
 
 " Toggle spell checking
 nmap <leader>sc :set spell!<CR>
