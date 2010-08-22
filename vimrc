@@ -71,6 +71,10 @@ set expandtab     " use spaces instead of tabs (default noexpandtab)
 let NERDTreeIgnore = ['\.git$']
 let NERDTreeShowHidden = 1
 
+" Highlight characters that exceed column 80
+hi OverLength ctermbg=239 guibg=#202438
+match OverLength /\%81v.\+/
+
 """""""""""
 " MAPPINGS
 """""""""""
