@@ -1,11 +1,11 @@
+" SETTINGS
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 set nocompatible
+
+" Initialize pathogen bundles
 filetype off
 call pathogen#runtime_append_all_bundles()
 filetype on
-
-""""""""""""
-" SETTINGS
-""""""""""""
 
 " GNOME terminal supports 256 colors but reports 8 colors
 if $COLORTERM == 'gnome-terminal'
@@ -35,10 +35,8 @@ set backspace=indent,eol,start
 " Spelling
 set spelllang=en_gb
 
-" Seach ignores case
+" Seach
 set ignorecase
-
-" Highlight search results
 set hlsearch
 
 " Appearance
@@ -47,6 +45,10 @@ set autoindent
 set cursorline
 set showmatch
 set nowrap
+
+" Line numbers
+set number
+set numberwidth=4
 
 " Windows
 set splitbelow
@@ -58,10 +60,6 @@ set winheight=999
 
 " Cursor position info
 set ruler
-
-" Line numbers
-set number
-set numberwidth=4
 
 " Whitespace
 set nolist
@@ -79,9 +77,8 @@ let NERDTreeShowHidden = 1
 hi OverLength ctermbg=239 guibg=#202438
 match OverLength /\%81v.\+/
 
-"""""""""""
 " MAPPINGS
-"""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Navigate displayed lines over numbered lines
 nmap k gk
@@ -126,9 +123,8 @@ map <leader>es :sp <C-R>=expand("%:p:h") . "/" <CR>
 map <leader>ev :vsp <C-R>=expand("%:p:h") . "/" <CR>
 map <leader>et :tabe <C-R>=expand("%:p:h") . "/" <CR>
 
-"""""""""""
 " AUTOCMD
-"""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 if has("autocmd")
   " Whitespace preferences
@@ -141,9 +137,8 @@ if has("autocmd")
   autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
 endif
 
-"""""""""""""""""
-" UTIL FUNCTIONS
-"""""""""""""""""
+" FUNCTIONS
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Strip trailing whitespace function
 function! <SID>StripTrailingWhitespaces()
