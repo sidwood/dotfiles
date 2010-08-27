@@ -9,49 +9,52 @@ if [[ -n $SSH_CONNECTION ]]; then
 else
   PROMPT='${CR}%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
 fi
-PROMPT="${PROMPT}${CR}%{$fg[green]%}➥%{$reset_color%} "
-
-HISTFILE=~/.zsh-history
-HISTSIZE=100000
-SAVEHIST=$HISTSIZE
+PROMPT='${PROMPT}${CR}%{$fg[green]%}➥%{$reset_color%} '
 
 REPORTTIME=10 # print elapsed time when more than 10 seconds
 LISTMAX=0 # ask to complete if top of list would scroll off screen
 
-setopt APPEND_HISTORY # adds history
+# History
+HISTFILE=~/.zsh-history
+HISTSIZE=100000
+SAVEHIST=$HISTSIZE
+setopt APPEND_HISTORY # don't overwrite history
+setopt HIST_VERIFY # verify commands that use history expansion
 setopt EXTENDED_HISTORY # add timestamps to history
+setopt INC_APPEND_HISTORY # adds commands to history incrementally
 setopt HIST_IGNORE_ALL_DUPS  # don't record duplicates to history
-setopt HIST_REDUCE_BLANKS
-setopt HIST_VERIFY
-setopt INC_APPEND_HISTORY # adds history incrementally
+setopt HIST_REDUCE_BLANKS # tidy up commands before committing to history
 setopt SHARE_HISTORY # share history across sessions
 
-setopt NO_CORRECT
-setopt COMPLETE_IN_WORD
-setopt IGNORE_EOF
-setopt LOCAL_OPTIONS # allow functions to have local options
-setopt LOCAL_TRAPS # allow functions to have local traps
+# Let's set a few ground rules
+setopt NO_BEEP # never, ever beep at me
+setopt NO_CORRECT # don't try to correct my commands
+setopt NO_BG_NICE # don't lower the priority of background jobs
+setopt NO_HUP # keep background jobs running if the shell exits
+setopt IGNORE_EOF # ignore ^D, when I want to logout I'll say so
+setopt LOCAL_OPTIONS # options changed within a function are reverted
+setopt LOCAL_TRAPS # signals trapped by a function do not propagate
+setopt PROMPT_SUBST # prompt customization will use parameters
+
+# Completion
 setopt MENUCOMPLETE # show completion on first TAB
-setopt NO_BG_NICE # don't nice background tasks
-setopt NO_HUP
-setopt NO_LIST_BEEP
-setopt PROMPT_SUBST
+setopt COMPLETE_IN_WORD # complete items from the beginning to the cursor
+
+# Initialise zsh's completion
+autoload -U compinit
+compinit
 
 # Bind ctrl-r to history search
 bindkey '^R' history-incremental-search-backward
 
-# initialise zsh's completion
-autoload -U compinit
-compinit
-
-# matches case insensitive for lowercase
+# Matches case insensitive for lowercase
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 
-# pasting with tabs doesn't perform completion
+# Pasting with tabs doesn't perform completion
 zstyle ':completion:*' insert-tab pending
 
-# create c function completions (c function defined in aliases file)
+# Create c function completions (c function defined in aliases file)
 compdef '_files -W ~/code -/' c
 
-# create h function completions (h function defined in aliases file)
+# Create h function completions (h function defined in aliases file)
 compdef '_files -W ~ -/' h
