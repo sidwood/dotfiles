@@ -9,7 +9,7 @@ if [[ -n $SSH_CONNECTION ]]; then
 else
   PROMPT='${CR}%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
 fi
-PROMPT='${PROMPT}${CR}%{$fg[green]%}➥%{$reset_color%} '
+PROMPT="${PROMPT}${CR}%{$fg[green]%}➥%{$reset_color%} "
 
 REPORTTIME=10 # print elapsed time when more than 10 seconds
 LISTMAX=0 # ask to complete if top of list would scroll off screen
