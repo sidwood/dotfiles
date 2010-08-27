@@ -22,6 +22,7 @@ setopt APPEND_HISTORY # don't overwrite history
 setopt HIST_VERIFY # verify commands that use history expansion
 setopt EXTENDED_HISTORY # add timestamps to history
 setopt INC_APPEND_HISTORY # adds commands to history incrementally
+setopt HIST_IGNORE_SPACE # don't record commands with leading space
 setopt HIST_IGNORE_ALL_DUPS  # don't record duplicates to history
 setopt HIST_REDUCE_BLANKS # tidy up commands before committing to history
 setopt SHARE_HISTORY # share history across sessions
