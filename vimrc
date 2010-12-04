@@ -35,7 +35,7 @@ set backspace=indent,eol,start
 " Spelling
 set spelllang=en_gb
 
-" Seach
+" Search
 set ignorecase
 set hlsearch
 
@@ -58,8 +58,37 @@ set winheight=5
 set winminheight=5
 set winheight=999
 
+" Remove lucius bold text StatusLine
+hi StatusLine gui=none
+hi StatusLine cterm=none
+
+" Custom status line highlight group
+" Used for modified flag (based on lucius Error)
+hi User1 guifg=#e37170 guibg=#432323 gui=bold
+hi User1 ctermfg=167 ctermbg=52 cterm=bold
+
+" Status line
+set laststatus=2 " always show statusline
+set statusline=
+set statusline+=\ %F " space and full filename
+set statusline+=\ %1* " switch to User1 highlight group
+set statusline+=%m " modified flag [+] or [-]
+set statusline+=%* " restore normal highlight
+set statusline+=%r " read only flag [RO]
+set statusline+=%w " preview flag [Preview]
+set statusline+=[ " open square bracket
+set statusline+=%{strlen(&ft)?&ft:'none'} " (space) file type
+set statusline+=\| " pipe
+set statusline+=%{strlen(&fenc)?&fenc:&enc} " file encoding
+set statusline+=\| " pipe
+set statusline+=%{&ff} " file format
+set statusline+=] " close square bracket
+set statusline+=%= " right align
+set statusline+=%c " cursor column
+set statusline+=\ %l/%L " (space) line/total lines
+
 " Cursor position info
-set ruler
+set ruler " not visible with status line enabled but what the heck
 
 " Whitespace
 set nolist
