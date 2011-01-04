@@ -29,6 +29,9 @@ set noswapfile
 " Allow hidden buffers without warning
 set hidden
 
+" Enable command-line <Tab> completion
+set wildmenu
+
 " Fix backspace
 set backspace=indent,eol,start
 
@@ -135,8 +138,8 @@ nmap <leader>l :set list!<CR>/<BS>
 nmap <leader>m :NERDTreeToggle<CR>/<BS>
 
 " Remap tab key to autocomplete or indent depending on context
-inoremap <TAB> <C-r>=<SID>SmartTabComplete()<CR>
-inoremap <S-TAB> <C-n>
+inoremap <Tab> <C-r>=<SID>SmartTabComplete()<CR>
+inoremap <S-Tab> <C-n>
 
 " Window focus
 map <C-h> <C-w>h
@@ -177,7 +180,7 @@ endif
 function! <SID>SmartTabComplete()
   let col = col('.') - 1
   if !col || getline('.')[col - 1] !~ '\k'
-    return "\<TAB>"
+    return "\<Tab>"
   else
     return "\<C-p>"
   endif
