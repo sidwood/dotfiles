@@ -43,6 +43,9 @@ set ignorecase
 set smartcase
 set hlsearch
 
+" Scroll
+set scrolloff=4
+
 " Appearance
 syntax enable
 set autoindent
