@@ -114,7 +114,7 @@ nmap k gk
 nmap j gj
 
 " Clear search results
-nmap <leader>c :nohlsearch<CR>
+nnoremap <CR> :nohlsearch<CR>/<BS>
 
 " Toggle spell checking
 nmap <leader>sc :set spell!<CR>
