@@ -40,6 +40,7 @@ set spelllang=en_gb
 
 " Search
 set ignorecase
+set smartcase
 set hlsearch
 
 " Appearance
