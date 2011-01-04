@@ -7,6 +7,11 @@ filetype off
 call pathogen#runtime_append_all_bundles()
 filetype on
 
+" Syntax highlighting
+if &t_Co > 8 || has('gui_running')
+  syntax on
+endif
+
 " GNOME terminal supports 256 colors but reports 8 colors
 if $COLORTERM == 'gnome-terminal'
   set t_Co=256
@@ -54,7 +59,6 @@ set hlsearch
 set scrolloff=4
 
 " Appearance
-syntax enable
 set autoindent
 set cursorline
 set showmatch
