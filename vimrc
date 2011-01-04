@@ -117,22 +117,22 @@ nmap j gj
 nnoremap <CR> :nohlsearch<CR>/<BS>
 
 " Toggle spell checking
-nmap <leader>sc :set spell!<CR>
+nmap <leader>sc :set spell!<CR>/<BS>
 
 " Edit vimrc in new tab
-nmap <leader>vi :tabe ~/.vimrc<CR>
+nmap <leader>vi :tabe ~/.vimrc<CR>/<BS>
 
 " Source current file
-nmap <leader>so :so %<CR>
+nmap <leader>so :so %<CR>/<BS>
 
 " View current file in new tab
 nmap <leader>nt <C-W>T
 
 " Toggle whitespace characters
-nmap <leader>l :set list!<CR>
+nmap <leader>l :set list!<CR>/<BS>
 
 " Toggle NERDTree
-nmap <leader>m :NERDTreeToggle<CR>
+nmap <leader>m :NERDTreeToggle<CR>/<BS>
 
 " Window focus
 map <C-h> <C-w>h
