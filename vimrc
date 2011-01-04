@@ -134,6 +134,10 @@ nmap <leader>l :set list!<CR>/<BS>
 " Toggle NERDTree
 nmap <leader>m :NERDTreeToggle<CR>/<BS>
 
+" Remap tab key to autocomplete or indent depending on context
+inoremap <TAB> <C-r>=<SID>SmartTabComplete()<CR>
+inoremap <S-TAB> <C-n>
+
 " Window focus
 map <C-h> <C-w>h
 map <C-j> <C-w>j
@@ -168,6 +172,16 @@ endif
 
 " FUNCTIONS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" Tab key autocompletion or indentation depending on context
+function! <SID>SmartTabComplete()
+  let col = col('.') - 1
+  if !col || getline('.')[col - 1] !~ '\k'
+    return "\<TAB>"
+  else
+    return "\<C-p>"
+  endif
+endfunction
 
 " Strip trailing whitespace function
 function! <SID>StripTrailingWhitespaces()
