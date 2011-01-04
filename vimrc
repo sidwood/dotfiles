@@ -13,9 +13,16 @@ if $COLORTERM == 'gnome-terminal'
 endif
 
 " Color scheme
-if &t_Co == 256
+if &t_Co == 256 || has('gui_running')
   set background=dark
   colorscheme lucius
+endif
+
+" Macvim and gvim settings
+if has('gui_running')
+  set guifont=Menlo-Regular:h18
+  set guioptions=aAc
+  set guioptions-=Be
 endif
 
 " Set leader
