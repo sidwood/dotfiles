@@ -10,6 +10,8 @@ filetype on
 " Syntax highlighting
 if &t_Co > 8 || has('gui_running')
   syntax on
+else
+  syntax off
 endif
 
 " GNOME terminal supports 256 colors but reports 8 colors
