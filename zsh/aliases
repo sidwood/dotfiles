@@ -19,5 +19,7 @@ function h() {
 alias reload='source ~/.dotfiles/zshrc'
 
 # top (osx)
-alias tu='top -o cpu'
-alias tm='top -o vsize'
+if [[ $PLATFORM == 'Darwin' ]]; then
+  alias tu='top -o cpu'
+  alias tm='top -o vsize'
+fi
