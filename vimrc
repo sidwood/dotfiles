@@ -154,6 +154,9 @@ nmap <leader>l :set list!<CR>/<BS>
 " Toggle NERDTree
 nmap <leader>m :NERDTreeToggle<CR>/<BS>
 
+" Cucumber table auto-alignment
+inoremap <silent> <Bar>  <Bar><Esc>:call <SID>cucumberTableAlign()<CR>a
+
 " Window focus
 map <C-h> <C-w>h
 map <C-j> <C-w>j
@@ -184,14 +187,29 @@ if has("autocmd")
   autocmd Bufread,BufNewFile *gitmodules setlocal ts=8 sts=8 sw=8 noexpandtab
 
   " Remove trailing whitespace
-  autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
+  autocmd BufWritePre * :call <SID>stripTrailingWhitespaces()
 endif
 
 " FUNCTIONS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+" Call tabularize plugin to align '|' characters in a cucumber feature file
+" https://gist.github.com/tpope/287147
+function! s:cucumberTableAlign()
+  let p = '^\s*|\s.*\s|\s*$'
+  if exists(':Tabularize') && getline('.') =~# '^\s*|'
+    if getline(line('.')-1) =~# p || getline(line('.')+1) =~# p
+      let col = strlen(substitute(getline('.')[0:col('.')],'[^|]','','g'))
+      let pos = strlen(matchstr(getline('.')[0:col('.')],'.*|\s*\zs.*'))
+      Tabularize/|/l1
+      normal! 0
+      call search(repeat('[^|]*|',col).'\s\{-\}'.repeat('.',pos),'ce',line('.'))
+    endif
+  endif
+endfunction
+
 " Strip trailing whitespace function
-function! <SID>StripTrailingWhitespaces()
+function! s:stripTrailingWhitespaces()
   " Save search history and cursor position
   let _s = @/
   let l = line(".")
