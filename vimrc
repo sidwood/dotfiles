@@ -170,7 +170,7 @@ map <Up> <Nop>
 map <Down> <Nop>
 
 " Open file from current file directory
-cnoremap %% <C-R>=expand('%:p:h').'/'<CR>
+cnoremap %% <C-R>=fnameescape(expand('%:p:h')).'/'<CR>
 map <leader>ew :e %%
 map <leader>es :sp %%
 map <leader>ev :vsp %%
