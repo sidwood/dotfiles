@@ -1,11 +1,16 @@
-" SETTINGS
+" INIT
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" Vi IMproved
 set nocompatible
 
 " Initialize pathogen bundles
 filetype off
 call pathogen#runtime_append_all_bundles()
 filetype on
+
+" COLORS
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " GNOME terminal supports 256 colors but reports 8 colors
 if $COLORTERM == 'gnome-terminal'
@@ -23,7 +28,21 @@ endif
 if &t_Co == 256 || has('gui_running')
   set background=dark
   colorscheme solarized
+
+  " Spelling highlights taken from lucius color scheme
+  highlight SpellBad guisp=#ee0000 gui=undercurl
+  highlight SpellBad ctermbg=196 cterm=undercurl
+  highlight SpellCap guisp=#eeee00 gui=undercurl
+  highlight SpellCap ctermbg=226 cterm=undercurl
+  highlight SpellRare guisp=#ffa500 gui=undercurl
+  highlight SpellRare ctermbg=214 cterm=undercurl
+  highlight SpellLocal guisp=#ffa500 gui=undercurl
+  highlight SpellLocal ctermbg=214 cterm=undercurl
 endif
+
+
+" SETTINGS
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Macvim and gvim settings
 if has('gui_running')
