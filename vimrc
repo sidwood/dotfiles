@@ -188,6 +188,9 @@ if has("autocmd")
 
   " Remove trailing whitespace
   autocmd BufWritePre * :call <SID>stripTrailingWhitespaces()
+
+  " Automatically remove hidden fugitive buffers
+  autocmd BufReadPost fugitive://* set bufhidden=delete
 endif
 
 " FUNCTIONS
