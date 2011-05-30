@@ -22,7 +22,7 @@ endif
 " Color scheme
 if &t_Co == 256 || has('gui_running')
   set background=dark
-  colorscheme lucius
+  colorscheme solarized
 endif
 
 " Macvim and gvim settings
