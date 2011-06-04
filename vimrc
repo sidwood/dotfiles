@@ -52,13 +52,6 @@ endif
 " SETTINGS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-" Macvim and gvim settings
-if has('gui_running')
-  set guifont=Menlo-Regular:h18
-  set guioptions=aAc
-  set guioptions-=Be
-endif
-
 " Set leader
 let mapleader=","
 
@@ -145,6 +138,13 @@ set tabstop=2     " width of tab characters (default 8)
 set softtabstop=2 " width of edit operations using <Tab> and <BS> (default 0)
 set shiftwidth=2  " width of normal mode block shift (default 8)
 set expandtab     " use spaces instead of tabs (default noexpandtab)
+
+" Macvim and gvim settings
+if has('gui_running')
+  set guifont=Menlo-Regular:h18
+  set guioptions=aAc
+  set guioptions-=Be
+endif
 
 " NERDTree settings
 let NERDTreeIgnore = ['\.git$']
