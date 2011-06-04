@@ -25,11 +25,14 @@ else
 endif
 
 " Color scheme
-if &t_Co == 256 || has('gui_running')
+if $COLORTERM == 'gnome-terminal'
+  set background=dark
+  colorscheme lucius
+elseif &t_Co == 256 || has('gui_running')
   set background=dark
   colorscheme solarized
 
-  " Spelling highlights taken from lucius color scheme
+  " Spelling highlights taken from lucius
   highlight SpellBad guisp=#ee0000 gui=undercurl
   highlight SpellBad ctermbg=196 cterm=undercurl
   highlight SpellCap guisp=#eeee00 gui=undercurl
