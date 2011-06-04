@@ -40,6 +40,14 @@ if &t_Co == 256 || has('gui_running')
   highlight SpellLocal ctermbg=214 cterm=undercurl
 endif
 
+" Right margin
+if exists('+colorcolumn')
+  set colorcolumn=81
+else
+  " Highlight characters that exceed column 80
+  hi OverLength ctermbg=239 guibg=#202438
+  match OverLength /\%81v.\+/
+endif
 
 " SETTINGS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -141,10 +149,6 @@ set expandtab     " use spaces instead of tabs (default noexpandtab)
 " NERDTree settings
 let NERDTreeIgnore = ['\.git$']
 let NERDTreeShowHidden = 1
-
-" Highlight characters that exceed column 80
-hi OverLength ctermbg=239 guibg=#202438
-match OverLength /\%81v.\+/
 
 " MAPPINGS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
