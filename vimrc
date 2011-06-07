@@ -182,7 +182,7 @@ nmap <leader>l :set list!<CR>/<BS>
 nmap <leader>m :NERDTreeToggle<CR>/<BS>
 
 " Cucumber table auto-alignment
-inoremap <silent> <Bar>  <Bar><Esc>:call <SID>cucumberTableAlign()<CR>a
+inoremap <silent> <Bar>  <Bar><Esc>:call <SID>CucumberTableAlign()<CR>a
 
 " Window focus
 map <C-h> <C-w>h
@@ -203,6 +203,11 @@ map <leader>es :sp %%
 map <leader>ev :vsp %%
 map <leader>et :tabe %%
 
+" Toggle between absolute and relative line numbers
+if exists('+relativenumber')
+  nnoremap <space> :call <SID>NumberToggle()<CR>
+endif
+
 " AUTOCMD
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -214,7 +219,7 @@ if has("autocmd")
   autocmd Bufread,BufNewFile *gitmodules setlocal ts=8 sts=8 sw=8 noexpandtab
 
   " Remove trailing whitespace
-  autocmd BufWritePre * :call <SID>stripTrailingWhitespaces()
+  autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
 
   " Automatically remove hidden fugitive buffers
   autocmd BufReadPost fugitive://* set bufhidden=delete
@@ -225,7 +230,7 @@ endif
 
 " Call tabularize plugin to align '|' characters in a cucumber feature file
 " https://gist.github.com/tpope/287147
-function! s:cucumberTableAlign()
+function! s:CucumberTableAlign()
   let p = '^\s*|\s.*\s|\s*$'
   if exists(':Tabularize') && getline('.') =~# '^\s*|'
     if getline(line('.')-1) =~# p || getline(line('.')+1) =~# p
@@ -238,8 +243,19 @@ function! s:cucumberTableAlign()
   endif
 endfunction
 
+" Toggle between absolute and relative line numbers
+function! s:NumberToggle()
+  if(&relativenumber == 1)
+    set number
+    set norelativenumber
+  else
+    set nonumber
+    set relativenumber
+  endif
+endfunction
+
 " Strip trailing whitespace function
-function! s:stripTrailingWhitespaces()
+function! s:StripTrailingWhitespaces()
   " Save search history and cursor position
   let _s = @/
   let l = line(".")
