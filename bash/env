@@ -1,4 +1,4 @@
 PLATFORM=`uname`
-export EDITOR='vi'
-export PATH=~/.bin:$PATH
 export CDPATH=~/code
+export EDITOR='vi'
+export PATH=~/.bin:./node_modules/.bin:$PATH
