@@ -59,3 +59,8 @@ compdef '_files -W ~/code -/' c
 
 # Create h function completions (h function defined in aliases file)
 compdef '_files -W ~ -/' h
+
+# rbenv shim
+if which rbenv > /dev/null; then
+  eval "$(rbenv init -)"
+fi
