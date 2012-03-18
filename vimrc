@@ -7,7 +7,7 @@ set nocompatible
 " Initialize pathogen bundles
 filetype off
 call pathogen#runtime_append_all_bundles()
-filetype on
+filetype plugin indent on
 
 " COLORS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
