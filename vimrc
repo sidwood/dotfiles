@@ -58,6 +58,10 @@ endif
 " Set leader
 let mapleader=","
 
+" Set encoding
+set encoding=utf-8
+set fileencoding=utf-8
+
 " Backup and swap file settings
 set nobackup
 set nowritebackup
