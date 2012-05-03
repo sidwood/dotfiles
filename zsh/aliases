@@ -23,3 +23,10 @@ if [[ $PLATFORM == 'Darwin' ]]; then
   alias tu='top -o cpu'
   alias tm='top -o vsize'
 fi
+
+# postgres
+alias pg='postgres -D /usr/local/var/postgres'
+
+# redis
+alias res='redis-server /usr/local/etc/redis.conf'
+alias rec='redis-cli'
