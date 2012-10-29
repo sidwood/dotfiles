@@ -1,4 +1,4 @@
 PLATFORM=`uname`
 export CDPATH=~/code
 export EDITOR='vi'
-export PATH=~/.bin:./node_modules/.bin:$PATH
+export PATH=~/.bin:./node_modules/.bin:/usr/local/heroku/bin:$PATH
