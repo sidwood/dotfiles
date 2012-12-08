@@ -45,7 +45,7 @@ endif
 
 " Right margin
 if exists('+colorcolumn')
-  set colorcolumn=81
+  let &colorcolumn=join(range(81,999),",")
 else
   " Highlight characters that exceed column 80
   hi OverLength ctermbg=239 guibg=#202438
