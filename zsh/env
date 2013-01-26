@@ -1,1 +1,5 @@
 . ~/.dotfiles/bash/env
+
+# Add pyenv to path. This can be removed when the pyenv homebrew formula is
+# merged and installed (https://github.com/mxcl/homebrew/pull/17250)
+export PATH=$HOME/.pyenv/bin:$PATH
