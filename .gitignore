@@ -1,4 +1,5 @@
 bin/vcprompt
 tmp/
+vim/bundle/
 .DS_Store
 .netrwhist
