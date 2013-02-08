@@ -39,6 +39,7 @@ Bundle 'digitaltoad/vim-jade'
 Bundle 'pangloss/vim-javascript'
 Bundle 'tpope/vim-markdown'
 Bundle 'wavded/vim-stylus'
+Bundle 'puppetlabs/puppet-syntax-vim'
 
 filetype plugin indent on
 
