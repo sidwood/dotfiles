@@ -39,7 +39,7 @@ Bundle 'digitaltoad/vim-jade'
 Bundle 'pangloss/vim-javascript'
 Bundle 'elzr/vim-json'
 Bundle 'groenewege/vim-less'
-Bundle 'tpope/vim-markdown'
+Bundle 'plasticboy/vim-markdown'
 Bundle 'mustache/vim-mustache-handlebars'
 Bundle 'slim-template/vim-slim'
 Bundle 'wavded/vim-stylus'
@@ -193,6 +193,9 @@ endif
 
 " CtrlP settings
 let g:ctrlp_show_hidden = 1
+
+" Markdown settings
+let g:vim_markdown_folding_disabled = 1
 
 " NERDTree settings
 let NERDTreeIgnore = ['\.git$']
