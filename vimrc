@@ -9,25 +9,30 @@ filetype off
 set rtp+=~/.vim/bundle/vundle
 call vundle#rc()
 
-Bundle 'mileszs/ack.vim'
-Bundle 'kchmck/vim-coffee-script'
+" Color
 Bundle 'altercation/vim-colors-solarized'
-Bundle 'tpope/vim-commentary'
+
+" Utils
+Bundle 'mileszs/ack.vim'
 Bundle 'kien/ctrlp.vim'
-Bundle 'tpope/vim-cucumber'
+Bundle 'scrooloose/nerdtree'
+Bundle 'msanders/snipmate.vim'
+Bundle 'godlygeek/tabular'
+Bundle 'tpope/vim-commentary'
 Bundle 'tpope/vim-endwise'
 Bundle 'tpope/vim-fugitive'
 Bundle 'tpope/vim-git'
+Bundle 'tpope/vim-rails'
+Bundle 'tpope/vim-surround'
+
+" Syntax
+Bundle 'kchmck/vim-coffee-script'
+Bundle 'tpope/vim-cucumber'
 Bundle 'tpope/vim-haml'
 Bundle 'digitaltoad/vim-jade'
 Bundle 'pangloss/vim-javascript'
 Bundle 'tpope/vim-markdown'
-Bundle 'scrooloose/nerdtree'
-Bundle 'tpope/vim-rails'
-Bundle 'msanders/snipmate.vim'
 Bundle 'wavded/vim-stylus'
-Bundle 'tpope/vim-surround'
-Bundle 'godlygeek/tabular'
 
 filetype plugin indent on
 
