@@ -40,6 +40,7 @@ Bundle 'pangloss/vim-javascript'
 Bundle 'elzr/vim-json'
 Bundle 'groenewege/vim-less'
 Bundle 'tpope/vim-markdown'
+Bundle 'mustache/vim-mustache-handlebars'
 Bundle 'wavded/vim-stylus'
 Bundle 'puppetlabs/puppet-syntax-vim'
 
