@@ -191,6 +191,9 @@ if has('gui_running')
   set guioptions-=Be
 endif
 
+" CtrlP settings
+let g:ctrlp_show_hidden = 1
+
 " NERDTree settings
 let NERDTreeIgnore = ['\.git$']
 let NERDTreeShowHidden = 1
