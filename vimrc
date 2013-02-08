@@ -27,6 +27,7 @@ Bundle 'tpope/vim-fugitive'
 Bundle 'tpope/vim-git'
 Bundle 'tpope/vim-rails'
 Bundle 'tpope/vim-surround'
+Bundle 'nathanaelkane/vim-indent-guides'
 
 " Syntax
 Bundle 'kchmck/vim-coffee-script'
