@@ -73,5 +73,10 @@ fi
 # Install vim plugins
 #
 
-echo "Installing vim plugins"
-git submodule update --init
+if [[ ! -d ~/.vim/bundle/vundle ]]; then
+  echo "Installing vundle"
+  git clone git://github.com/gmarik/vundle.git ~/.vim/bundle/vundle
+fi
+
+echo "Running :BundleInstall"
+vim +BundleInstall +qall

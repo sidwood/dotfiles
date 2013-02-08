@@ -4,9 +4,31 @@
 " Vi IMproved
 set nocompatible
 
-" Initialize pathogen bundles
+" Initialize vundle
 filetype off
-call pathogen#runtime_append_all_bundles()
+set rtp+=~/.vim/bundle/vundle
+call vundle#rc()
+
+Bundle 'mileszs/ack.vim'
+Bundle 'kchmck/vim-coffee-script'
+Bundle 'altercation/vim-colors-solarized'
+Bundle 'tpope/vim-commentary'
+Bundle 'kien/ctrlp.vim'
+Bundle 'tpope/vim-cucumber'
+Bundle 'tpope/vim-endwise'
+Bundle 'tpope/vim-fugitive'
+Bundle 'tpope/vim-git'
+Bundle 'tpope/vim-haml'
+Bundle 'digitaltoad/vim-jade'
+Bundle 'pangloss/vim-javascript'
+Bundle 'tpope/vim-markdown'
+Bundle 'scrooloose/nerdtree'
+Bundle 'tpope/vim-rails'
+Bundle 'msanders/snipmate.vim'
+Bundle 'wavded/vim-stylus'
+Bundle 'tpope/vim-surround'
+Bundle 'godlygeek/tabular'
+
 filetype plugin indent on
 
 " COLORS
