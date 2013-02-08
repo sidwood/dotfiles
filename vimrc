@@ -18,6 +18,7 @@ Bundle 'altercation/vim-colors-solarized'
 Bundle 'mileszs/ack.vim'
 Bundle 'kien/ctrlp.vim'
 Bundle 'scrooloose/nerdtree'
+Bundle 'scrooloose/syntastic'
 Bundle 'godlygeek/tabular'
 Bundle 'SirVer/ultisnips'
 Bundle 'Townk/vim-autoclose'
@@ -188,6 +189,11 @@ endif
 " NERDTree settings
 let NERDTreeIgnore = ['\.git$']
 let NERDTreeShowHidden = 1
+
+" Syntastic settings
+let g:syntastic_error_symbol = '✗'
+let g:syntastic_warning_symbol = '⚠'
+" let g:syntastic_quiet_warnings = 1
 
 " UltiSnips settings
 let g:UltiSnipsEditSplit = 'vertical'
