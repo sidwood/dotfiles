@@ -1,3 +1,6 @@
+# ./bin
+alias bb=./bin/build.sh
+
 # cd
 alias ..='cd ..'
 alias ...='cd ../..'
