@@ -230,6 +230,9 @@ nmap <leader>sc :set spell!<CR>/<BS>
 " Edit vimrc in new tab
 nmap <leader>vi :tabe ~/.vimrc<CR>/<BS>
 
+" Edit TODO file in new tab
+nmap <leader>td :tabe ~/Google\ Drive/Notes/TODO<CR>/<BS>
+
 " Source current file
 nmap <leader>so :so %<CR>/<BS>
 
