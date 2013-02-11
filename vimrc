@@ -131,6 +131,9 @@ set cursorline
 set showmatch
 set nowrap
 
+" No beeps
+set visualbell
+
 " Line numbers
 set number
 set numberwidth=4
