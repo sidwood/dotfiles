@@ -242,6 +242,14 @@ nmap <leader>nt <C-W>T
 " Toggle invisible characters
 nmap <leader>ll :set list!<CR>/<BS>
 
+if exists('+relativenumber')
+  " Toggle line number display
+  nmap <leader>ln :call <SID>LineNumberToggle()<CR>
+
+  " Toggle between absolute and relative line numbers
+  nnoremap <space> :call <SID>AbsoluteRelativeLineNumberToggle()<CR>
+endif
+
 " Toggle NERDTree
 nmap <leader>m :NERDTreeToggle<CR>/<BS>
 
@@ -266,11 +274,6 @@ map <leader>ew :e %%
 map <leader>es :sp %%
 map <leader>ev :vsp %%
 map <leader>et :tabe %%
-
-" Toggle between absolute and relative line numbers
-if exists('+relativenumber')
-  nnoremap <space> :call <SID>NumberToggle()<CR>
-endif
 
 " AUTOCMD
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -308,13 +311,27 @@ function! s:CucumberTableAlign()
 endfunction
 
 " Toggle between absolute and relative line numbers
-function! s:NumberToggle()
+function! s:AbsoluteRelativeLineNumberToggle()
   if(&relativenumber == 1)
     set number
     set norelativenumber
   else
     set nonumber
     set relativenumber
+  endif
+endfunction
+
+" Toggle line numbers
+function! s:LineNumberToggle()
+  if(&relativenumber == 1)
+    set nonumber
+    set norelativenumber
+  elseif(&number == 1)
+    set nonumber
+    set norelativenumber
+  else
+    set number
+    set norelativenumber
   endif
 endfunction
 
