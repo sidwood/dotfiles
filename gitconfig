@@ -21,6 +21,8 @@
 	added = green
 	changed = yellow
 	untracked = red
+[core]
+	editor = vim
 [format]
 	pretty = %C(yellow)%h%Creset%Cred%d%Creset %s %Cgreen%an, %cr%Creset
 [heroku]
