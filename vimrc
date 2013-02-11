@@ -239,8 +239,8 @@ nmap <leader>so :so %<CR>/<BS>
 " View current file in new tab
 nmap <leader>nt <C-W>T
 
-" Toggle whitespace characters
-nmap <leader>l :set list!<CR>/<BS>
+" Toggle invisible characters
+nmap <leader>ll :set list!<CR>/<BS>
 
 " Toggle NERDTree
 nmap <leader>m :NERDTreeToggle<CR>/<BS>
