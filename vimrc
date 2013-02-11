@@ -288,6 +288,9 @@ if has("autocmd")
   autocmd Bufread,BufNewFile *gitconfig setlocal ts=8 sts=8 sw=8 noexpandtab
   autocmd Bufread,BufNewFile *gitmodules setlocal ts=8 sts=8 sw=8 noexpandtab
 
+  " Markdown auto textwidth
+  autocmd Bufread,BufNewFile *.markdown,*.md set textwidth=79
+
   " Remove trailing whitespace
   autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
 
