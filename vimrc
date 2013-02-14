@@ -30,6 +30,7 @@ Bundle 'tpope/vim-git'
 Bundle 'tpope/vim-rails'
 Bundle 'tpope/vim-surround'
 Bundle 'nathanaelkane/vim-indent-guides'
+Bundle 'mattn/zencoding-vim'
 
 " Syntax
 Bundle 'kchmck/vim-coffee-script'
@@ -221,6 +222,9 @@ let g:UltiSnipsListSnippets='<c-l>'
 let g:UltiSnipsExpandTrigger = '<tab>'
 let g:UltiSnipsJumpForwardTrigger = '<tab>'
 let g:UltiSnipsJumpBackwardTrigger = '<s-tab>'
+
+" ZenCoding settings
+let g:user_zen_leader_key = '<leader>e'
 
 " MAPPINGS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
