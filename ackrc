@@ -1,4 +1,5 @@
 --ignore-dir=coverage
+--ignore-dir=dist
 --ignore-dir=doc
 --ignore-dir=log
 --ignore-dir=node_modules
