@@ -17,6 +17,7 @@ Bundle 'altercation/vim-colors-solarized'
 " Utils
 Bundle 'mileszs/ack.vim'
 Bundle 'kien/ctrlp.vim'
+Bundle 'Raimondi/delimitMate'
 Bundle 'scrooloose/nerdtree'
 Bundle 'scrooloose/syntastic'
 Bundle 'godlygeek/tabular'
@@ -196,6 +197,10 @@ endif
 
 " CtrlP settings
 let g:ctrlp_show_hidden = 1
+
+" delimitMate settings
+let g:delimitMate_expand_cr = 1
+let g:delimitMate_expand_space = 1
 
 " Markdown settings
 let g:vim_markdown_folding_disabled = 1
