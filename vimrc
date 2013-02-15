@@ -28,6 +28,7 @@ Bundle 'tpope/vim-commentary'
 Bundle 'tpope/vim-endwise'
 Bundle 'tpope/vim-fugitive'
 Bundle 'tpope/vim-git'
+Bundle 'jistr/vim-nerdtree-tabs'
 Bundle 'tpope/vim-rails'
 Bundle 'tpope/vim-surround'
 Bundle 'nathanaelkane/vim-indent-guides'
@@ -270,8 +271,8 @@ if exists('+relativenumber')
   nnoremap <space> :call <SID>AbsoluteRelativeLineNumberToggle()<CR>/<BS>
 endif
 
-" Toggle NERDTree
-nmap <leader>m :NERDTreeToggle<CR>/<BS>
+" Toggle NERDTree (via NERDTreeTabs)
+nmap <leader>m :NERDTreeTabsToggle<CR>/<BS>
 
 " Toggle Gundo
 nmap <leader>u :GundoToggle<CR>/<BS>
