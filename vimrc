@@ -18,6 +18,7 @@ Bundle 'altercation/vim-colors-solarized'
 Bundle 'mileszs/ack.vim'
 Bundle 'kien/ctrlp.vim'
 Bundle 'Raimondi/delimitMate'
+Bundle 'sjl/gundo.vim'
 Bundle 'scrooloose/nerdtree'
 Bundle 'scrooloose/syntastic'
 Bundle 'godlygeek/tabular'
@@ -196,12 +197,19 @@ if has('gui_running')
   set guioptions-=Be
 endif
 
+" PLUGIN SETTINGS
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 " CtrlP settings
 let g:ctrlp_show_hidden = 1
 
 " delimitMate settings
 let g:delimitMate_expand_cr = 1
 let g:delimitMate_expand_space = 1
+
+" Gundo settings
+let g:gundo_right = 1
+let g:gundo_preview_bottom = 1
 
 " Markdown settings
 let g:vim_markdown_folding_disabled = 1
@@ -264,6 +272,9 @@ endif
 
 " Toggle NERDTree
 nmap <leader>m :NERDTreeToggle<CR>/<BS>
+
+" Toggle Gundo
+nmap <leader>u :GundoToggle<CR>/<BS>
 
 " Cucumber table auto-alignment
 inoremap <silent> <Bar>  <Bar><Esc>:call <SID>CucumberTableAlign()<CR>a
