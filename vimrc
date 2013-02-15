@@ -264,10 +264,10 @@ nmap <leader>ll :set list!<CR>/<BS>
 
 if exists('+relativenumber')
   " Toggle line number display
-  nmap <leader>ln :call <SID>LineNumberToggle()<CR>
+  nmap <leader>ln :call <SID>LineNumberToggle()<CR>/<BS>
 
   " Toggle between absolute and relative line numbers
-  nnoremap <space> :call <SID>AbsoluteRelativeLineNumberToggle()<CR>
+  nnoremap <space> :call <SID>AbsoluteRelativeLineNumberToggle()<CR>/<BS>
 endif
 
 " Toggle NERDTree
