@@ -304,8 +304,9 @@ map <leader>et :tabe %%
 
 if has("autocmd")
   " Whitespace preferences
-  autocmd filetype make setlocal ts=8 sts=8 sw=8 noexpandtab
-  autocmd filetype yaml setlocal ts=2 sts=2 sw=2 expandtab
+  autocmd FileType make setlocal ts=8 sts=8 sw=8 noexpandtab
+  autocmd FileType markdown,mkd setlocal ts=4 sts=4 sw=4 expandtab
+  autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab
   autocmd Bufread,BufNewFile *gitconfig setlocal ts=8 sts=8 sw=8 noexpandtab
   autocmd Bufread,BufNewFile *gitmodules setlocal ts=8 sts=8 sw=8 noexpandtab
 
