@@ -260,6 +260,9 @@ nmap <leader>so :so %<CR>/<BS>
 " View current file in new tab
 nmap <leader>nt <C-W>T
 
+" Toggle background color
+map <leader>bg :let &background = (&background == 'dark' ? 'light' : 'dark')<CR>
+
 " Toggle invisible characters
 nmap <leader>ll :set list!<CR>/<BS>
 
