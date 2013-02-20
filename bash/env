@@ -1,3 +1,9 @@
 PLATFORM=`uname`
 export EDITOR='vi'
 export PATH=~/.bin:./node_modules/.bin:/usr/local/heroku/bin:$PATH
+
+# closure compiler install path
+if [[ $PLATFORM -eq 'Darwin' ]]; then
+  # obtained by `brew --prefix closure-compiler` and appending '/libexec'
+  export CLOSURE_PATH=/usr/local/opt/closure-compiler/libexec
+fi
