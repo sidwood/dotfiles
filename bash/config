@@ -1,3 +1,6 @@
+# Increase file descriptor soft limit
+ulimit -n 2560
+
 # Show dotfiles first when using ls on Linux platforms
 if [[ $PLATFORM == 'Linux' ]]; then
   export LC_COLLATE='C'
