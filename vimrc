@@ -160,25 +160,27 @@ hi User1 guifg=#e37170 guibg=#432323 gui=bold
 hi User1 ctermfg=167 ctermbg=52 cterm=bold
 
 " Status line
-set laststatus=2 " always show statusline
-set statusline=
-set statusline+=\ %F " space and full filename
-set statusline+=%1* " switch to User1 highlight group
-set statusline+=%m " modified flag [+] or [-]
-set statusline+=%* " restore normal highlight
-set statusline+=%{fugitive#statusline()} " fugitive plugin status line
-set statusline+=%r " read only flag [RO]
-set statusline+=%w " preview flag [Preview]
-set statusline+=[ " open square bracket
-set statusline+=%{strlen(&ft)?&ft:'none'} " file type
-set statusline+=: " separator
-set statusline+=%{strlen(&fenc)?&fenc:&enc} " file encoding
-set statusline+=: " separator
-set statusline+=%{&ff} " file format
-set statusline+=] " close square bracket
-set statusline+=%= " right align
-set statusline+=c%c " cursor column
-set statusline+=\ r%l/%L " (space) line/total lines
+if has('statusline')
+  set laststatus=2 " always show statusline
+  set statusline=
+  set statusline+=\ %F " space and full filename
+  set statusline+=%1* " switch to User1 highlight group
+  set statusline+=%m " modified flag [+] or [-]
+  set statusline+=%* " restore normal highlight
+  set statusline+=%{fugitive#statusline()} " fugitive plugin status line
+  set statusline+=%r " read only flag [RO]
+  set statusline+=%w " preview flag [Preview]
+  set statusline+=[ " open square bracket
+  set statusline+=%{strlen(&ft)?&ft:'none'} " file type
+  set statusline+=: " separator
+  set statusline+=%{strlen(&fenc)?&fenc:&enc} " file encoding
+  set statusline+=: " separator
+  set statusline+=%{&ff} " file format
+  set statusline+=] " close square bracket
+  set statusline+=%= " right align
+  set statusline+=c%c " cursor column
+  set statusline+=\ r%l/%L " (space) line/total lines
+endif
 
 " Cursor position info
 set ruler " not visible with status line enabled but what the heck
