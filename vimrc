@@ -87,6 +87,7 @@ endif
 if isdirectory(expand('~/.vim/bundle/ultisnips'))
   let g:UltiSnipsEditSplit = 'vertical'
   let g:UltiSnipsSnippetsDir = '~/.vim/snippets'
+  let g:UltiSnipsSnippetDirectories = ['UltiSnips', 'snippets']
   let g:UltiSnipsListSnippets='<c-l>'
   let g:UltiSnipsExpandTrigger = '<tab>'
   let g:UltiSnipsJumpForwardTrigger = '<tab>'
