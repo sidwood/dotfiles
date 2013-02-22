@@ -1,0 +1,116 @@
+# Override jasmine assertion snippet
+snippet ee "expect to equal (chai.js)" b
+expect(${1:target}).to.equal(${2:value});
+endsnippet
+
+snippet ede "expect to deep equal (chai.js)" b
+expect(${1:target}).to.eql(${2:value});
+endsnippet
+
+# Override jasmine assertion snippet
+snippet em "expect to match (chai.js)" !b
+expect(${1:target}).to.match(${2:pattern});
+endsnippet
+
+# Override jasmine assertion snippet
+snippet eha "expect to have attribute (chai-jquery.js)" !b
+expect(${1:target}).to.have.attr('${2:attr}'${3:, '${4:value}'});
+endsnippet
+
+# Override jasmine assertion snippet
+snippet et "expect to be truthy (chai.js)" !b
+expect(${1:target}).to.be.ok;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet ef "expect to be falsy (chai.js)" !b
+expect(${1:target}).to.not.be.ok;
+endsnippet
+
+snippet eun "expect to be undefined (chai.js)" b
+expect(${1:target}).to.be.undefined;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet ed "expect to be defined (chai.js)" !b
+expect(${1:target}).to.not.be.undefined;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet en "expect to be null (chai.js)" !b
+expect(${1:target}).to.be.null;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet ec "expect to contain (chai.js)" !b
+expect(${1:target}).to.contain(${2:value});
+endsnippet
+
+snippet ei "expect to include (chai.js)" b
+expect(${1:target}).to.include(${2:value});
+endsnippet
+
+# Override jasmine assertion snippet
+snippet ev "expect to be visible (chai-jquery.js)" !b
+expect(${1:target}).to.be.visible;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet eh "expect to be hidden (chai-jquery.js)" !b
+expect(${1:target}).to.be.hidden;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet notx "expect not (chai.js)" !b
+expect(${1:target}).to.not$0;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet note "expect not to equal (chai.js)" !b
+expect(${1:target}).to.not.equal(${2:value});
+endsnippet
+
+# Override jasmine assertion snippet
+snippet notm "expect not to match (chai.js)" !b
+expect(${1:target}).to.not.match(${2:pattern});
+endsnippet
+
+# Override jasmine assertion snippet
+snippet notha "expect to not have attribute (chai-jquery.js)" !b
+expect(${1:target}).to.not.have.attr('${2:attr}'${3:, '${4:value}'});
+endsnippet
+
+# Override jasmine assertion snippet
+snippet nott "expect not to be truthy (chai.js)" !b
+expect(${1:target}).to.not.be.ok;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet notf "expect not to be falsy (chai.js)" !b
+expect(${1:target}).to.not.be.ok;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet notd "expect not to be defined (chai.js)" !b
+expect(${1:target}).to.be.undefined;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet notn "expect not to be null (chai.js)" !b
+expect(${1:target}).not.to.be.null;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet notc "expect not to contain (chai.js)" !b
+expect(${1:target}).to.not.contain(${2:value});
+endsnippet
+
+# Override jasmine assertion snippet
+snippet notv "expect not to be visible (chai-jquery.js)" !b
+expect(${1:target}).to.not.be.visible;
+endsnippet
+
+# Override jasmine assertion snippet
+snippet noth "expect not to be hidden (chai-jquery.js)" !b
+expect(${1:target}).to.not.be.hidden;
+endsnippet
