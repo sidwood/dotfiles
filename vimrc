@@ -285,6 +285,10 @@ nmap <leader>u :GundoToggle<CR>/<BS>
 " Cucumber table auto-alignment
 inoremap <silent> <Bar>  <Bar><Esc>:call <SID>CucumberTableAlign()<CR>a
 
+" Easier horizontal scrolling
+map zl zL
+map zh zH
+
 " Window focus
 map <C-h> <C-w>h
 map <C-j> <C-w>j
