@@ -1,0 +1,75 @@
+snippet afn "anonymous function (js)"
+function(${1:arguments}) {
+	${2:// body...}
+}
+endsnippet
+
+snippet cd "console.dir (js)" !b
+console.dir(${1:obj});
+endsnippet
+
+snippet ce "console.error (js)" !b
+console.error(${1:err});
+endsnippet
+
+snippet cl "console.log (js)" !b
+console.log(${1:'value'});
+endsnippet
+
+snippet ct "console.trace (js)" !b
+console.trace(${1:msg});
+endsnippet
+
+snippet err "if error then return callback(err) (js)" !b
+if (${1:err}) {
+	return ${2:done}($1);
+}
+endsnippet
+
+snippet f "anonymous function (js)" !
+function(${1:arguments}) {
+	${2:// body...}
+}
+endsnippet
+
+snippet fn "named function (js)" !b
+function ${1:functionName}(${2:arguments}) {
+	${0:// body...}
+}
+endsnippet
+
+snippet ii "immediately-invoked function expression (js)" !b
+(function(${1:arguments}) {
+	${0:// body...}
+})($1);
+endsnippet
+
+snippet okfe "Object.keys and forEach (js)" !b
+Object.keys(${1:obj}).forEach(function(key) {
+	${0:// body...}
+});
+endsnippet
+
+snippet proto "prototype method (js)" !b
+${1:ClassName}.prototype.${2:methodName} = function(${3:arguments}) {
+	${0:// body...}
+};
+endsnippet
+
+snippet sto "setTimeout (js)" !
+setTimeout(function() {
+	${0:// body...}
+}, ${1:millis});
+endsnippet
+
+snippet sti "setInterval (js)" !
+setInterval(function() {
+	${0:// body...}
+}, ${1:millis});
+endsnippet
+
+snippet us "use strict (js)" !b
+'use strict';
+
+$0
+endsnippet
