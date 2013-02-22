@@ -1,4 +1,4 @@
-" INIT
+" PLUGIN INITIALIZATION
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Vi IMproved
@@ -50,6 +50,58 @@ Bundle 'wavded/vim-stylus'
 Bundle 'puppetlabs/puppet-syntax-vim'
 
 filetype plugin indent on
+
+" PLUGIN SETTINGS
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" CtrlP settings
+if isdirectory(expand('~/.vim/bundle/ctrlp.vim'))
+  let g:ctrlp_show_hidden = 1
+endif
+
+" delimitMate settings
+if isdirectory(expand('~/.vim/bundle/delimitMate'))
+  let g:delimitMate_expand_cr = 1
+  let g:delimitMate_expand_space = 1
+endif
+
+" Gundo settings
+if isdirectory(expand('~/.vim/bundle/gundo.vim'))
+  let g:gundo_right = 1
+  let g:gundo_preview_bottom = 1
+endif
+
+" NERDTree settings
+if isdirectory(expand('~/.vim/bundle/nerdtree'))
+  let NERDTreeIgnore = ['\.git$']
+  let NERDTreeShowHidden = 1
+endif
+
+" Syntastic settings
+if isdirectory(expand('~/.vim/bundle/syntastic'))
+  let g:syntastic_error_symbol = '✗'
+  let g:syntastic_warning_symbol = '⚠'
+endif
+
+" UltiSnips settings
+if isdirectory(expand('~/.vim/bundle/ultisnips'))
+  let g:UltiSnipsEditSplit = 'vertical'
+  let g:UltiSnipsSnippetsDir = '~/.vim/snippets'
+  let g:UltiSnipsListSnippets='<c-l>'
+  let g:UltiSnipsExpandTrigger = '<tab>'
+  let g:UltiSnipsJumpForwardTrigger = '<tab>'
+  let g:UltiSnipsJumpBackwardTrigger = '<s-tab>'
+endif
+
+" VimMarkdown settings
+if isdirectory(expand('~/.vim/bundle/vim-markdown'))
+  let g:vim_markdown_folding_disabled = 1
+endif
+
+" ZenCoding settings
+if isdirectory(expand('~/.vim/bundle/zencoding-vim'))
+  let g:user_zen_leader_key = '<leader>e'
+endif
 
 " COLORS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -198,58 +250,6 @@ if has('gui_running')
   set guifont=Menlo-Regular:h18
   set guioptions=aAc
   set guioptions-=Be
-endif
-
-" PLUGIN SETTINGS
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-" CtrlP settings
-if isdirectory(expand('~/.vim/bundle/ctrlp.vim'))
-  let g:ctrlp_show_hidden = 1
-endif
-
-" delimitMate settings
-if isdirectory(expand('~/.vim/bundle/delimitMate'))
-  let g:delimitMate_expand_cr = 1
-  let g:delimitMate_expand_space = 1
-endif
-
-" Gundo settings
-if isdirectory(expand('~/.vim/bundle/gundo.vim'))
-  let g:gundo_right = 1
-  let g:gundo_preview_bottom = 1
-endif
-
-" NERDTree settings
-if isdirectory(expand('~/.vim/bundle/nerdtree'))
-  let NERDTreeIgnore = ['\.git$']
-  let NERDTreeShowHidden = 1
-endif
-
-" Syntastic settings
-if isdirectory(expand('~/.vim/bundle/syntastic'))
-  let g:syntastic_error_symbol = '✗'
-  let g:syntastic_warning_symbol = '⚠'
-endif
-
-" UltiSnips settings
-if isdirectory(expand('~/.vim/bundle/ultisnips'))
-  let g:UltiSnipsEditSplit = 'vertical'
-  let g:UltiSnipsSnippetsDir = '~/.vim/snippets'
-  let g:UltiSnipsListSnippets='<c-l>'
-  let g:UltiSnipsExpandTrigger = '<tab>'
-  let g:UltiSnipsJumpForwardTrigger = '<tab>'
-  let g:UltiSnipsJumpBackwardTrigger = '<s-tab>'
-endif
-
-" VimMarkdown settings
-if isdirectory(expand('~/.vim/bundle/vim-markdown'))
-  let g:vim_markdown_folding_disabled = 1
-endif
-
-" ZenCoding settings
-if isdirectory(expand('~/.vim/bundle/zencoding-vim'))
-  let g:user_zen_leader_key = '<leader>e'
 endif
 
 " MAPPINGS
