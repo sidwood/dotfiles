@@ -1,0 +1,88 @@
+snippet ngc "angular controller definition (AngularJS)" b
+angular.module('${1:app}').controller('${2:New}Controller', [
+	'${3:$scope}',
+	'${4:'someService}',
+	function($3, $4) {
+		$0
+	}
+]);
+endsnippet
+
+snippet ngconst "angular constant definition (AngularJS)" b
+angular.module('${1:app}').constant('${2:CONFIG}', $0);
+endsnippet
+
+snippet ngf "angular factory definition (AngularJS)" b
+angular.module('${1:app}').factory('${2:newService}', [
+	'${3:$http}',
+	function($3) {
+		$0
+	}
+]);
+endsnippet
+
+snippet ngfi "angular filter definition (AngularJS)" b
+angular.module('${1:app}').filter('${2:name}', [
+	'${3:$filter}',
+	function($3) {
+		return function(data${4:, arguments}) {
+			if (angular.isArray(data)) {
+				$0
+			}
+			else {
+				return data;
+			}
+		};
+	}
+]);
+endsnippet
+
+snippet ngm "angular module definition (AngularJS)" b
+angular.module('${1:app}', [
+	${2:'myModule'}
+])
+
+.config([
+	'$routeProvider',
+	function($routeProvider) {
+		$routeProvider
+			.when('/', {
+				controller: '${3:App}Controller',
+				templateUrl: '${4:main}.html'
+			})$0
+			.otherwise({
+				redirectTo: '/'
+			});
+	}
+]);
+endsnippet
+
+snippet ngp "angular service provider definition (AngularJS)" b
+angular.module('${1:app}').provider('${2:newServiceProvider}', function() {
+	return {
+		$get: function() {
+			$0
+		}
+	}
+});
+endsnippet
+
+snippet ngs "angular service definition (AngularJS)" b
+angular.module('${1:app}').service('${2:newService}', [
+	'${3:$http}',
+	function($3) {
+		$0
+	}
+]);
+endsnippet
+
+snippet ngval "angular value definition (AngularJS)" b
+angular.module('${1:app}').value('${2:name}', $0);
+endsnippet
+
+snippet ngwhen "angular route definition (AngularJS)" b
+.when('/${1:uri}', {
+	controller: '${2:New}Controller',
+	templateUrl: '${3:template.html}'
+})
+endsnippet
