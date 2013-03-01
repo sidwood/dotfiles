@@ -12,7 +12,19 @@ snippet ngconst "angular constant definition (AngularJS)" b
 angular.module('${1:app}').constant('${2:CONFIG}', $0);
 endsnippet
 
-snippet ngd "angular deferred object (AngularJS)" b
+snippet ngd "angular directive definition (AngularJS)" b
+angular.module('${1:app}').directive('${2:myDirective}', function() {
+	return {
+		restrict: '${3:E}',
+		controller: '${2/\w+\s*/\u$0/g}Controller',
+		templateUrl: '${4:template.html}',
+		replace: ${5:true},
+		scope: ${0:true}
+	};
+});
+endsnippet
+
+snippet ngdef "angular deferred object (AngularJS)" b
 var deferred = $q.defer();
 
 $0
