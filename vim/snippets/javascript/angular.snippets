@@ -1,7 +1,7 @@
 snippet ngc "angular controller definition (AngularJS)" b
 angular.module('${1:app}').controller('${2:New}Controller', [
 	'${3:$scope}',
-	'${4:'someService}',
+	'${4:someService}',
 	function($3, $4) {
 		$0
 	}
@@ -10,6 +10,14 @@ endsnippet
 
 snippet ngconst "angular constant definition (AngularJS)" b
 angular.module('${1:app}').constant('${2:CONFIG}', $0);
+endsnippet
+
+snippet ngd "angular deferred object (AngularJS)" b
+var deferred = $q.defer();
+
+$0
+
+return deferred.promise;
 endsnippet
 
 snippet ngf "angular factory definition (AngularJS)" b
