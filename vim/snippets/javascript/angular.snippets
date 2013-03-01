@@ -87,6 +87,15 @@ angular.module('${1:app}').provider('${2:newServiceProvider}', function() {
 });
 endsnippet
 
+snippet ngr "angular run definition (AngularJS)" b
+angular.module('${1:app}').run([
+	'${2:$rootScope}',
+	function($2) {
+		$0
+	}
+]);
+endsnippet
+
 snippet ngs "angular service definition (AngularJS)" b
 angular.module('${1:app}').service('${2:newService}', [
 	'${3:$http}',
