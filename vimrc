@@ -301,6 +301,9 @@ nmap <leader>u :GundoToggle<CR>/<BS>
 " Cucumber table auto-alignment
 inoremap <silent> <Bar>  <Bar><Esc>:call <SID>CucumberTableAlign()<CR>a
 
+" Preserve indentation while pasting text from OSX clipboard
+noremap <leader>p :set paste<CR>:put  *<CR>:set nopaste<CR>
+
 " Easier horizontal scrolling
 map zl zL
 map zh zH
