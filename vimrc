@@ -293,6 +293,9 @@ if exists('+relativenumber')
   nnoremap <space> :call <SID>AbsoluteRelativeLineNumberToggle()<CR>/<BS>
 endif
 
+" Toggle GitGutter
+nmap <leader>lg :GitGutterToggle<CR>/<BS>
+
 " Toggle NERDTree (via NERDTreeTabs)
 nmap <leader>m :NERDTreeTabsToggle<CR>/<BS>
 
