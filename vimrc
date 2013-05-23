@@ -100,6 +100,11 @@ if isdirectory(expand('~/.vim/bundle/vim-markdown'))
   let g:vim_markdown_folding_disabled = 1
 endif
 
+" GitGutter settings
+if isdirectory(expand('~/.vim/bundle/vim-gitgutter'))
+  let g:gitgutter_sign_column_always = 1
+endif
+
 " ZenCoding settings
 if isdirectory(expand('~/.vim/bundle/zencoding-vim'))
   let g:user_zen_leader_key = '<leader>e'
