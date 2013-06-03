@@ -189,6 +189,7 @@ set spelllang=en_gb
 set ignorecase
 set smartcase
 set hlsearch
+set incsearch
 
 " Scroll
 set scrolloff=4
