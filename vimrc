@@ -38,6 +38,7 @@ Bundle 'mattn/zencoding-vim'
 " Syntax
 Bundle 'kchmck/vim-coffee-script'
 Bundle 'tpope/vim-cucumber'
+Bundle 'elixir-lang/vim-elixir'
 Bundle 'tpope/vim-haml'
 Bundle 'digitaltoad/vim-jade'
 Bundle 'jelera/vim-javascript-syntax'
