@@ -306,13 +306,19 @@ if exists('+relativenumber')
 endif
 
 " Toggle GitGutter
-nmap <leader>lg :GitGutterToggle<CR>/<BS>
-
-" Toggle NERDTree (via NERDTreeTabs)
-nmap <leader>m :NERDTreeTabsToggle<CR>/<BS>
+if isdirectory(expand('~/.vim/bundle/vim-gitgutter'))
+  nmap <leader>lg :GitGutterToggle<CR>/<BS>
+endif
 
 " Toggle Gundo
-nmap <leader>u :GundoToggle<CR>/<BS>
+if isdirectory(expand('~/.vim/bundle/gundo.vim'))
+  nmap <leader>u :GundoToggle<CR>/<BS>
+endif
+
+" Toggle NERDTree (via NERDTreeTabs)
+if isdirectory(expand('~/.vim/bundle/nerdtree'))
+  nmap <leader>m :NERDTreeTabsToggle<CR>/<BS>
+endif
 
 " Cucumber table auto-alignment
 inoremap <silent> <Bar>  <Bar><Esc>:call <SID>CucumberTableAlign()<CR>a
