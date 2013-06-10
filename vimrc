@@ -25,6 +25,7 @@ Bundle 'godlygeek/tabular'
 Bundle 'SirVer/ultisnips'
 Bundle 'tpope/vim-bundler'
 Bundle 'tpope/vim-commentary'
+Bundle 'tpope/vim-dispatch'
 Bundle 'tpope/vim-endwise'
 Bundle 'tpope/vim-fugitive'
 Bundle 'tpope/vim-git'
@@ -320,6 +321,11 @@ if isdirectory(expand('~/.vim/bundle/nerdtree'))
   nmap <leader>m :NERDTreeTabsToggle<CR>/<BS>
 endif
 
+" Dispatch asynchronous command
+if isdirectory(expand('~/.vim/bundle/vim-dispatch'))
+  nnoremap <leader>d :call <SID>DispatchCommand()<CR>/<BS>
+endif
+
 " Cucumber table auto-alignment
 inoremap <silent> <Bar>  <Bar><Esc>:call <SID>CucumberTableAlign()<CR>a
 
@@ -411,6 +417,12 @@ function! s:LineNumberToggle()
     set number
     set norelativenumber
   endif
+endfunction
+
+" Call dispatch command with provided input
+function! s:DispatchCommand()
+  let dispatch_command = input('> ')
+  execute ':Dispatch ' . dispatch_command
 endfunction
 
 " Strip trailing whitespace function
