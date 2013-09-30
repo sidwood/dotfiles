@@ -34,7 +34,7 @@ Bundle 'jistr/vim-nerdtree-tabs'
 Bundle 'tpope/vim-rails'
 Bundle 'tpope/vim-surround'
 Bundle 'nathanaelkane/vim-indent-guides'
-Bundle 'mattn/zencoding-vim'
+Bundle 'mattn/emmet-vim'
 
 " Syntax
 Bundle 'kchmck/vim-coffee-script'
@@ -66,6 +66,11 @@ endif
 if isdirectory(expand('~/.vim/bundle/delimitMate'))
   let g:delimitMate_expand_cr = 1
   let g:delimitMate_expand_space = 1
+endif
+
+" Emmet settings
+if isdirectory(expand('~/.vim/bundle/emmet-vim'))
+  let g:user_emmet_leader_key = '<leader>e'
 endif
 
 " Gundo settings
@@ -110,11 +115,6 @@ endif
 " Markdown settings
 if isdirectory(expand('~/.vim/bundle/vim-markdown'))
   let g:vim_markdown_folding_disabled = 1
-endif
-
-" ZenCoding settings
-if isdirectory(expand('~/.vim/bundle/zencoding-vim'))
-  let g:user_zen_leader_key = '<leader>e'
 endif
 
 " COLORS
