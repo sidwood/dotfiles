@@ -44,6 +44,7 @@ Bundle 'tpope/vim-haml'
 Bundle 'digitaltoad/vim-jade'
 Bundle 'jelera/vim-javascript-syntax'
 Bundle 'vim-scripts/javascript-indent'
+Bundle 'mitsuhiko/vim-jinja'
 Bundle 'elzr/vim-json'
 Bundle 'groenewege/vim-less'
 Bundle 'plasticboy/vim-markdown'
@@ -359,6 +360,9 @@ map <leader>et :tabe %%
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 if has("autocmd")
+  " Filetype definitions
+  autocmd Bufread,BufNewFile *.j2 set filetype=jinja
+
   " Whitespace preferences
   autocmd FileType make setlocal ts=8 sts=8 sw=8 noexpandtab
   autocmd FileType markdown,mkd setlocal ts=4 sts=4 sw=4 expandtab
