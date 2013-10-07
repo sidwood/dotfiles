@@ -32,6 +32,7 @@ Bundle 'tpope/vim-git'
 Bundle 'airblade/vim-gitgutter'
 Bundle 'jistr/vim-nerdtree-tabs'
 Bundle 'tpope/vim-rails'
+Bundle 'thoughtbot/vim-rspec'
 Bundle 'tpope/vim-surround'
 Bundle 'nathanaelkane/vim-indent-guides'
 Bundle 'mattn/emmet-vim'
@@ -325,6 +326,14 @@ endif
 " Dispatch asynchronous command
 if isdirectory(expand('~/.vim/bundle/vim-dispatch'))
   nnoremap <leader>d :call <SID>DispatchCommand()<CR>/<BS>
+endif
+
+" vim-rspec mappings
+if isdirectory(expand('~/.vim/bundle/vim-rspec'))
+  map <leader>rt :call RunCurrentSpecFile()<CR>/<BS>
+  map <leader>rs :call RunNearestSpec()<CR>/<BS>
+  map <leader>rl :call RunLastSpec()<CR>/<BS>
+  map <leader>ra :call RunAllSpecs()<CR>/<BS>
 endif
 
 " Cucumber table auto-alignment
