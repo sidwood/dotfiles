@@ -370,6 +370,8 @@ map <leader>et :tabe %%
 
 if has("autocmd")
   " Filetype definitions
+  autocmd Bufread,BufNewFile *.handlebars set filetype=mustache
+  autocmd Bufread,BufNewFile *.hbs set filetype=mustache
   autocmd Bufread,BufNewFile *.j2 set filetype=jinja
 
   " Whitespace preferences
