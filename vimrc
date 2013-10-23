@@ -14,6 +14,9 @@ Bundle 'gmarik/vundle'
 " Color
 Bundle 'altercation/vim-colors-solarized'
 
+" Status line
+Bundle 'bling/vim-airline'
+
 " Utils
 Bundle 'mileszs/ack.vim'
 Bundle 'kien/ctrlp.vim'
@@ -58,6 +61,12 @@ filetype plugin indent on
 
 " PLUGIN SETTINGS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" Airline settings
+if isdirectory(expand('~/.vim/bundle/vim-airline'))
+  let g:airline_powerline_fonts = 1
+  let g:airline#extensions#tabline#enabled = 1
+endif
 
 " CtrlP settings
 if isdirectory(expand('~/.vim/bundle/ctrlp.vim'))
