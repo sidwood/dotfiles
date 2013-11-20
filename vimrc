@@ -123,6 +123,11 @@ if isdirectory(expand('~/.vim/bundle/vim-gitgutter'))
   let g:gitgutter_sign_column_always = 1
 endif
 
+" Json settings
+if isdirectory(expand('~/.vim/bundle/vim-json'))
+  let g:vim_json_syntax_conceal = 0
+endif
+
 " Markdown settings
 if isdirectory(expand('~/.vim/bundle/vim-markdown'))
   let g:vim_markdown_folding_disabled = 1
