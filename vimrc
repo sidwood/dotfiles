@@ -71,6 +71,13 @@ endif
 " CtrlP settings
 if isdirectory(expand('~/.vim/bundle/ctrlp.vim'))
   let g:ctrlp_show_hidden = 1
+  " Use ag if available
+  if executable('ag')
+    " Silver searcher will exclude files in .gitignore
+    let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden -g ""'
+    " No need to cache when using ag
+    let g:ctrlp_use_caching = 0
+  endif
 endif
 
 " delimitMate settings
@@ -208,6 +215,11 @@ set ignorecase
 set smartcase
 set hlsearch
 set incsearch
+
+" Use ag over grep
+if executable('ag')
+  set grepprg=ag\ --nogroup\ --nocolor
+endif
 
 " Scroll
 set scrolloff=4
