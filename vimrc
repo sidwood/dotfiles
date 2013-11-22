@@ -18,7 +18,7 @@ Bundle 'altercation/vim-colors-solarized'
 Bundle 'bling/vim-airline'
 
 " Utils
-Bundle 'mileszs/ack.vim'
+Bundle 'rking/ag.vim'
 Bundle 'kien/ctrlp.vim'
 Bundle 'Raimondi/delimitMate'
 Bundle 'sjl/gundo.vim'
