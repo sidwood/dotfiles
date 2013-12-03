@@ -12,7 +12,7 @@ call vundle#rc()
 Bundle 'gmarik/vundle'
 
 " Color
-Bundle 'altercation/vim-colors-solarized'
+Bundle 'cyplo/vim-colors-solarized'
 
 " Status line
 Bundle 'bling/vim-airline'
