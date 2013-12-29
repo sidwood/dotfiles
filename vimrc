@@ -16,6 +16,7 @@ Bundle 'cyplo/vim-colors-solarized'
 
 " Status line
 Bundle 'bling/vim-airline'
+Bundle 'edkolev/tmuxline.vim'
 
 " Utils
 Bundle 'rking/ag.vim'
