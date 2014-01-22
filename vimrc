@@ -42,6 +42,7 @@ Bundle 'nathanaelkane/vim-indent-guides'
 Bundle 'mattn/emmet-vim'
 
 " Syntax
+Bundle 'dart-lang/dart-vim-plugin'
 Bundle 'kchmck/vim-coffee-script'
 Bundle 'tpope/vim-cucumber'
 Bundle 'elixir-lang/vim-elixir'
