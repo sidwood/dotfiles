@@ -1,0 +1,17 @@
+set realname="Sid Wood"
+set spoolfile="+Inbox"
+
+set header_cache=~/.mutt/cache/headers
+set message_cachedir=~/.mutt/cache/bodies
+set certificate_file=~/.mutt/certificates
+
+set move=no
+set imap_keepalive=400
+set mail_check=300
+
+set sort="threads"
+set sort_aux="last-date-received"
+
+set query_command="abook --mutt-query '%s'"
+
+set editor='vim + -c "set textwidth=79 wrap nocp filetype=markdown encoding=utf-8"'
