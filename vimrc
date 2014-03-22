@@ -37,6 +37,7 @@ Bundle 'airblade/vim-gitgutter'
 Bundle 'jistr/vim-nerdtree-tabs'
 Bundle 'tpope/vim-rails'
 Bundle 'thoughtbot/vim-rspec'
+Bundle 'honza/vim-snippets'
 Bundle 'tpope/vim-surround'
 Bundle 'nathanaelkane/vim-indent-guides'
 Bundle 'mattn/emmet-vim'
@@ -115,8 +116,8 @@ endif
 " UltiSnips settings
 if isdirectory(expand('~/.vim/bundle/ultisnips'))
   let g:UltiSnipsEditSplit = 'vertical'
-  let g:UltiSnipsSnippetsDir = '~/.vim/snippets'
-  let g:UltiSnipsSnippetDirectories = ['UltiSnips', 'snippets']
+  let g:UltiSnipsSnippetsDir = '~/.vim/snips'
+  let g:UltiSnipsSnippetDirectories = ['UltiSnips', 'snips']
   let g:UltiSnipsListSnippets='<c-l>'
   let g:UltiSnipsExpandTrigger = '<tab>'
   let g:UltiSnipsJumpForwardTrigger = '<tab>'
