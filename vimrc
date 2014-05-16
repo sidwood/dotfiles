@@ -4,63 +4,69 @@
 " Vi IMproved
 set nocompatible
 
-" Initialize vundle
+" Disable file type detection
 filetype off
-set rtp+=~/.vim/bundle/vundle
-call vundle#rc()
 
-Bundle 'gmarik/vundle'
+" Initialize vundle
+set rtp+=~/.vim/bundle/Vundle.vim
+call vundle#begin()
+
+Plugin 'gmarik/Vundle.vim'
 
 " Color
-Bundle 'cyplo/vim-colors-solarized'
+Plugin 'cyplo/vim-colors-solarized'
 
 " Status line
-Bundle 'bling/vim-airline'
-Bundle 'edkolev/tmuxline.vim'
+Plugin 'bling/vim-airline'
+Plugin 'edkolev/tmuxline.vim'
 
 " Utils
-Bundle 'rking/ag.vim'
-Bundle 'kien/ctrlp.vim'
-Bundle 'Raimondi/delimitMate'
-Bundle 'sjl/gundo.vim'
-Bundle 'scrooloose/nerdtree'
-Bundle 'scrooloose/syntastic'
-Bundle 'godlygeek/tabular'
-Bundle 'SirVer/ultisnips'
-Bundle 'tpope/vim-bundler'
-Bundle 'tpope/vim-commentary'
-Bundle 'tpope/vim-dispatch'
-Bundle 'tpope/vim-endwise'
-Bundle 'tpope/vim-fugitive'
-Bundle 'tpope/vim-git'
-Bundle 'airblade/vim-gitgutter'
-Bundle 'jistr/vim-nerdtree-tabs'
-Bundle 'tpope/vim-rails'
-Bundle 'thoughtbot/vim-rspec'
-Bundle 'vim-ruby/vim-ruby'
-Bundle 'honza/vim-snippets'
-Bundle 'tpope/vim-surround'
-Bundle 'nathanaelkane/vim-indent-guides'
-Bundle 'mattn/emmet-vim'
+Plugin 'rking/ag.vim'
+Plugin 'kien/ctrlp.vim'
+Plugin 'Raimondi/delimitMate'
+Plugin 'sjl/gundo.vim'
+Plugin 'scrooloose/nerdtree'
+Plugin 'scrooloose/syntastic'
+Plugin 'godlygeek/tabular'
+Plugin 'SirVer/ultisnips'
+Plugin 'tpope/vim-bundler'
+Plugin 'tpope/vim-commentary'
+Plugin 'tpope/vim-dispatch'
+Plugin 'tpope/vim-endwise'
+Plugin 'tpope/vim-fugitive'
+Plugin 'tpope/vim-git'
+Plugin 'airblade/vim-gitgutter'
+Plugin 'jistr/vim-nerdtree-tabs'
+Plugin 'tpope/vim-rails'
+Plugin 'thoughtbot/vim-rspec'
+Plugin 'vim-ruby/vim-ruby'
+Plugin 'honza/vim-snippets'
+Plugin 'tpope/vim-surround'
+Plugin 'nathanaelkane/vim-indent-guides'
+Plugin 'mattn/emmet-vim'
 
 " Syntax
-Bundle 'dart-lang/dart-vim-plugin'
-Bundle 'kchmck/vim-coffee-script'
-Bundle 'tpope/vim-cucumber'
-Bundle 'elixir-lang/vim-elixir'
-Bundle 'tpope/vim-haml'
-Bundle 'digitaltoad/vim-jade'
-Bundle 'jelera/vim-javascript-syntax'
-Bundle 'vim-scripts/javascript-indent'
-Bundle 'mitsuhiko/vim-jinja'
-Bundle 'elzr/vim-json'
-Bundle 'groenewege/vim-less'
-Bundle 'plasticboy/vim-markdown'
-Bundle 'mustache/vim-mustache-handlebars'
-Bundle 'slim-template/vim-slim'
-Bundle 'wavded/vim-stylus'
-Bundle 'puppetlabs/puppet-syntax-vim'
+Plugin 'dart-lang/dart-vim-plugin'
+Plugin 'kchmck/vim-coffee-script'
+Plugin 'tpope/vim-cucumber'
+Plugin 'elixir-lang/vim-elixir'
+Plugin 'tpope/vim-haml'
+Plugin 'digitaltoad/vim-jade'
+Plugin 'jelera/vim-javascript-syntax'
+Plugin 'vim-scripts/javascript-indent'
+Plugin 'mitsuhiko/vim-jinja'
+Plugin 'elzr/vim-json'
+Plugin 'groenewege/vim-less'
+Plugin 'plasticboy/vim-markdown'
+Plugin 'mustache/vim-mustache-handlebars'
+Plugin 'slim-template/vim-slim'
+Plugin 'wavded/vim-stylus'
+Plugin 'puppetlabs/puppet-syntax-vim'
 
+" Finalize vundle initialization
+call vundle#end()
+
+" Enable file type detection
 filetype plugin indent on
 
 " PLUGIN SETTINGS
