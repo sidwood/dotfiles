@@ -24,6 +24,7 @@ Plugin 'edkolev/tmuxline.vim'
 Plugin 'rking/ag.vim'
 Plugin 'kien/ctrlp.vim'
 Plugin 'Raimondi/delimitMate'
+Plugin 'editorconfig/editorconfig-vim'
 Plugin 'sjl/gundo.vim'
 Plugin 'scrooloose/nerdtree'
 Plugin 'scrooloose/syntastic'
@@ -94,6 +95,11 @@ endif
 if isdirectory(expand('~/.vim/bundle/delimitMate'))
   let g:delimitMate_expand_cr = 1
   let g:delimitMate_expand_space = 1
+endif
+
+" EditorConfig settings
+if isdirectory(expand('~/.vim/bundle/editorconfig-vim'))
+  let g:EditorConfig_verbose=1
 endif
 
 " Emmet settings
