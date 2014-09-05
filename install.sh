@@ -18,8 +18,8 @@ abort() {
 # Ensure dependencies are installed
 #
 
-make -v >/dev/null 2>&1 || abort 'GNU Make required'
-wget --help >/dev/null 2>&1 || abort 'wget required'
+command -v make >/dev/null 2>&1 || abort 'GNU Make required'
+command -v wget >/dev/null 2>&1 || abort 'wget required'
 
 #
 # Symlink dotfiles to home directory
