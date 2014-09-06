@@ -251,8 +251,12 @@ set nowrap
 set visualbell
 
 " Line numbers
-set number
 set numberwidth=4
+if exists('+relativenumber')
+  set relativenumber
+else
+  set number
+endif
 
 " Windows
 set splitbelow
