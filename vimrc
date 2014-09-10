@@ -128,6 +128,8 @@ endif
 
 " UltiSnips settings
 if isdirectory(expand('~/.vim/bundle/ultisnips'))
+  let g:snips_author = 'Sid Wood'
+  let g:snips_author_email = 'sidwood@me.com'
   let g:UltiSnipsEditSplit = 'vertical'
   let g:UltiSnipsSnippetsDir = '~/.vim/snips'
   let g:UltiSnipsSnippetDirectories = ['UltiSnips', 'snips']
