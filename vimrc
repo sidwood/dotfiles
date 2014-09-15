@@ -422,6 +422,7 @@ if has("autocmd")
   autocmd Bufread,BufNewFile *.handlebars set filetype=mustache
   autocmd Bufread,BufNewFile *.hbs set filetype=mustache
   autocmd Bufread,BufNewFile *.j2 set filetype=jinja
+  autocmd Bufread,BufNewFile .jscsrc,.jshintrc set filetype=json
 
   " Whitespace preferences
   autocmd FileType make setlocal ts=8 sts=8 sw=8 noexpandtab
