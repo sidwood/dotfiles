@@ -263,7 +263,7 @@ endif
 " Windows
 set splitbelow
 set splitright
-set winwidth=84
+set winwidth=86
 set winheight=5
 set winminheight=5
 set winheight=999
