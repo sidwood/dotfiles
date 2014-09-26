@@ -372,6 +372,11 @@ if isdirectory(expand('~/.vim/bundle/nerdtree'))
   nmap <leader>m :NERDTreeTabsToggle<CR>/<BS>
 endif
 
+" Toggle Syntastic
+if isdirectory(expand('~/.vim/bundle/syntastic'))
+  nmap <leader>ls :SyntasticToggleMode<CR>/<BS>
+endif
+
 " Dispatch asynchronous command
 if isdirectory(expand('~/.vim/bundle/vim-dispatch'))
   nnoremap <leader>d :call <SID>DispatchCommand()<CR>/<BS>
