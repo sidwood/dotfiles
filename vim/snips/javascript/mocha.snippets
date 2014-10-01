@@ -1,31 +1,43 @@
 # Override jasmine before each snippet
 snippet bef "before all (mocha.js)" !b
-before(function() {
+before(function(${1:done}) {
 	$0
+	${2:done();}
 });
 endsnippet
 
 # Override jasmine after each snippet
 snippet aft "after all (mocha.js)" !b
-after(function() {
+after(function(${1:done}) {
 	$0
+	${2:done();}
 });
 endsnippet
 
 snippet bfe "before each (mocha.js)" b
-beforeEach(function() {
+beforeEach(function(${1:done}) {
 	$0
+	${2:done();}
 });
 endsnippet
 
 snippet afe "after each (mocha.js)" b
-afterEach(function() {
+afterEach(function(${1:done}) {
 	$0
+	${2:done();}
 });
 endsnippet
 
 snippet con "context (mocha.js)" b
 context('${1:description}', function() {
 	$0
+});
+endsnippet
+
+# Override jasmine it snippet
+snippet it "it (mocha.js)" b
+it('${1:description}', function(${2:done}) {
+	$0
+	${3:done();}
 });
 endsnippet
