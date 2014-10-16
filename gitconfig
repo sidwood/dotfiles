@@ -29,6 +29,8 @@
 	account = personal
 [push]
 	default = simple
+[pull]
+	rebase = true
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
