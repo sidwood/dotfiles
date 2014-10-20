@@ -1,25 +1,25 @@
 snippet .c "catch promise exception handler (js)" b
 .catch(function(${1:err}) {
-	${2:// on reject...}
-})${0:;}
+	${0:// on reject...}
+})${2:;}
 endsnippet
 
 snippet .f "finally promise handler (js)" b
-.fin(function() {
+.finally(function() {
 	${0:// on resolve or reject...}
 });
 endsnippet
 
 snippet .t "then promise handler (js)" b
 .then(function(${1:arguments}) {
-	${2:// on resolve...}
-})${0:;}
+	${0:// on resolve...}
+})${2:;}
 endsnippet
 
 snippet .tt "then promise handler and exception handler (promise)" b
 .then(function(${1:arguments}) {
-	${2:// on resolve...}
+	${3:// on resolve...}
 }, function(err) {
-	${3:// on reject...}
-})${0:;}
+	${0:// on reject...}
+})${2:;}
 endsnippet
