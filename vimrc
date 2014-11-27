@@ -37,6 +37,7 @@ Plugin 'tpope/vim-endwise'
 Plugin 'tpope/vim-fugitive'
 Plugin 'tpope/vim-git'
 Plugin 'airblade/vim-gitgutter'
+Plugin 'jistr/vim-nerdtree-tabs'
 Plugin 'tpope/vim-rails'
 Plugin 'thoughtbot/vim-rspec'
 Plugin 'vim-ruby/vim-ruby'
@@ -369,7 +370,7 @@ endif
 
 " Toggle NERDTree
 if isdirectory(expand('~/.vim/bundle/nerdtree'))
-  nmap <leader>m :NERDTreeToggle<CR>/<BS>
+  nmap <leader>m :NERDTreeTabsToggle<CR>/<BS>
 endif
 
 " Toggle Syntastic
