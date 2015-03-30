@@ -125,6 +125,15 @@ if isdirectory(expand('~/.vim/bundle/syntastic'))
   let g:syntastic_error_symbol = '✗'
   let g:syntastic_warning_symbol = '⚠'
   let g:syntastic_javascript_checkers = ['jshint', 'jscs']
+  " Ignore common AngularJS HTML errors
+  let g:syntastic_html_tidy_ignore_errors = [
+    \ 'lacks "action" attribute',
+    \ 'discarding unexpected',
+    \ 'proprietary attribute',
+    \ 'is not recognized',
+    \ 'trimming empty',
+    \ 'unescaped &'
+    \ ]
 endif
 
 " UltiSnips settings
