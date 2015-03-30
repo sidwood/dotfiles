@@ -83,3 +83,6 @@ alias sex='svn export'
 alias slog='svn log | more'
 alias sst='svn status'
 alias sup='svn update'
+
+# tmux
+alias ta='tmux attach'
