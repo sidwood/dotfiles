@@ -11,6 +11,11 @@ snippet cr "declare package dependency as constant (node.js)" !b
 const ${1:package} = require('${2:./}${1/\w/\L$0\E/}');
 endsnippet
 
+snippet local "declare local package dependency (node.js)" !b
+// local
+var ${1:package} = require('${2:./}${3:${1/\w/\L$0\E/}}');$0
+endsnippet
+
 snippet lr "declare package dependency (node.js)" !b
 let ${1:package} = require('${2:./}${1/\w/\L$0\E/}');
 endsnippet
