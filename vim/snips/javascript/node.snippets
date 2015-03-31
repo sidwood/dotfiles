@@ -2,6 +2,10 @@ snippet cli "console.log with util.inspect (node.js)" !b
 console.log(require('util').inspect(${1:obj}, true, ${2:10}, true));
 endsnippet
 
+snippet cr "declare package dependency as constant (node.js)" !b
+const ${1:package} = require('${2:./}${1/\w/\L$0\E/}');
+endsnippet
+
 snippet me "module.exports (node.js)" !b
 module.exports = $0
 endsnippet
