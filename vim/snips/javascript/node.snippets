@@ -1,3 +1,8 @@
+snippet 3rd "declare 3rd-party package dependency (node.js)" !b
+// 3rd-party
+var ${1:package} = require('${2:./}${3:${1/\w/\L$0\E/}}');$0
+endsnippet
+
 snippet cli "console.log with util.inspect (node.js)" !b
 console.log(require('util').inspect(${1:obj}, true, ${2:10}, true));
 endsnippet
