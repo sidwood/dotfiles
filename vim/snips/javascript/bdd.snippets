@@ -1,0 +1,41 @@
+snippet afe "after each (bdd)" b
+afterEach(function($1) {
+	$0
+});
+endsnippet
+
+snippet aft "after all (bdd)" !b
+after(function($1) {
+	$0
+});
+endsnippet
+
+snippet bfe "before each (bdd)" b
+beforeEach(function($1) {
+	$0
+});
+endsnippet
+
+snippet bef "before all (bdd)" !b
+before(function($1) {
+	$0
+});
+endsnippet
+
+snippet con "context (bdd)" b
+context('${1:description}', function() {
+	$0
+});
+endsnippet
+
+snippet des "describe (bdd)" b
+describe('${1:description}', function() {
+	$0
+});
+endsnippet
+
+snippet it "it (bdd)" b
+it('${1:description}', function($2) {
+	$0
+});
+endsnippet
