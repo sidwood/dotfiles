@@ -15,6 +15,7 @@ Plugin 'VundleVim/Vundle.vim'
 
 " Color
 Plugin 'cyplo/vim-colors-solarized'
+Plugin 'jonathanfilip/vim-lucius'
 
 " Status line
 Plugin 'bling/vim-airline'
