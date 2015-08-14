@@ -73,9 +73,9 @@ fi
 # Install vim plugins
 #
 
-if [[ ! -d ~/.vim/bundle/Vundle.git ]]; then
+if [[ ! -d ~/.vim/bundle/Vundle.vim ]]; then
   echo "Installing vundle"
-  git clone git://github.com/gmarik/Vundle.git ~/.vim/bundle/Vundle.git
+  git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
 fi
 
 echo "Running :PluginInstall"
