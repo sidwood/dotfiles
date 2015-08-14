@@ -7,7 +7,7 @@ Linux and OS X environments.
 
 Installation requires `bash`, `wget` and GNU `make`.
 
-    git clone git://github.com/sidwood/dotfiles.git ~/.dotfiles
+    git clone https://github.com/sidwood/dotfiles.git ~/.dotfiles
     cd ~/.dotfiles
     ./install.sh
 
