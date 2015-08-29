@@ -5,6 +5,10 @@ export PATH=~/.bin:./node_modules/.bin:/usr/local/heroku/bin:$PATH
 # professional cow-free environment
 export ANSIBLE_NOCOWS=1
 
+# get my gopher on
+export GOPATH=~/code/golang
+export PATH=$PATH:$GOPATH/bin
+
 # closure compiler install path
 if [[ $PLATFORM -eq 'Darwin' ]]; then
   # obtained by `brew --prefix closure-compiler` and appending '/libexec'
