@@ -382,7 +382,7 @@ endif
 
 " Toggle NERDTree
 if isdirectory(expand('~/.vim/bundle/nerdtree'))
-  nmap <leader>m :NERDTreeTabsToggle<CR>/<BS>
+  nmap <leader>m :NERDTreeMirrorToggle<CR>/<BS>
   nmap <leader>ff :NERDTreeFind<CR>/<BS>
 endif
 
