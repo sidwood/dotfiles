@@ -58,8 +58,8 @@ BWHITE='\e[47m'
 
 # Prompt configuration
 if [[ -n $SSH_CONNECTION ]]; then
-  PS1="\n\u@\H:\w\[$EBLACK\]\$(vcprompt)\[$RESET_COLOR\]"
+  PS1="\n\u@\H:\w\[$YELLOW\]\$(vcprompt)\[$RESET_COLOR\]"
 else
-  PS1="\n\w\\[$EBLACK\]\$(vcprompt)\[$RESET_COLOR\]"
+  PS1="\n\w\\[$YELLOW\]\$(vcprompt)\[$RESET_COLOR\]"
 fi
-PS1="$PS1\n\[$EGREEN\]➥\[$RESET_COLOR\] "
+PS1="$PS1\n\[$GREEN\]➥\[$RESET_COLOR\] "
