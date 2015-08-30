@@ -6,6 +6,11 @@ if [[ $PLATFORM == 'Linux' ]]; then
   export LC_COLLATE='C'
 fi
 
+# Ensure correct colors under tmux on Linux platforms
+if [[ $PLATFORM == 'Linux' ]]; then
+  export TERM='screen-256color'
+fi
+
 # Colors from http://wiki.archlinux.org/index.php/Color_Bash_Prompt
 
 # Reset
