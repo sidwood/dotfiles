@@ -6,8 +6,8 @@ if [[ $PLATFORM == 'Linux' ]]; then
   export LC_COLLATE='C'
 fi
 
-# Ensure correct colors under tmux on Linux platforms
-if [[ $PLATFORM == 'Linux' ]]; then
+# Force xterm to screen-256color to improve tmux colors
+if [[ $TERM == 'xterm' ]]; then
   export TERM='screen-256color'
 fi
 
