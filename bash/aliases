@@ -1,6 +1,9 @@
 # ./bin
 alias bb=./bin/build.sh
 
+# docker
+alias dps='docker ps'
+
 # cd
 alias ..='cd ..'
 alias ...='cd ../..'
