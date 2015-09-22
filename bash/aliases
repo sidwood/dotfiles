@@ -89,3 +89,4 @@ alias sup='svn update'
 
 # tmux
 alias ta='tmux attach'
+alias tl='tmux ls'
