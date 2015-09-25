@@ -268,6 +268,7 @@ set visualbell
 " Line numbers
 set numberwidth=4
 if exists('+relativenumber')
+  set number
   set relativenumber
 else
   set number
@@ -484,7 +485,7 @@ function! s:AbsoluteRelativeLineNumberToggle()
     set number
     set norelativenumber
   else
-    set nonumber
+    set number
     set relativenumber
   endif
 endfunction
