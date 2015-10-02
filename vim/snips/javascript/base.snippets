@@ -5,7 +5,7 @@ snippet => "arrow function (js)"
 endsnippet
 
 snippet afn "anonymous function (js)"
-function(${1:arguments}) {
+function(${1:parameters}) {
 	${2:// body...}
 }
 endsnippet
@@ -33,19 +33,19 @@ if (${1:err}) {
 endsnippet
 
 snippet f "anonymous function (js)" !
-function(${1:arguments}) {
+function(${1:parameters}) {
 	${2:// body...}
 }
 endsnippet
 
 snippet fn "named function (js)" !b
-function ${1:functionName}(${2:arguments}) {
+function ${1:functionName}(${2:parameters}) {
 	${0:// body...}
 }
 endsnippet
 
 snippet iife "immediately-invoked function expression (js)"
-(function(${1:arguments}) {
+(function(${1:parameters}) {
 	${0:// body...}
 })(${2:$1});
 endsnippet
@@ -57,7 +57,7 @@ Object.keys(${1:obj}).forEach(function(key) {
 endsnippet
 
 snippet proto "prototype method (js)" !b
-${1:ClassName}.prototype.${2:methodName} = function(${3:arguments}) {
+${1:ClassName}.prototype.${2:methodName} = function(${3:parameters}) {
 	${0:// body...}
 };
 endsnippet
