@@ -127,7 +127,7 @@ endif
 if isdirectory(expand('~/.vim/bundle/syntastic'))
   let g:syntastic_error_symbol = '✗'
   let g:syntastic_warning_symbol = '⚠'
-  let g:syntastic_javascript_checkers = ['jshint', 'jscs']
+  let g:syntastic_javascript_checkers = ['eslint', 'jshint', 'jscs']
   " Ignore common AngularJS HTML errors
   let g:syntastic_html_tidy_ignore_errors = [
     \ 'lacks "action" attribute',
@@ -442,7 +442,7 @@ if has("autocmd")
   autocmd Bufread,BufNewFile *.handlebars set filetype=mustache
   autocmd Bufread,BufNewFile *.hbs set filetype=mustache
   autocmd Bufread,BufNewFile *.j2 set filetype=jinja
-  autocmd Bufread,BufNewFile .jscsrc,.jshintrc set filetype=json
+  autocmd Bufread,BufNewFile .eslintrc,.jscsrc,.jshintrc set filetype=json
 
   " Whitespace preferences
   autocmd FileType make setlocal ts=8 sts=8 sw=8 noexpandtab
