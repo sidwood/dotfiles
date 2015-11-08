@@ -1,13 +1,27 @@
 PLATFORM=`uname`
 export EDITOR='vi'
-export PATH=~/.bin:./node_modules/.bin:/usr/local/heroku/bin:$PATH
+
+# reset PATH
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+# add /usr/local/bin and sbin to PATH
+export PATH=/usr/local/bin:/usr/local/sbin:$PATH
+
+# add home .bin to PATH
+export PATH=$HOME/.bin:$PATH
+
+# add /usr/local/heroku/bin to PATH
+export PATH=/usr/local/heroku/bin:$PATH
+
+# add local node_modules/.bin to PATH
+export PATH=./node_modules/.bin:$PATH
 
 # professional cow-free environment
 export ANSIBLE_NOCOWS=1
 
 # get my gopher on
-export GOPATH=~/code/golang
-export PATH=$PATH:$GOPATH/bin
+export GOPATH=$HOME/code/golang
+export PATH=$GOPATH/bin:$PATH
 
 # closure compiler install path
 if [[ $PLATFORM -eq 'Darwin' ]]; then
