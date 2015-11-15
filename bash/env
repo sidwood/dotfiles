@@ -38,9 +38,3 @@ fi
 if [[ -d "$HOME/.rbenv" && -s "$HOME/.rbenv/bin/rbenv" ]]; then
   export PATH=$HOME/.rbenv/bin:$PATH
 fi
-
-# closure compiler install path
-if [[ $PLATFORM -eq "Darwin" ]]; then
-  # obtained by `brew --prefix closure-compiler` and appending '/libexec'
-  export CLOSURE_PATH=/usr/local/opt/closure-compiler/libexec
-fi
