@@ -1,7 +1,7 @@
-# Initialise zsh's colour variables
+# initialise zsh's colour variables
 autoload -Uz colors && colors
 
-# Prompt configuration
+# prompt configuration
 local CR=$'\n'
 local ICON="%(?,%{$fg[green]%}➥,%{$fg[red]%}✘)"
 if [[ -n $SSH_CONNECTION ]]; then
@@ -15,7 +15,7 @@ RPROMPT='%{$fg[grey]%}$(~/.bin/git-cwd-info.sh)%{$reset_color%}'
 REPORTTIME=10 # print elapsed time when more than 10 seconds
 LISTMAX=0 # ask to complete if top of list would scroll off screen
 
-# History
+# history
 HISTFILE=~/.zsh-history
 HISTSIZE=100000
 SAVEHIST=$HISTSIZE
