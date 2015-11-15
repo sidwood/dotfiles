@@ -61,6 +61,16 @@ compdef '_files -W ~/code -/' c
 # create h function completions (h function defined in aliases file)
 compdef '_files -W ~ -/' h
 
+# pyenv shim
+if which pyenv > /dev/null; then
+  eval "$(pyenv init -)"
+fi
+
+# rbenv shim
+if which rbenv > /dev/null; then
+  eval "$(rbenv init -)"
+fi
+
 # z is the new j, yo
 if [[ $PLATFORM -eq "Darwin" ]]; then
   source `brew --prefix`/etc/profile.d/z.sh

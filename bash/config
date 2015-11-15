@@ -63,3 +63,13 @@ else
   PS1="\n\w\\[$YELLOW\]\$(vcprompt)\[$RESET_COLOR\]"
 fi
 PS1="$PS1\n\[$GREEN\]➥\[$RESET_COLOR\] "
+
+# pyenv shim
+if which pyenv > /dev/null; then
+  eval "$(pyenv init -)"
+fi
+
+# rbenv shim
+if which rbenv > /dev/null; then
+  eval "$(rbenv init -)"
+fi
