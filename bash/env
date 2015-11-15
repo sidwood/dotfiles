@@ -29,6 +29,16 @@ if [[ -d "$HOME/.nvm" && -s "$HOME/.nvm/nvm.sh" ]]; then
   source $NVM_DIR/nvm.sh
 fi
 
+# add pyenv to PATH
+if [[ -d "$HOME/.pyenv" && -s "$HOME/.pyenv/bin/pyenv" ]]; then
+  export PATH=$HOME/.pyenv/bin:$PATH
+fi
+
+# add rbenv to PATH
+if [[ -d "$HOME/.rbenv" && -s "$HOME/.rbenv/bin/rbenv" ]]; then
+  export PATH=$HOME/.rbenv/bin:$PATH
+fi
+
 # closure compiler install path
 if [[ $PLATFORM -eq "Darwin" ]]; then
   # obtained by `brew --prefix closure-compiler` and appending '/libexec'
