@@ -73,3 +73,9 @@ fi
 if which rbenv > /dev/null; then
   eval "$(rbenv init -)"
 fi
+
+# load node version manager
+if [[ -d "$HOME/.nvm" && -s "$HOME/.nvm/nvm.sh" ]]; then
+  source $NVM_DIR/nvm.sh
+fi
+
