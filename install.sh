@@ -18,6 +18,7 @@ abort() {
 # Ensure dependencies are installed
 #
 
+command -v git >/dev/null 2>&1 || abort 'git required'
 command -v make >/dev/null 2>&1 || abort 'GNU Make required'
 command -v wget >/dev/null 2>&1 || abort 'wget required'
 
