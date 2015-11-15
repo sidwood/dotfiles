@@ -23,10 +23,9 @@ export ANSIBLE_NOCOWS=1
 export GOPATH=$HOME/code/golang
 export PATH=$GOPATH/bin:$PATH
 
-# load node version manager
+# set node version manager directory
 if [[ -d "$HOME/.nvm" && -s "$HOME/.nvm/nvm.sh" ]]; then
   export NVM_DIR=$HOME/.nvm
-  source $NVM_DIR/nvm.sh
 fi
 
 # add pyenv to PATH
