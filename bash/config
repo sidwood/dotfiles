@@ -1,22 +1,22 @@
-# Increase file descriptor soft limit
+# increase file descriptor soft limit
 ulimit -n 2560
 
-# Show dotfiles first when using ls on Linux platforms
+# show dotfiles first when using ls on Linux platforms
 if [[ $PLATFORM == 'Linux' ]]; then
   export LC_COLLATE='C'
 fi
 
-# Force xterm to screen-256color to improve tmux colors
+# force xterm to screen-256color to improve tmux colors
 if [[ $TERM == 'xterm' ]]; then
   export TERM='screen-256color'
 fi
 
-# Colors from http://wiki.archlinux.org/index.php/Color_Bash_Prompt
+# colors from http://wiki.archlinux.org/index.php/Color_Bash_Prompt
 
-# Reset
+# reset
 RESET_COLOR='\e[0m'
 
-# Regular colors
+# regular colors
 BLACK='\e[0;30m'
 RED='\e[0;31m'
 GREEN='\e[0;32m'
@@ -26,7 +26,7 @@ MAGENTA='\e[0;35m'
 CYAN='\e[0;36m'
 WHITE='\e[0;37m'
 
-# Emphasized (bolded) colors
+# emphasized (bolded) colors
 EBLACK='\e[1;30m'
 ERED='\e[1;31m'
 EGREEN='\e[1;32m'
@@ -36,7 +36,7 @@ EMAGENTA='\e[1;35m'
 ECYAN='\e[1;36m'
 EWHITE='\e[1;37m'
 
-# Underlined colors
+# underlined colors
 UBLACK='\e[4;30m'
 URED='\e[4;31m'
 UGREEN='\e[4;32m'
@@ -46,7 +46,7 @@ UMAGENTA='\e[4;35m'
 UCYAN='\e[4;36m'
 UWHITE='\e[4;37m'
 
-# Background colors
+# background colors
 BBLACK='\e[40m'
 BRED='\e[41m'
 BGREEN='\e[42m'
@@ -56,7 +56,7 @@ BMAGENTA='\e[45m'
 BCYAN='\e[46m'
 BWHITE='\e[47m'
 
-# Prompt configuration
+# prompt configuration
 if [[ -n $SSH_CONNECTION ]]; then
   PS1="\n\u@\H:\w\[$YELLOW\]\$(vcprompt)\[$RESET_COLOR\]"
 else
