@@ -28,7 +28,7 @@ setopt HIST_IGNORE_ALL_DUPS  # don't record duplicates to history
 setopt HIST_REDUCE_BLANKS # tidy up commands before committing to history
 setopt SHARE_HISTORY # share history across sessions
 
-# Let's set a few ground rules
+# let's set a few ground rules
 setopt NO_BEEP # never, ever beep at me
 setopt NO_CORRECT # don't try to correct my commands
 setopt NO_BG_NICE # don't lower the priority of background jobs
@@ -38,27 +38,27 @@ setopt LOCAL_OPTIONS # options changed within a function are reverted
 setopt LOCAL_TRAPS # signals trapped by a function do not propagate
 setopt PROMPT_SUBST # prompt customization will use parameters
 
-# Completion
+# completion
 setopt MENUCOMPLETE # show completion on first TAB
 setopt COMPLETE_IN_WORD # complete items from the beginning to the cursor
 
-# Initialise zsh's completion
+# initialise zsh's completion
 autoload -U compinit
 compinit
 
-# Bind ctrl-r to history search
+# bind ctrl-r to history search
 bindkey '^R' history-incremental-search-backward
 
-# Matches case insensitive for lowercase
+# matches case insensitive for lowercase
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 
-# Pasting with tabs doesn't perform completion
+# pasting with tabs doesn't perform completion
 zstyle ':completion:*' insert-tab pending
 
-# Create c function completions (c function defined in aliases file)
+# create c function completions (c function defined in aliases file)
 compdef '_files -W ~/code -/' c
 
-# Create h function completions (h function defined in aliases file)
+# create h function completions (h function defined in aliases file)
 compdef '_files -W ~ -/' h
 
 # rbenv shim
@@ -69,4 +69,9 @@ fi
 # pyenv shim
 if which pyenv > /dev/null; then
   eval "$(pyenv init -)"
+fi
+
+# z is the new j, yo
+if [[ $PLATFORM -eq "Darwin" ]]; then
+  source `brew --prefix`/etc/profile.d/z.sh
 fi
