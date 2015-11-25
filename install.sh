@@ -18,9 +18,9 @@ abort() {
 # Ensure dependencies are installed
 #
 
+command -v curl >/dev/null 2>&1 || abort 'curl required'
 command -v git >/dev/null 2>&1 || abort 'git required'
 command -v make >/dev/null 2>&1 || abort 'GNU Make required'
-command -v wget >/dev/null 2>&1 || abort 'wget required'
 
 #
 # Symlink dotfiles to home directory
@@ -53,8 +53,8 @@ if [[ ! -x "bin/vcprompt" ]]; then
   rm -rf tmp 2>/dev/null
   mkdir tmp 2>/dev/null
   cd tmp
-  wget \
-    -O vcprompt.tar.gz \
+  curl \
+    -o vcprompt.tar.gz \
     http://hg.gerg.ca/vcprompt/archive/$VCPROMPT_VERSION.tar.gz
   tar -xzf vcprompt.tar.gz
   cd -
