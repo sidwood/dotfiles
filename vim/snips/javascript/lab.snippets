@@ -1,0 +1,41 @@
+snippet lab.a "after all (lab)" !b
+lab.after(($1) => {
+	$0
+});
+endsnippet
+
+snippet lab.ae "after each (lab)" b
+lab.afterEach(($1) => {
+	$0
+});
+endsnippet
+
+snippet lab.b "before all (lab)" !b
+lab.before(($1) => {
+	$0
+});
+endsnippet
+
+snippet lab.be "before each (lab)" b
+lab.beforeEach(($1) => {
+	$0
+});
+endsnippet
+
+snippet lab.c "context (lab)" b
+lab.context('${1:description}', () => {
+	$0
+});
+endsnippet
+
+snippet lab.d "describe (lab)" b
+lab.describe('${1:description}', () => {
+	$0
+});
+endsnippet
+
+snippet lab.i "it (lab)" b
+lab.it('${1:description}', ($2) => {
+	$0
+});
+endsnippet
