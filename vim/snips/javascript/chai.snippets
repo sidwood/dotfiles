@@ -39,7 +39,7 @@ expect(${1:target}).to.contain(${2:value});
 endsnippet
 
 snippet ei "expect to include (chai/code)" b
-expect(${1:target}).to.include(${2:value});
+expect(${1:target}).to${2:.deep}.include(${3:value});
 endsnippet
 
 snippet ev "expect to be visible (chai-jquery)" !b
