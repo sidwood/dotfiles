@@ -18,8 +18,9 @@ Plugin 'cyplo/vim-colors-solarized'
 Plugin 'jonathanfilip/vim-lucius'
 
 " Status line
-Plugin 'bling/vim-airline'
 Plugin 'edkolev/tmuxline.vim'
+Plugin 'vim-airline/vim-airline'
+Plugin 'vim-airline/vim-airline-themes'
 
 " Utils
 Plugin 'rking/ag.vim'
