@@ -215,6 +215,9 @@ else
   match OverLength /\%81v.\+/
 endif
 
+" Highlight errors
+match Error /\%81v.\+/
+
 " SETTINGS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
