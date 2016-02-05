@@ -104,7 +104,7 @@ endif
 
 " EditorConfig settings
 if isdirectory(expand('~/.vim/bundle/editorconfig-vim'))
-  let g:EditorConfig_verbose=1
+  let g:EditorConfig_verbose=0
 endif
 
 " Emmet settings
