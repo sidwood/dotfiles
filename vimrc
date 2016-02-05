@@ -47,7 +47,7 @@ Plugin 'thoughtbot/vim-rspec'
 Plugin 'vim-ruby/vim-ruby'
 Plugin 'honza/vim-snippets'
 Plugin 'tpope/vim-surround'
-Plugin 'nathanaelkane/vim-indent-guides'
+Plugin 'Yggdroot/indentLine'
 Plugin 'mattn/emmet-vim'
 
 " Syntax
@@ -389,6 +389,11 @@ endif
 " Toggle Gundo
 if isdirectory(expand('~/.vim/bundle/gundo.vim'))
   nmap <leader>u :GundoToggle<CR>/<BS>
+endif
+
+" Toggle indentLine
+if isdirectory(expand('~/.vim/bundle/indentLine'))
+  nmap <leader>ig :IndentLinesToggle<CR>/<BS>
 endif
 
 " Toggle NERDTree
