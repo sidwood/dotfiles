@@ -32,6 +32,11 @@ snippet req "require package dependency (node.js)" !
 require('${1:package}')${0:;}
 endsnippet
 
+snippet sut "declare system under test (node.js)" !b
+// sut
+const ${1:package} = require('${2:./}${3:$1}')$4;
+endsnippet
+
 snippet stdlib "declare stdlib package dependency (node.js)" !b
 // stdlib
 const ${1:package} = require('${2:$1}')$3;
