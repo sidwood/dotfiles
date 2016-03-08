@@ -68,6 +68,7 @@ Plugin 'mustache/vim-mustache-handlebars'
 Plugin 'slim-template/vim-slim'
 Plugin 'wavded/vim-stylus'
 Plugin 'puppetlabs/puppet-syntax-vim'
+Plugin 'leafgarland/typescript-vim'
 
 " Finalize vundle initialization
 call vundle#end()
