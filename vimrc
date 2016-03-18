@@ -69,6 +69,7 @@ Plugin 'slim-template/vim-slim'
 Plugin 'wavded/vim-stylus'
 Plugin 'puppetlabs/puppet-syntax-vim'
 Plugin 'leafgarland/typescript-vim'
+Plugin 'lambdatoast/elm.vim'
 
 " Finalize vundle initialization
 call vundle#end()
