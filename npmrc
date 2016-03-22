@@ -1,0 +1,5 @@
+init-author-email=sidwood@me.com
+init-author-name=Sid Wood
+init-license=MIT
+init-version=0.0.0
+message=Bump to v%s
