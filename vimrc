@@ -256,6 +256,9 @@ set smartcase
 set hlsearch
 set incsearch
 
+" History
+set history=1000
+
 " Use ag over grep
 if executable('ag')
   set grepprg=ag\ --nogroup\ --nocolor
