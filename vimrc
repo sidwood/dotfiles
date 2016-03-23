@@ -65,6 +65,10 @@ Plug 'puppetlabs/puppet-syntax-vim'
 Plug 'leafgarland/typescript-vim'
 Plug 'lambdatoast/elm.vim'
 
+" Autocomplete
+Plug 'ternjs/tern_for_vim', {'do': 'npm install'}
+Plug 'Valloric/YouCompleteMe', {'do': './install.py --tern-completer'}
+
 " Finalize vim-plug initialization
 call plug#end()
 
@@ -143,7 +147,7 @@ if isdirectory(expand('~/.vim/plugged/ultisnips'))
   let g:UltiSnipsSnippetsDir = '~/.vim/snips'
   let g:UltiSnipsSnippetDirectories = ['UltiSnips', 'snips']
   let g:UltiSnipsListSnippets='<c-l>'
-  let g:UltiSnipsExpandTrigger = '<tab>'
+  let g:UltiSnipsExpandTrigger = '<c-j>'
   let g:UltiSnipsJumpForwardTrigger = '<tab>'
   let g:UltiSnipsJumpBackwardTrigger = '<s-tab>'
 endif
@@ -166,6 +170,13 @@ endif
 " Markdown settings
 if isdirectory(expand('~/.vim/plugged/vim-markdown'))
   let g:vim_markdown_folding_disabled = 1
+endif
+
+" Tern settings
+if isdirectory(expand('~/.vim/plugged/tern_for_vim'))
+  let g:tern_map_prefix = '<leader>'
+  let g:tern_map_keys = 1
+  let g:tern_show_argument_hints = 'on_hold'
 endif
 
 " COLORS
@@ -357,7 +368,7 @@ nmap <leader>sc :set spell!<CR>/<BS>
 nmap <leader>vi :tabe ~/.vimrc<CR>/<BS>
 
 " Edit TODO file in new tab
-nmap <leader>td :tabe ~/Google\ Drive/Notes/TODO<CR>/<BS>
+nmap <leader>TD :tabe ~/Google\ Drive/Notes/TODO<CR>/<BS>
 
 " Source current file
 nmap <leader>so :so %<CR>/<BS>
