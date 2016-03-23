@@ -16,3 +16,7 @@ done
 echo "Uninstalling vcprompt"
 rm bin/vcprompt 2>/dev/null
 rm -rf tmp 2>/dev/null
+
+echo "Uninstalling vim-plug"
+rm -rf vim/autoload 2>/dev/null
+rm -rf vim/plugged 2>/dev/null
