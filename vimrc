@@ -4,90 +4,81 @@
 " Vi IMproved
 set nocompatible
 
-" Disable file type detection
-filetype off
-
-" Initialize vundle
-set rtp+=~/.vim/bundle/Vundle.vim
-call vundle#begin()
-
-Plugin 'VundleVim/Vundle.vim'
+" Initialize vim-plug
+call plug#begin('~/.vim/plugged')
 
 " Color
-Plugin 'cyplo/vim-colors-solarized'
-Plugin 'jonathanfilip/vim-lucius'
+Plug 'cyplo/vim-colors-solarized'
+Plug 'jonathanfilip/vim-lucius'
 
 " Status line
-Plugin 'edkolev/tmuxline.vim'
-Plugin 'vim-airline/vim-airline'
-Plugin 'vim-airline/vim-airline-themes'
+Plug 'edkolev/tmuxline.vim'
+Plug 'vim-airline/vim-airline'
+Plug 'vim-airline/vim-airline-themes'
 
 " Utils
-Plugin 'rking/ag.vim'
-Plugin 'kien/ctrlp.vim'
-Plugin 'Raimondi/delimitMate'
-Plugin 'editorconfig/editorconfig-vim'
-Plugin 'sjl/gundo.vim'
-Plugin 'scrooloose/nerdtree'
-Plugin 'scrooloose/syntastic'
-Plugin 'godlygeek/tabular'
-Plugin 'SirVer/ultisnips'
-Plugin 'tpope/vim-bundler'
-Plugin 'tpope/vim-rake'
-Plugin 'tpope/vim-commentary'
-Plugin 'tpope/vim-dispatch'
-Plugin 'tpope/vim-endwise'
-Plugin 'tpope/vim-eunuch'
-Plugin 'tpope/vim-fugitive'
-Plugin 'tpope/vim-git'
-Plugin 'airblade/vim-gitgutter'
-Plugin 'jistr/vim-nerdtree-tabs'
-Plugin 'tpope/vim-rails'
-Plugin 'thoughtbot/vim-rspec'
-Plugin 'vim-ruby/vim-ruby'
-Plugin 'honza/vim-snippets'
-Plugin 'tpope/vim-surround'
-Plugin 'Yggdroot/indentLine'
-Plugin 'mattn/emmet-vim'
+Plug 'rking/ag.vim'
+Plug 'kien/ctrlp.vim'
+Plug 'Raimondi/delimitMate'
+Plug 'editorconfig/editorconfig-vim'
+Plug 'sjl/gundo.vim'
+Plug 'scrooloose/nerdtree'
+Plug 'scrooloose/syntastic'
+Plug 'godlygeek/tabular'
+Plug 'SirVer/ultisnips'
+Plug 'tpope/vim-bundler'
+Plug 'tpope/vim-rake'
+Plug 'tpope/vim-commentary'
+Plug 'tpope/vim-dispatch'
+Plug 'tpope/vim-endwise'
+Plug 'tpope/vim-eunuch'
+Plug 'tpope/vim-fugitive'
+Plug 'tpope/vim-git'
+Plug 'airblade/vim-gitgutter'
+Plug 'jistr/vim-nerdtree-tabs'
+Plug 'tpope/vim-rails'
+Plug 'thoughtbot/vim-rspec'
+Plug 'vim-ruby/vim-ruby'
+Plug 'honza/vim-snippets'
+Plug 'tpope/vim-surround'
+Plug 'Yggdroot/indentLine'
+Plug 'mattn/emmet-vim'
 
 " Syntax
-Plugin 'dart-lang/dart-vim-plugin'
-Plugin 'kchmck/vim-coffee-script'
-Plugin 'tpope/vim-cucumber'
-Plugin 'elixir-lang/vim-elixir'
-Plugin 'fatih/vim-go'
-Plugin 'tpope/vim-haml'
-Plugin 'digitaltoad/vim-jade'
-Plugin 'pangloss/vim-javascript'
-Plugin 'mxw/vim-jsx'
-Plugin 'mitsuhiko/vim-jinja'
-Plugin 'elzr/vim-json'
-Plugin 'groenewege/vim-less'
-Plugin 'plasticboy/vim-markdown'
-Plugin 'mustache/vim-mustache-handlebars'
-Plugin 'slim-template/vim-slim'
-Plugin 'wavded/vim-stylus'
-Plugin 'puppetlabs/puppet-syntax-vim'
-Plugin 'leafgarland/typescript-vim'
-Plugin 'lambdatoast/elm.vim'
+Plug 'dart-lang/dart-vim-plugin'
+Plug 'kchmck/vim-coffee-script'
+Plug 'tpope/vim-cucumber'
+Plug 'elixir-lang/vim-elixir'
+Plug 'fatih/vim-go'
+Plug 'tpope/vim-haml'
+Plug 'digitaltoad/vim-jade'
+Plug 'pangloss/vim-javascript'
+Plug 'mxw/vim-jsx'
+Plug 'mitsuhiko/vim-jinja'
+Plug 'elzr/vim-json'
+Plug 'groenewege/vim-less'
+Plug 'plasticboy/vim-markdown'
+Plug 'mustache/vim-mustache-handlebars'
+Plug 'slim-template/vim-slim'
+Plug 'wavded/vim-stylus'
+Plug 'puppetlabs/puppet-syntax-vim'
+Plug 'leafgarland/typescript-vim'
+Plug 'lambdatoast/elm.vim'
 
-" Finalize vundle initialization
-call vundle#end()
-
-" Enable file type detection
-filetype plugin indent on
+" Finalize vim-plug initialization
+call plug#end()
 
 " PLUGIN SETTINGS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Airline settings
-if isdirectory(expand('~/.vim/bundle/vim-airline'))
+if isdirectory(expand('~/.vim/plugged/vim-airline'))
   let g:airline_powerline_fonts = 1
   let g:airline#extensions#tabline#enabled = 1
 endif
 
 " CtrlP settings
-if isdirectory(expand('~/.vim/bundle/ctrlp.vim'))
+if isdirectory(expand('~/.vim/plugged/ctrlp.vim'))
   let g:ctrlp_show_hidden = 1
   " Use ag if available
   if executable('ag')
@@ -99,35 +90,35 @@ if isdirectory(expand('~/.vim/bundle/ctrlp.vim'))
 endif
 
 " delimitMate settings
-if isdirectory(expand('~/.vim/bundle/delimitMate'))
+if isdirectory(expand('~/.vim/plugged/delimitMate'))
   let g:delimitMate_expand_cr = 1
   let g:delimitMate_expand_space = 1
 endif
 
 " EditorConfig settings
-if isdirectory(expand('~/.vim/bundle/editorconfig-vim'))
+if isdirectory(expand('~/.vim/plugged/editorconfig-vim'))
   let g:EditorConfig_verbose=0
 endif
 
 " Emmet settings
-if isdirectory(expand('~/.vim/bundle/emmet-vim'))
+if isdirectory(expand('~/.vim/plugged/emmet-vim'))
   let g:user_emmet_leader_key = '<leader>e'
 endif
 
 " Gundo settings
-if isdirectory(expand('~/.vim/bundle/gundo.vim'))
+if isdirectory(expand('~/.vim/plugged/gundo.vim'))
   let g:gundo_right = 1
   let g:gundo_preview_bottom = 1
 endif
 
 " NERDTree settings
-if isdirectory(expand('~/.vim/bundle/nerdtree'))
+if isdirectory(expand('~/.vim/plugged/nerdtree'))
   let NERDTreeIgnore = ['\.git$']
   let NERDTreeShowHidden = 1
 endif
 
 " Syntastic settings
-if isdirectory(expand('~/.vim/bundle/syntastic'))
+if isdirectory(expand('~/.vim/plugged/syntastic'))
   let g:syntastic_error_symbol = '✗'
   let g:syntastic_warning_symbol = '⚠'
   let g:syntastic_javascript_checkers = ['eslint']
@@ -145,7 +136,7 @@ if isdirectory(expand('~/.vim/bundle/syntastic'))
 endif
 
 " UltiSnips settings
-if isdirectory(expand('~/.vim/bundle/ultisnips'))
+if isdirectory(expand('~/.vim/plugged/ultisnips'))
   let g:snips_author = 'Sid Wood'
   let g:snips_author_email = 'sidwood@me.com'
   let g:UltiSnipsEditSplit = 'vertical'
@@ -158,22 +149,22 @@ if isdirectory(expand('~/.vim/bundle/ultisnips'))
 endif
 
 " VimMarkdown settings
-if isdirectory(expand('~/.vim/bundle/vim-markdown'))
+if isdirectory(expand('~/.vim/plugged/vim-markdown'))
   let g:vim_markdown_folding_disabled = 1
 endif
 
 " GitGutter settings
-if isdirectory(expand('~/.vim/bundle/vim-gitgutter'))
+if isdirectory(expand('~/.vim/plugged/vim-gitgutter'))
   let g:gitgutter_sign_column_always = 1
 endif
 
 " Json settings
-if isdirectory(expand('~/.vim/bundle/vim-json'))
+if isdirectory(expand('~/.vim/plugged/vim-json'))
   let g:vim_json_syntax_conceal = 0
 endif
 
 " Markdown settings
-if isdirectory(expand('~/.vim/bundle/vim-markdown'))
+if isdirectory(expand('~/.vim/plugged/vim-markdown'))
   let g:vim_markdown_folding_disabled = 1
 endif
 
@@ -389,38 +380,38 @@ if exists('+relativenumber')
 endif
 
 " Toggle GitGutter
-if isdirectory(expand('~/.vim/bundle/vim-gitgutter'))
+if isdirectory(expand('~/.vim/plugged/vim-gitgutter'))
   nmap <leader>lg :GitGutterToggle<CR>/<BS>
 endif
 
 " Toggle Gundo
-if isdirectory(expand('~/.vim/bundle/gundo.vim'))
+if isdirectory(expand('~/.vim/plugged/gundo.vim'))
   nmap <leader>u :GundoToggle<CR>/<BS>
 endif
 
 " Toggle indentLine
-if isdirectory(expand('~/.vim/bundle/indentLine'))
+if isdirectory(expand('~/.vim/plugged/indentLine'))
   nmap <leader>ig :IndentLinesToggle<CR>/<BS>
 endif
 
 " Toggle NERDTree
-if isdirectory(expand('~/.vim/bundle/nerdtree'))
+if isdirectory(expand('~/.vim/plugged/nerdtree'))
   nmap <leader>m :NERDTreeMirrorToggle<CR>/<BS>
   nmap <leader>ff :NERDTreeFind<CR>/<BS>
 endif
 
 " Toggle Syntastic
-if isdirectory(expand('~/.vim/bundle/syntastic'))
+if isdirectory(expand('~/.vim/plugged/syntastic'))
   nmap <leader>ls :SyntasticToggleMode<CR>/<BS>
 endif
 
 " Dispatch asynchronous command
-if isdirectory(expand('~/.vim/bundle/vim-dispatch'))
+if isdirectory(expand('~/.vim/plugged/vim-dispatch'))
   nnoremap <leader>d :call <SID>DispatchCommand()<CR>/<BS>
 endif
 
 " vim-rspec mappings
-if isdirectory(expand('~/.vim/bundle/vim-rspec'))
+if isdirectory(expand('~/.vim/plugged/vim-rspec'))
   map <leader>rt :call RunCurrentSpecFile()<CR>/<BS>
   map <leader>rs :call RunNearestSpec()<CR>/<BS>
   map <leader>rl :call RunLastSpec()<CR>/<BS>
