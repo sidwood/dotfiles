@@ -23,6 +23,7 @@
 	untracked = red
 [core]
 	editor = vim
+	excludesfile = ~/.gitignore
 [format]
 	pretty = %C(yellow)%h%Creset%Cred%d%Creset %s %Cgreen%an, %cr%Creset
 [heroku]
