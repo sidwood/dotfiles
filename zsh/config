@@ -1,3 +1,9 @@
+# add completions to $fpath
+fpath=(/usr/local/share/zsh-completions $fpath)
+
+# initialise compinit
+autoload -Uz compinit && compinit -i
+
 # initialise zsh's colour variables
 autoload -Uz colors && colors
 
