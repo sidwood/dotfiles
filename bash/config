@@ -62,7 +62,7 @@ if [[ -n $SSH_CONNECTION ]]; then
 else
   PS1="\n\w\\[$YELLOW\]\$(vcprompt)\[$RESET_COLOR\]"
 fi
-PS1="$PS1\n\[$GREEN\]➥\[$RESET_COLOR\] "
+PS1="$PS1\n\[$GREEN\]λ\[$RESET_COLOR\] "
 
 # pyenv shim
 if which pyenv > /dev/null; then
