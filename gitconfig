@@ -46,3 +46,6 @@
 	insteadOf = "gist:"
 [url "git@heroku.com:"]
 	insteadOf = "heroku:"
+[merge "npm-merge-driver"]
+	name = automatically merge npm lockfiles
+	driver = npx npm-merge-driver merge %A %O %B %P
