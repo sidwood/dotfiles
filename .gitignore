@@ -1,4 +1,5 @@
 bin/vcprompt
+bundle/cache
 tmp/
 vim/autoload/
 vim/plugged/
