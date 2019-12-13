@@ -3,7 +3,7 @@ autoload -Uz colors && colors
 
 # prompt configuration
 local CR=$'\n'
-local ICON="%(?,%{$fg[green]%}➥,%{$fg[red]%}✘)"
+local ICON="%(?,%{$fg[green]%}λ,%{$fg[red]%}λ)"
 if [[ -n $SSH_CONNECTION ]]; then
   PROMPT='${CR}%n@%M:%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
 else
