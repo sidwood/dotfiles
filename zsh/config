@@ -61,6 +61,11 @@ compdef '_files -W ~/code -/' c
 # create h function completions (h function defined in aliases file)
 compdef '_files -W ~ -/' h
 
+# direnv hook
+if which direnv > /dev/null; then
+  eval "$(direnv hook zsh)"
+fi
+
 # pyenv shim
 if which pyenv > /dev/null; then
   eval "$(pyenv init -)"
