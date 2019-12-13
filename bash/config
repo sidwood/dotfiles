@@ -64,6 +64,11 @@ else
 fi
 PS1="$PS1\n\[$GREEN\]λ\[$RESET_COLOR\] "
 
+# direnv hook
+if which direnv > /dev/null; then
+  eval "$(direnv hook bash)"
+fi
+
 # pyenv shim
 if which pyenv > /dev/null; then
   eval "$(pyenv init -)"
