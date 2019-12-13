@@ -67,6 +67,7 @@ PS1="$PS1\n\[$GREEN\]λ\[$RESET_COLOR\] "
 # pyenv shim
 if which pyenv > /dev/null; then
   eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
 fi
 
 # rbenv shim
