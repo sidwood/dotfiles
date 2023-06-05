@@ -98,3 +98,8 @@ if [[ $PLATFORM -eq "Darwin" ]]; then
   eval $(/opt/homebrew/bin/brew shellenv)
   source /opt/homebrew/etc/profile.d/z.sh
 fi
+
+# heroku autocomplete setup
+if [[ -f "$HOME/Library/Caches/heroku/autocomplete/zsh_setup" ]]; then
+  source $HOME/Library/Caches/heroku/autocomplete/zsh_setup
+fi
