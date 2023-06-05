@@ -88,7 +88,8 @@ if [[ -d "$HOME/.nvm" && -s "$HOME/.nvm/nvm.sh" ]]; then
   source $NVM_DIR/nvm.sh
 fi
 
-# z is the new j, yo
+# initialize homebrew then z jump tool
 if [[ $PLATFORM -eq "Darwin" ]]; then
-  source `brew --prefix`/etc/profile.d/z.sh
+  eval $(/opt/homebrew/bin/brew shellenv)
+  source /opt/homebrew/etc/profile.d/z.sh
 fi
