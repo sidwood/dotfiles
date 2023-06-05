@@ -28,6 +28,8 @@
 	pretty = %C(yellow)%h%Creset%Cred%d%Creset %s %Cgreen%an, %cr%Creset
 [heroku]
 	account = personal
+[init]
+	defaultBranch = master
 [push]
 	default = simple
 [pull]
