@@ -90,3 +90,6 @@ alias sup='svn update'
 # tmux
 alias ta='tmux attach'
 alias tl='tmux ls'
+
+# util
+alias www='python3 -m http.server 8000'
