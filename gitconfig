@@ -29,11 +29,16 @@
 [heroku]
 	account = personal
 [init]
-	defaultBranch = master
+	defaultBranch = main
+[merge "npm-merge-driver"]
+	name = automatically merge npm lockfiles
+	driver = npx npm-merge-driver merge %A %O %B %P
 [push]
 	default = simple
 [pull]
 	rebase = true
+[rebase]
+	autoStash = true
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
@@ -48,6 +53,3 @@
 	insteadOf = "gist:"
 [url "git@heroku.com:"]
 	insteadOf = "heroku:"
-[merge "npm-merge-driver"]
-	name = automatically merge npm lockfiles
-	driver = npx npm-merge-driver merge %A %O %B %P
