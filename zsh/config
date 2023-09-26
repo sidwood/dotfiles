@@ -88,15 +88,15 @@ if which rbenv > /dev/null; then
   eval "$(rbenv init -)"
 fi
 
-# load node version manager
-if [[ -d "$HOME/.nvm" && -s "$HOME/.nvm/nvm.sh" ]]; then
-  source $HOME/.nvm/nvm.sh
-fi
-
 # initialize homebrew then z jump tool
 if [[ $PLATFORM -eq "Darwin" ]]; then
   eval $(/opt/homebrew/bin/brew shellenv)
   source /opt/homebrew/etc/profile.d/z.sh
+fi
+
+# load node version manager
+if [[ -d "$HOME/.nvm" && -s "$HOME/.nvm/nvm.sh" ]]; then
+  source $HOME/.nvm/nvm.sh
 fi
 
 # heroku autocomplete setup
