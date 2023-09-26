@@ -97,6 +97,7 @@ fi
 # load node version manager
 if [[ -d "$HOME/.nvm" && -s "$HOME/.nvm/nvm.sh" ]]; then
   source $HOME/.nvm/nvm.sh
+  [[ -s "$HOME/.nvm/bash_completion" ]] && source $HOME/.nvm/bash_completion
 fi
 
 # heroku autocomplete setup
