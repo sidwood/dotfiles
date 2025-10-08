@@ -23,6 +23,24 @@ command -v git >/dev/null 2>&1 || abort 'git required'
 command -v make >/dev/null 2>&1 || abort 'GNU Make required'
 
 #
+# Install Homebrew packages (macOS only)
+#
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  echo "Checking for Homebrew"
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  fi
+
+  if [ -f "$PWD/Brewfile" ]; then
+    echo "Installing Homebrew packages from Brewfile"
+    brew bundle --file="$PWD/Brewfile"
+  fi
+fi
+
+#
 # Symlink dotfiles to home directory
 #
 
