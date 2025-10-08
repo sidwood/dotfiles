@@ -1,27 +1,164 @@
 #!/usr/bin/env bash
 
 #
-# Uninstall Homebrew packages (optional, prompts user)
+# Menu state
 #
 
-if [[ "$OSTYPE" == "darwin"* ]] && [ -f "$PWD/Brewfile" ]; then
-  read -p "Uninstall Homebrew packages from Brewfile? [y/N] " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
+cursor=0
+options=()
+selected=()
+option_keys=()
+
+#
+# Build menu options based on OS
+#
+
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  options+=("Uninstall Homebrew packages and applications.")
+  option_keys+=("homebrew")
+fi
+options+=("Remove dotfile package symlinks with GNU Stow.")
+option_keys+=("stow")
+options+=("Uninstall vcprompt.")
+option_keys+=("vcprompt")
+options+=("Uninstall vim plugins.")
+option_keys+=("vim")
+for i in "${!options[@]}"; do
+  selected[$i]=true
+done
+
+#
+# Menu helper functions
+#
+
+hide_cursor() {
+  tput civis 2>/dev/null || printf '\033[?25l'
+}
+
+show_cursor() {
+  tput cnorm 2>/dev/null || printf '\033[?25h'
+}
+
+move_up() {
+  printf '\033[%dA\r' "$1"
+}
+
+print_menu() {
+  local i
+  for i in "${!options[@]}"; do
+    printf '\033[2K'
+    if [[ $i -eq $cursor ]]; then
+      printf "\033[36m> \033[0m"
+    else
+      printf "  "
+    fi
+    if [[ "${selected[$i]}" == "true" ]]; then
+      printf "\033[32m[x]\033[0m "
+    else
+      printf "[ ] "
+    fi
+    printf "%s\n" "${options[$i]}"
+  done
+}
+
+show_menu() {
+  local key
+  local menu_lines=${#options[@]}
+  printf "\n\033[1mSelect uninstallations\033[0m (↑/↓/k/j navigate, Space toggle, Enter confirm):\n\n"
+  hide_cursor
+  print_menu
+  while true; do
+    IFS= read -rsn1 key
+    if [[ "$key" == $'\e' ]]; then
+      IFS= read -rsn1 key
+      if [[ "$key" == "[" ]]; then
+        IFS= read -rsn1 key
+        case "$key" in
+          A) ((cursor > 0)) && ((cursor--)) ;;
+          B) ((cursor < menu_lines - 1)) && ((cursor++)) ;;
+        esac
+      fi
+    elif [[ "$key" == 'k' ]]; then
+      ((cursor > 0)) && ((cursor--))
+    elif [[ "$key" == 'j' ]]; then
+      ((cursor < menu_lines - 1)) && ((cursor++))
+    elif [[ "$key" == ' ' ]]; then
+      if [[ "${selected[$cursor]}" == "true" ]]; then
+        selected[$cursor]=false
+      else
+        selected[$cursor]=true
+      fi
+    elif [[ "$key" == '' ]]; then
+      break
+    fi
+    move_up "$menu_lines"
+    print_menu
+  done
+  show_cursor
+  printf "\n"
+}
+
+is_selected() {
+  local key="$1"
+  local i
+  for i in "${!option_keys[@]}"; do
+    if [[ "${option_keys[$i]}" == "$key" ]]; then
+      [[ "${selected[$i]}" == "true" ]] && return 0 || return 1
+    fi
+  done
+  return 1
+}
+
+#
+# Uninstallation functions
+#
+
+uninstall_homebrew() {
+  if [ -f "$PWD/Brewfile" ]; then
     echo "Uninstalling Homebrew packages"
     brew bundle cleanup --file="$PWD/Brewfile" --force
   fi
+}
+
+uninstall_dotfiles() {
+  echo "Removing dotfile package symlinks"
+  for pkg in */; do
+    stow -Dv "${pkg%/}"
+  done
+}
+
+uninstall_vcprompt() {
+  echo "Uninstalling vcprompt"
+  rm "$HOME/.bin/vcprompt" 2>/dev/null
+  rm -rf tmp 2>/dev/null
+}
+
+uninstall_vim_plugins() {
+  echo "Uninstalling vim-plug"
+  rm -rf "$HOME/.vim/autoload" 2>/dev/null
+  rm -rf "$HOME/.vim/plugged" 2>/dev/null
+}
+
+#
+# Main
+#
+
+show_menu
+
+if is_selected "homebrew"; then
+  uninstall_homebrew
 fi
 
-echo "Unstowing dotfiles packages"
-for pkg in */; do
-  stow -Dv "${pkg%/}"
-done
+if is_selected "stow"; then
+  uninstall_dotfiles
+fi
 
-echo "Uninstalling vcprompt"
-rm "$HOME/.bin/vcprompt" 2>/dev/null
-rm -rf tmp 2>/dev/null
+if is_selected "vcprompt"; then
+  uninstall_vcprompt
+fi
 
-echo "Uninstalling vim-plug"
-rm -rf "$HOME/.vim/autoload" 2>/dev/null
-rm -rf "$HOME/.vim/plugged" 2>/dev/null
+if is_selected "vim"; then
+  uninstall_vim_plugins
+fi
+
+printf "\n\033[32mUninstallation complete!\033[0m\n"
