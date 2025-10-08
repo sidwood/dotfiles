@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 
 #
+# Change CWD to the dotfiles repository root
+#
+
+cd "$(dirname "$0")" || { printf "\n \033[31mError: Failed to change to script directory\033[0m\n\n"; exit 1; }
+
+#
 # Constants
 #
 
