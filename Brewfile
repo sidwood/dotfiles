@@ -25,7 +25,7 @@ cask "1password-cli"
 # gui applications
 cask "1password"
 cask "cursor"
-cask "docker"
+cask "docker-desktop"
 cask "google-chrome"
 cask "iterm2"
 cask "microsoft-edge"
