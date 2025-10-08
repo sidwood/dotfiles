@@ -1,3 +1,3 @@
-. ~/.dotfiles/zsh/env
-. ~/.dotfiles/zsh/config
-. ~/.dotfiles/zsh/aliases
+. ~/.zsh/env
+. ~/.zsh/config
+. ~/.zsh/aliases

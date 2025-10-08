@@ -1,4 +1,4 @@
-. ~/.dotfiles/bash/aliases
+. ~/.bash/aliases
 
 # code directory shortcut
 function c() {
