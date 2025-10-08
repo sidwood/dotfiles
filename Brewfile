@@ -51,3 +51,12 @@ cask "whatsapp"
 cask "zed"
 cask "zen"
 cask "zoom"
+
+# mac app store applications
+mas "Gifski", id: 1351639930
+mas "HP: Print and Support", id: 1474276998
+mas "Keynote", id: 409183694
+mas "Magnet", id: 441258766
+mas "Numbers", id: 409203825
+mas "Pages", id: 409201541
+mas "Sound Studio", id: 405537804
