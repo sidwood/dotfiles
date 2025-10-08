@@ -1,7 +1,8 @@
 bin/vcprompt
-bundle/cache
+bin/.bin/vcprompt
+ruby/.bundle/cache
 tmp/
-vim/autoload/
-vim/plugged/
+vim/.vim/autoload/
+vim/.vim/plugged/
 .DS_Store
 .netrwhist
