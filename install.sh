@@ -141,6 +141,7 @@ install_homebrew() {
     echo "Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     eval "$(/opt/homebrew/bin/brew shellenv)"
+    brew install mas >/dev/null 2>&1 # mac app store cli tool
   fi
 
   if [ -f "$PWD/Brewfile" ]; then
