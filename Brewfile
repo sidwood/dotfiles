@@ -1,4 +1,6 @@
 # cli tools
+brew "awscli"
+brew "azure-cli"
 brew "cmatrix"
 brew "curl"
 brew "difftastic"
@@ -21,6 +23,7 @@ brew "the_silver_searcher"
 brew "tmux"
 brew "tree"
 brew "vim"
+brew "yq"
 
 # cli applications
 cask "1password-cli"
