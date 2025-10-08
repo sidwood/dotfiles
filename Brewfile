@@ -19,10 +19,13 @@ brew "vim"
 
 # cli applications
 cask "1password-cli"
+cask "claude-code"
 
 # gui applications
-cask "alfred"
 cask "1password"
+cask "alfred"
+cask "chatgpt"
+cask "claude"
 cask "cursor"
 cask "docker-desktop"
 cask "google-chrome"
