@@ -28,6 +28,7 @@ brew "the_silver_searcher"
 brew "tmux"
 brew "tree"
 brew "vim"
+brew "yazi"
 brew "yq"
 
 # cli applications
