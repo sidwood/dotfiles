@@ -32,6 +32,7 @@ brew "tree"
 brew "vim"
 brew "yazi"
 brew "yq"
+brew "zoxide"
 
 # cli applications
 cask "1password-cli"
