@@ -1,0 +1,34 @@
+tap "homebrew/bundle"
+
+# cli tools
+brew "cmatrix"
+brew "curl"
+brew "git"
+brew "heroku"
+brew "htop"
+brew "make"
+brew "nvim"
+brew "openssl"
+brew "pyenv-virtualenv"
+brew "pyenv"
+brew "rbenv"
+brew "readline"
+brew "ruby-build"
+brew "stow"
+brew "the_silver_searcher"
+brew "tmux"
+brew "vim"
+
+# cli applications
+cask "1password-cli"
+
+# gui applications
+cask "1password"
+cask "cursor"
+cask "docker"
+cask "google-chrome"
+cask "iterm2"
+cask "microsoft-edge"
+cask "visual-studio-code"
+cask "zed"
+cask "zen-browser"
