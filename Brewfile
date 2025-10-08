@@ -1,5 +1,3 @@
-tap "homebrew/bundle"
-
 # cli tools
 brew "cmatrix"
 brew "curl"
