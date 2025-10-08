@@ -62,51 +62,48 @@ show_cursor() {
 }
 
 move_up() {
-  printf '\033[%dA' "$1"
-}
-
-clear_line() {
-  printf '\033[2K'
+  printf '\033[%dA\r' "$1"
 }
 
 print_menu() {
   local i
   for i in "${!options[@]}"; do
-    clear_line
+    printf '\033[2K'
     if [[ $i -eq $cursor ]]; then
       printf "\033[36m> \033[0m"
     else
       printf "  "
     fi
-
     if [[ "${selected[$i]}" == "true" ]]; then
       printf "\033[32m[x]\033[0m "
     else
       printf "[ ] "
     fi
-
     printf "%s\n" "${options[$i]}"
   done
 }
 
 show_menu() {
-  local key
+  local key escape_seq
   local menu_lines=${#options[@]}
   printf "\n\033[1mSelect installations\033[0m (↑/↓ navigate, Space toggle, Enter confirm):\n\n"
   hide_cursor
   print_menu
   while true; do
     IFS= read -rsn1 key
-    if [[ "$key" == $'\x1b' ]]; then
-      read -rsn2 -t 0.1 key
-      case "$key" in
-        '[A') # up arrow
-          ((cursor > 0)) && ((cursor--))
-          ;;
-        '[B') # down arrow
-          ((cursor < menu_lines - 1)) && ((cursor++))
-          ;;
-      esac
+    if [[ "$key" == $'\e' ]]; then
+      IFS= read -rsn1 key
+      if [[ "$key" == "[" ]]; then
+        IFS= read -rsn1 key
+        case "$key" in
+          A) ((cursor > 0)) && ((cursor--)) ;;
+          B) ((cursor < menu_lines - 1)) && ((cursor++)) ;;
+        esac
+      fi
+    elif [[ "$key" == 'k' ]]; then
+      ((cursor > 0)) && ((cursor--))
+    elif [[ "$key" == 'j' ]]; then
+      ((cursor < menu_lines - 1)) && ((cursor++))
     elif [[ "$key" == ' ' ]]; then
       if [[ "${selected[$cursor]}" == "true" ]]; then
         selected[$cursor]=false
