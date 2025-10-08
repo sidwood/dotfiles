@@ -1,6 +1,7 @@
 # cli tools
 brew "cmatrix"
 brew "curl"
+brew "difftastic"
 brew "git"
 brew "heroku"
 brew "htop"
