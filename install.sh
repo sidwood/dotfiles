@@ -151,7 +151,7 @@ install_homebrew() {
 
 stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
-  echo "Stowing dotfiles packages"
+  echo "Symlinking dotfile packages"
   for pkg in */; do
     stow -v "${pkg%/}"
   done
