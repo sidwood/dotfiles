@@ -1,3 +1,6 @@
+tap "jesseduffield/lazydocker"
+tap "jesseduffield/lazygit"
+
 # cli tools
 brew "awscli"
 brew "azure-cli"
@@ -8,6 +11,7 @@ brew "gifski"
 brew "git"
 brew "heroku"
 brew "htop"
+brew "lazydocker"
 brew "lazygit"
 brew "make"
 brew "nvim"
