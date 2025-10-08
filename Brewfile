@@ -2,6 +2,7 @@
 brew "cmatrix"
 brew "curl"
 brew "difftastic"
+brew "gifski"
 brew "git"
 brew "heroku"
 brew "htop"
