@@ -21,6 +21,7 @@ brew "vim"
 cask "1password-cli"
 
 # gui applications
+cask "alfred"
 cask "1password"
 cask "cursor"
 cask "docker-desktop"
