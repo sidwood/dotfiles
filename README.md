@@ -17,7 +17,7 @@ The install script presents an interactive menu where you can select which
 components to install:
 
 ```
-Select installations (↑/↓ navigate, Space toggle, Enter confirm):
+Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
 > [x] Install Homebrew packages and applications.
   [x] Symlink dotfile packages with GNU Stow.
@@ -25,7 +25,8 @@ Select installations (↑/↓ navigate, Space toggle, Enter confirm):
   [x] Install vim plugins.
 ```
 
-Use arrow keys to navigate, space to toggle options, and enter to confirm.
+Use arrow keys or `j`/`k` to navigate, space to toggle options, and enter to
+confirm.
 
 Note: The Homebrew option only appears on macOS.
 
@@ -34,4 +35,15 @@ Note: The Homebrew option only appears on macOS.
 ```bash
 cd /path/to/dotfiles
 ./uninstall.sh
+```
+
+The uninstall script presents a similar interactive menu:
+
+```
+Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
+
+> [x] Uninstall Homebrew packages and applications.
+  [x] Remove dotfile package symlinks with GNU Stow.
+  [x] Uninstall vcprompt.
+  [x] Uninstall vim plugins.
 ```
