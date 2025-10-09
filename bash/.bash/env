@@ -19,6 +19,9 @@ export PATH=./node_modules/.bin:$PATH
 # professional cow-free environment
 export ANSIBLE_NOCOWS=1
 
+# npm XDG config location
+export NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/npm/npmrc"
+
 # get my gopher on
 export GOPATH=$HOME/code/golang
 export PATH=$GOPATH/bin:$PATH
