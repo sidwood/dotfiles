@@ -5,7 +5,7 @@ Linux and macOS environments.
 
 ## Installation
 
-Installation requires `bash`, `curl`, `git`, and GNU `make`.
+Installation requires `bash`, `curl`, and `git`.
 
 ```bash
 git clone https://github.com/sidwood/dotfiles.git
@@ -21,7 +21,6 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
 > [x] Install Homebrew packages and applications.
   [x] Symlink dotfile packages with GNU Stow.
-  [x] Build and install vcprompt.
   [x] Install vim plugins.
 ```
 
@@ -44,6 +43,5 @@ Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
 > [x] Uninstall Homebrew packages and applications.
   [x] Remove dotfile package symlinks with GNU Stow.
-  [x] Uninstall vcprompt.
   [x] Uninstall vim plugins.
 ```
