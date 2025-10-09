@@ -7,12 +7,6 @@
 cd "$(dirname "$0")" || { printf "\n \033[31mError: Failed to change to script directory\033[0m\n\n"; exit 1; }
 
 #
-# Constants
-#
-
-VCPROMPT_VERSION=6d758d5f8d44
-
-#
 # Exit with given message
 #
 
@@ -47,8 +41,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
-options+=("Build and install vcprompt.")
-option_keys+=("vcprompt")
 options+=("Install vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -164,32 +156,6 @@ stow_dotfiles() {
   done
 }
 
-install_vcprompt() {
-  echo "Installing vcprompt"
-  if [[ ! -x "$HOME/.bin/vcprompt" ]]; then
-    echo "Downloading vcprompt source"
-    rm "$HOME/.bin/vcprompt" 2>/dev/null
-    rm -rf tmp 2>/dev/null
-    mkdir tmp 2>/dev/null
-    cd tmp
-    curl \
-      -o vcprompt.tar.gz \
-      http://hg.gerg.ca/vcprompt/archive/$VCPROMPT_VERSION.tar.gz
-    tar -xzf vcprompt.tar.gz
-    cd -
-    echo "Building vcprompt from source"
-    cd tmp/vcprompt-$VCPROMPT_VERSION
-    make
-    mv vcprompt "$HOME/.bin/"
-    cd -
-    echo "Cleaning up"
-    rm -rf tmp
-    echo "vcprompt installed"
-  else
-    echo "vcprompt already installed"
-  fi
-}
-
 install_vim_plugins() {
   if [[ ! -d ~/.vim/autoload/plug.vim ]]; then
     echo "Installing vim-plug"
@@ -213,10 +179,6 @@ fi
 
 if is_selected "stow"; then
   stow_dotfiles
-fi
-
-if is_selected "vcprompt"; then
-  install_vcprompt
 fi
 
 if is_selected "vim"; then
