@@ -1,5 +1,6 @@
 ruby/.bundle/cache
 vim/.config/vim/autoload/
 vim/.config/vim/plugged/
+zsh/.config/zsh/.zcompdump*
 .DS_Store
 .netrwhist
