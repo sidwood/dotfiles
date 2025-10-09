@@ -25,8 +25,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 options+=("Remove dotfile package symlinks with GNU Stow.")
 option_keys+=("stow")
-options+=("Uninstall vcprompt.")
-option_keys+=("vcprompt")
 options+=("Uninstall vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -133,12 +131,6 @@ uninstall_dotfiles() {
   done
 }
 
-uninstall_vcprompt() {
-  echo "Uninstalling vcprompt"
-  rm "$HOME/.bin/vcprompt" 2>/dev/null
-  rm -rf tmp 2>/dev/null
-}
-
 uninstall_vim_plugins() {
   echo "Uninstalling vim-plug"
   rm -rf "$HOME/.vim/autoload" 2>/dev/null
@@ -157,10 +149,6 @@ fi
 
 if is_selected "stow"; then
   uninstall_dotfiles
-fi
-
-if is_selected "vcprompt"; then
-  uninstall_vcprompt
 fi
 
 if is_selected "vim"; then
