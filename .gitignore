@@ -1,3 +1,5 @@
+iterm2/.config/iterm2/AppSupport
+iterm2/.config/iterm2/sockets/
 ruby/.bundle/cache
 vim/.config/vim/autoload/
 vim/.config/vim/plugged/
