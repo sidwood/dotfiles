@@ -5,7 +5,7 @@
 set nocompatible
 
 " Initialize vim-plug
-call plug#begin('~/.vim/plugged')
+call plug#begin('~/.config/vim/plugged')
 
 " Color
 Plug 'cyplo/vim-colors-solarized'
@@ -76,13 +76,13 @@ call plug#end()
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Airline settings
-if isdirectory(expand('~/.vim/plugged/vim-airline'))
+if isdirectory(expand('~/.config/vim/plugged/vim-airline'))
   let g:airline_powerline_fonts = 1
   let g:airline#extensions#tabline#enabled = 1
 endif
 
 " CtrlP settings
-if isdirectory(expand('~/.vim/plugged/ctrlp.vim'))
+if isdirectory(expand('~/.config/vim/plugged/ctrlp.vim'))
   let g:ctrlp_show_hidden = 1
   " Use ag if available
   if executable('ag')
@@ -94,35 +94,35 @@ if isdirectory(expand('~/.vim/plugged/ctrlp.vim'))
 endif
 
 " delimitMate settings
-if isdirectory(expand('~/.vim/plugged/delimitMate'))
+if isdirectory(expand('~/.config/vim/plugged/delimitMate'))
   let g:delimitMate_expand_cr = 1
   let g:delimitMate_expand_space = 1
 endif
 
 " EditorConfig settings
-if isdirectory(expand('~/.vim/plugged/editorconfig-vim'))
+if isdirectory(expand('~/.config/vim/plugged/editorconfig-vim'))
   let g:EditorConfig_verbose=0
 endif
 
 " Emmet settings
-if isdirectory(expand('~/.vim/plugged/emmet-vim'))
+if isdirectory(expand('~/.config/vim/plugged/emmet-vim'))
   let g:user_emmet_leader_key = '<leader>e'
 endif
 
 " Gundo settings
-if isdirectory(expand('~/.vim/plugged/gundo.vim'))
+if isdirectory(expand('~/.config/vim/plugged/gundo.vim'))
   let g:gundo_right = 1
   let g:gundo_preview_bottom = 1
 endif
 
 " NERDTree settings
-if isdirectory(expand('~/.vim/plugged/nerdtree'))
+if isdirectory(expand('~/.config/vim/plugged/nerdtree'))
   let NERDTreeIgnore = ['\.git$']
   let NERDTreeShowHidden = 1
 endif
 
 " Syntastic settings
-if isdirectory(expand('~/.vim/plugged/syntastic'))
+if isdirectory(expand('~/.config/vim/plugged/syntastic'))
   let g:syntastic_error_symbol = '✗'
   let g:syntastic_warning_symbol = '⚠'
   let g:syntastic_javascript_checkers = ['eslint']
@@ -140,11 +140,11 @@ if isdirectory(expand('~/.vim/plugged/syntastic'))
 endif
 
 " UltiSnips settings
-if isdirectory(expand('~/.vim/plugged/ultisnips'))
+if isdirectory(expand('~/.config/vim/plugged/ultisnips'))
   let g:snips_author = 'Sid Wood'
   let g:snips_author_email = 'sidwood@me.com'
   let g:UltiSnipsEditSplit = 'vertical'
-  let g:UltiSnipsSnippetsDir = '~/.vim/snips'
+  let g:UltiSnipsSnippetsDir = '~/.config/vim/snips'
   let g:UltiSnipsSnippetDirectories = ['UltiSnips', 'snips']
   let g:UltiSnipsListSnippets='<c-l>'
   let g:UltiSnipsExpandTrigger = '<c-j>'
@@ -153,27 +153,27 @@ if isdirectory(expand('~/.vim/plugged/ultisnips'))
 endif
 
 " VimMarkdown settings
-if isdirectory(expand('~/.vim/plugged/vim-markdown'))
+if isdirectory(expand('~/.config/vim/plugged/vim-markdown'))
   let g:vim_markdown_folding_disabled = 1
 endif
 
 " GitGutter settings
-if isdirectory(expand('~/.vim/plugged/vim-gitgutter'))
+if isdirectory(expand('~/.config/vim/plugged/vim-gitgutter'))
   let g:gitgutter_sign_column_always = 1
 endif
 
 " Json settings
-if isdirectory(expand('~/.vim/plugged/vim-json'))
+if isdirectory(expand('~/.config/vim/plugged/vim-json'))
   let g:vim_json_syntax_conceal = 0
 endif
 
 " Markdown settings
-if isdirectory(expand('~/.vim/plugged/vim-markdown'))
+if isdirectory(expand('~/.config/vim/plugged/vim-markdown'))
   let g:vim_markdown_folding_disabled = 1
 endif
 
 " Tern settings
-if isdirectory(expand('~/.vim/plugged/tern_for_vim'))
+if isdirectory(expand('~/.config/vim/plugged/tern_for_vim'))
   let g:tern_map_prefix = '<leader>'
   let g:tern_map_keys = 1
   let g:tern_show_argument_hints = 'on_hold'
@@ -365,7 +365,7 @@ nnoremap <CR> :nohlsearch<CR>/<BS>
 nmap <leader>sc :set spell!<CR>/<BS>
 
 " Edit vimrc in new tab
-nmap <leader>vi :tabe ~/.vimrc<CR>/<BS>
+nmap <leader>vi :tabe ~/.config/vim/vimrc<CR>/<BS>
 
 " Edit TODO file in new tab
 nmap <leader>TD :tabe ~/Google\ Drive/Notes/TODO<CR>/<BS>
@@ -391,38 +391,38 @@ if exists('+relativenumber')
 endif
 
 " Toggle GitGutter
-if isdirectory(expand('~/.vim/plugged/vim-gitgutter'))
+if isdirectory(expand('~/.config/vim/plugged/vim-gitgutter'))
   nmap <leader>lg :GitGutterToggle<CR>/<BS>
 endif
 
 " Toggle Gundo
-if isdirectory(expand('~/.vim/plugged/gundo.vim'))
+if isdirectory(expand('~/.config/vim/plugged/gundo.vim'))
   nmap <leader>u :GundoToggle<CR>/<BS>
 endif
 
 " Toggle indentLine
-if isdirectory(expand('~/.vim/plugged/indentLine'))
+if isdirectory(expand('~/.config/vim/plugged/indentLine'))
   nmap <leader>ig :IndentLinesToggle<CR>/<BS>
 endif
 
 " Toggle NERDTree
-if isdirectory(expand('~/.vim/plugged/nerdtree'))
+if isdirectory(expand('~/.config/vim/plugged/nerdtree'))
   nmap <leader>m :NERDTreeMirrorToggle<CR>/<BS>
   nmap <leader>ff :NERDTreeFind<CR>/<BS>
 endif
 
 " Toggle Syntastic
-if isdirectory(expand('~/.vim/plugged/syntastic'))
+if isdirectory(expand('~/.config/vim/plugged/syntastic'))
   nmap <leader>ls :SyntasticToggleMode<CR>/<BS>
 endif
 
 " Dispatch asynchronous command
-if isdirectory(expand('~/.vim/plugged/vim-dispatch'))
+if isdirectory(expand('~/.config/vim/plugged/vim-dispatch'))
   nnoremap <leader>d :call <SID>DispatchCommand()<CR>/<BS>
 endif
 
 " vim-rspec mappings
-if isdirectory(expand('~/.vim/plugged/vim-rspec'))
+if isdirectory(expand('~/.config/vim/plugged/vim-rspec'))
   map <leader>rt :call RunCurrentSpecFile()<CR>/<BS>
   map <leader>rs :call RunNearestSpec()<CR>/<BS>
   map <leader>rl :call RunLastSpec()<CR>/<BS>
