@@ -6,9 +6,9 @@ function c() {
 }
 
 # edit
-alias ea='vi ~/.dotfiles/zsh/aliases && reload'
-alias ec='vi ~/.dotfiles/zsh/config && reload'
-alias ee='vi ~/.dotfiles/zsh/env && reload'
+alias ea='vi $ZDOTDIR/aliases && reload'
+alias ec='vi $ZDOTDIR/config && reload'
+alias ee='vi $ZDOTDIR/env && reload'
 
 # home directory shortcut
 function h() {
@@ -16,7 +16,7 @@ function h() {
 }
 
 # reload
-alias reload='source ~/.dotfiles/zshrc'
+alias reload='source $ZDOTDIR/.zshrc'
 
 # top (osx)
 if [[ $PLATFORM == 'Darwin' ]]; then
