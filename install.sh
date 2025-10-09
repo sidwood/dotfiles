@@ -20,7 +20,6 @@ abort() {
 
 command -v curl >/dev/null 2>&1 || abort 'curl required'
 command -v git >/dev/null 2>&1 || abort 'git required'
-command -v make >/dev/null 2>&1 || abort 'GNU Make required'
 
 #
 # Menu state
