@@ -1,0 +1,206 @@
+# Solarized Dark theme for Yazi
+# Based on Ethan Schoonover's Solarized palette
+# https://ethanschoonover.com/solarized/
+#
+# Solarized Dark Palette:
+# base03  #002b36  (background)
+# base02  #073642  (background highlights)
+# base01  #586e75  (comments/secondary content)
+# base00  #657b83  (optional emphasized content)
+# base0   #839496  (body text/default code)
+# base1   #93a1a1  (optional emphasized content)
+# base2   #eee8d5  (background highlights)
+# base3   #fdf6e3  (background)
+# yellow  #b58900
+# orange  #cb4b16
+# red     #dc322f
+# magenta #d33682
+# violet  #6c71c4
+# blue    #268bd2
+# cyan    #2aa198
+# green   #859900
+
+# : Manager {{{
+
+[mgr]
+cwd = { fg = "#268bd2" }
+
+# Hovered
+hovered         = { reversed = true }
+preview_hovered = { underline = true }
+
+# Find
+find_keyword  = { fg = "#b58900", bold = true, italic = true, underline = true }
+find_position = { fg = "#d33682", bg = "reset", bold = true, italic = true }
+
+# Marker
+marker_copied   = { fg = "#859900", bg = "#859900" }
+marker_cut      = { fg = "#dc322f", bg = "#dc322f" }
+marker_marked   = { fg = "#2aa198", bg = "#2aa198" }
+marker_selected = { fg = "#b58900", bg = "#b58900" }
+
+# Count
+count_copied   = { fg = "#002b36", bg = "#859900" }
+count_cut      = { fg = "#002b36", bg = "#dc322f" }
+count_selected = { fg = "#002b36", bg = "#b58900" }
+
+# Border
+border_symbol = "│"
+border_style  = { fg = "#586e75" }
+
+# : }}}
+
+
+# : Tabs {{{
+
+[tabs]
+active   = { fg = "#002b36", bg = "#268bd2", bold = true }
+inactive = { fg = "#839496", bg = "#073642" }
+
+# : }}}
+
+
+# : Mode {{{
+
+[mode]
+
+normal_main = { fg = "#002b36", bg = "#268bd2", bold = true }
+normal_alt  = { fg = "#268bd2", bg = "#073642" }
+
+# Select mode
+select_main = { fg = "#002b36", bg = "#2aa198", bold = true }
+select_alt  = { fg = "#2aa198", bg = "#073642" }
+
+# Unset mode
+unset_main = { fg = "#002b36", bg = "#cb4b16", bold = true }
+unset_alt  = { fg = "#cb4b16", bg = "#073642" }
+
+# : }}}
+
+
+# : Status bar {{{
+
+[status]
+# Permissions
+perm_sep   = { fg = "#586e75" }
+perm_type  = { fg = "#6c71c4" }
+perm_read  = { fg = "#b58900" }
+perm_write = { fg = "#dc322f" }
+perm_exec  = { fg = "#859900" }
+
+# Progress
+progress_label  = { fg = "#93a1a1", bold = true }
+progress_normal = { fg = "#859900", bg = "#073642" }
+progress_error  = { fg = "#b58900", bg = "#dc322f" }
+
+# : }}}
+
+
+# : Pick {{{
+
+[pick]
+border   = { fg = "#268bd2" }
+active   = { fg = "#d33682", bold = true }
+inactive = {}
+
+# : }}}
+
+
+# : Input {{{
+
+[input]
+border   = { fg = "#268bd2" }
+title    = {}
+value    = {}
+selected = { reversed = true }
+
+# : }}}
+
+
+# : Completion {{{
+
+[cmp]
+border = { fg = "#268bd2" }
+
+# : }}}
+
+
+# : Tasks {{{
+
+[tasks]
+border  = { fg = "#268bd2" }
+title   = {}
+hovered = { fg = "#d33682", bold = true }
+
+# : }}}
+
+
+# : Which {{{
+
+[which]
+mask            = { bg = "#073642" }
+cand            = { fg = "#2aa198" }
+rest            = { fg = "#586e75" }
+desc            = { fg = "#d33682" }
+separator       = "  "
+separator_style = { fg = "#586e75" }
+
+# : }}}
+
+
+# : Help {{{
+
+[help]
+on      = { fg = "#2aa198" }
+run     = { fg = "#d33682" }
+hovered = { reversed = true, bold = true }
+footer  = { fg = "#073642", bg = "#839496" }
+
+# : }}}
+
+
+# : Spotter {{{
+
+[spot]
+border   = { fg = "#268bd2" }
+title    = { fg = "#268bd2" }
+tbl_col  = { fg = "#2aa198" }
+tbl_cell = { fg = "#d33682", bg = "#073642" }
+
+# : }}}
+
+
+# : Notification {{{
+
+[notify]
+title_info  = { fg = "#859900" }
+title_warn  = { fg = "#b58900" }
+title_error = { fg = "#dc322f" }
+
+# : }}}
+
+
+# : File-specific styles {{{
+
+[filetype]
+
+rules = [
+	# Image
+	{ mime = "image/*", fg = "#2aa198" },
+	# Media
+	{ mime = "{audio,video}/*", fg = "#b58900" },
+	# Archive
+	{ mime = "application/{zip,rar,7z*,tar,gzip,xz,zstd,bzip*,lzma,compress,archive,cpio,arj,xar,ms-cab*}", fg = "#d33682" },
+	# Document
+	{ mime = "application/{pdf,doc,rtf}", fg = "#859900" },
+	# Virtual file system
+	{ mime = "vfs/{absent,stale}", fg = "#586e75" },
+	# Fallback
+	{ url = "*", fg = "#839496" },
+	{ url = "*/", fg = "#268bd2" },
+	# Legacy support
+	{ name = "*", fg = "#839496" },
+	{ name = "*/", fg = "#268bd2" }
+]
+
+# : }}}
