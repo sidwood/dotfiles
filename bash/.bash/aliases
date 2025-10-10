@@ -7,6 +7,7 @@ alias dps='docker ps'
 # cd
 alias ..='cd ..'
 alias ...='cd ../..'
+alias ....='cd ../../..'
 alias cdd='cd - 1>/dev/null'
 
 # cucumber
