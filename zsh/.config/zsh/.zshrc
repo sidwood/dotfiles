@@ -29,6 +29,10 @@ zinit light zsh-users/zsh-autosuggestions
 zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-syntax-highlighting
 
+# powerlevel10k prompt
+zinit ice depth=1
+zinit light romkatv/powerlevel10k
+
 # add snippets
 zinit snippet OMZL::git.zsh
 # zinit snippet OMZP::git
@@ -68,15 +72,19 @@ zstyle ':completion:*' insert-tab pending
 # prompt
 # ------------------------------------------------------------------------------
 
-local CR=$'\n'
-local ICON="%(?,%{$fg[green]%}λ,%{$fg[red]%}λ)"
-if [[ -n $SSH_CONNECTION ]]; then
-  PROMPT='${CR}%n@%M:%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
-else
-  PROMPT='${CR}%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
-fi
-PROMPT="${PROMPT}${CR}${ICON}%{$reset_color%} "
-RPROMPT='%{$fg[gray]%}$($ZDOTDIR/git-cwd-info.sh)%{$reset_color%}'
+# load powerlevel10k configuration
+[[ -f "$ZDOTDIR/.p10k.zsh" ]] && source "$ZDOTDIR/.p10k.zsh"
+
+# legacy manual prompt (commented out in favor of powerlevel10k)
+# local CR=$'\n'
+# local ICON="%(?,%{$fg[green]%}λ,%{$fg[red]%}λ)"
+# if [[ -n $SSH_CONNECTION ]]; then
+#   PROMPT='${CR}%n@%M:%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
+# else
+#   PROMPT='${CR}%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
+# fi
+# PROMPT="${PROMPT}${CR}${ICON}%{$reset_color%} "
+# RPROMPT='%{$fg[gray]%}$($ZDOTDIR/git-cwd-info.sh)%{$reset_color%}'
 
 # ------------------------------------------------------------------------------
 # aliases
