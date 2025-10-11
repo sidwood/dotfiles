@@ -1,5 +1,6 @@
 tap "jesseduffield/lazydocker"
 tap "jesseduffield/lazygit"
+tap "mongodb/brew"
 
 # cli tools
 brew "awscli"
