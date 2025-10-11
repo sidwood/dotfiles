@@ -18,6 +18,12 @@ if [[ $TERM == 'xterm' ]]; then
   export TERM='screen-256color'
 fi
 
+# history
+HISTSIZE=100000
+HISTFILESIZE=100000
+HISTCONTROL=ignoreboth:erasedups
+shopt -s histappend
+
 # ------------------------------------------------------------------------------
 # colors (from http://wiki.archlinux.org/index.php/Color_Bash_Prompt)
 # ------------------------------------------------------------------------------
@@ -72,62 +78,19 @@ BWHITE='\e[47m'
 if [[ -n $SSH_CONNECTION ]]; then
   PS1="\n\u@\H:\w\[$YELLOW\]\$(vcprompt)\[$RESET_COLOR\]"
 else
-  PS1="\n\w\\[$YELLOW\]\$(vcprompt)\[$RESET_COLOR\]"
+  PS1="\n\w\[$YELLOW\]\$(vcprompt)\[$RESET_COLOR\]"
 fi
 PS1="$PS1\n\[$GREEN\]λ\[$RESET_COLOR\] "
-
-# ------------------------------------------------------------------------------
-# tool integrations
-# ------------------------------------------------------------------------------
-
-# direnv hook
-if which direnv > /dev/null; then
-  eval "$(direnv hook bash)"
-fi
-
-# pyenv shim
-if which pyenv > /dev/null; then
-  eval "$(pyenv init -)"
-  eval "$(pyenv virtualenv-init -)"
-fi
-
-# rbenv shim
-if which rbenv > /dev/null; then
-  eval "$(rbenv init -)"
-fi
-
-# load node version manager
-if [[ -d "$HOME/.nvm" && -s "$HOME/.nvm/nvm.sh" ]]; then
-  source $HOME/.nvm/nvm.sh
-fi
 
 # ------------------------------------------------------------------------------
 # aliases
 # ------------------------------------------------------------------------------
 
-# ./bin
-alias bb=./bin/build.sh
-
-# docker
-alias dps='docker ps'
-
-# cd
-alias ..='cd ..'
-alias ...='cd ../..'
 alias ....='cd ../../..'
+alias ...='cd ../..'
+alias ..='cd ..'
+alias c='clear'
 alias cdd='cd - 1>/dev/null'
-
-# cucumber
-alias cuc='cucumber -r ./features'
-
-# edit
-alias eb='vi ~/.bashrc && reload'
-alias eg='vi .git/config'
-
-# exit
-alias e='exit'
-
-# git
 alias gaa='git add --all'
 alias gb='git branch'
 alias gba='git branch -a'
@@ -142,60 +105,64 @@ alias ggf='git log --graph --all --pretty=fuller --decorate'
 alias gl='git pull'
 alias gp='git push'
 alias gs='git status'
-
-# git functions
-function gch() {
-  git clone git://github.com/$USER/$1.git
-}
-
-# ls
 alias l='ls -Ahl'
-# platform specific override of ls
-if [[ $PLATFORM == 'Linux' ]]; then
-  alias ls='ls -F --color'
-elif [[ $PLATFORM == 'Darwin' ]]; then
-  alias ls='ls -FG'
-fi
-
-# mkdir
-alias md='mkdir -p'
-
-# mkdir functions
-function mdc() {
-  mkdir -p "$1"
-  cd "$1"
-}
-
-# osx
-alias dsunhook="find . -name '.DS_Store' -exec rm -rf {} \;"
-
-# rails
-alias a='autotest -rails'
-alias freeze='rake rails:freeze:gems'
-alias migrate='rake db:migrate db:test:clone'
-alias rc='rails console'
-alias rs='rails server -p 8080'
-alias rst='touch tmp/restart.txt'
-alias sc='./script/console'
-alias ss='./script/server'
-alias sg='./script/generate'
-alias tlog='tail -f log/development.log'
-
-# reload
+alias ls='ls -F --color'
 alias reload='source ~/.bashrc'
-
-# subversion
-alias scom='svn commit'
-alias sd='svn diff \!*'
-alias sdd='svn diff -r PREV'
-alias sex='svn export'
-alias slog='svn log | more'
-alias sst='svn status'
-alias sup='svn update'
-
-# tmux
 alias ta='tmux attach'
 alias tl='tmux ls'
-
-# util
 alias www='python3 -m http.server 8000'
+
+# recursively remove .DS_Store files on macOS
+if [[ $PLATFORM == 'Darwin' ]]; then
+  alias dsunhook="find . -name '.DS_Store' -exec rm -rf {} \;"
+fi
+
+# top aliases for macOS
+if [[ $PLATFORM == 'Darwin' ]]; then
+  alias tu='top -o cpu'
+  alias tm='top -o vsize'
+fi
+
+# ------------------------------------------------------------------------------
+# shell integrations
+# ------------------------------------------------------------------------------
+
+# direnv
+if command -v direnv &> /dev/null; then
+  eval "$(direnv hook bash)"
+fi
+
+# lazy load pyenv
+if [[ -d "$HOME/.pyenv" ]]; then
+  export PYENV_ROOT="$HOME/.pyenv"
+  export PATH="$PYENV_ROOT/bin:$PATH"
+  pyenv() {
+    unset -f pyenv
+    eval "$(command pyenv init -)"
+    eval "$(command pyenv virtualenv-init -)"
+    pyenv "$@"
+  }
+fi
+
+# lazy load rbenv
+if [[ -d "$HOME/.rbenv" ]]; then
+  export PATH="$HOME/.rbenv/bin:$PATH"
+  rbenv() {
+    unset -f rbenv
+    eval "$(command rbenv init -)"
+    rbenv "$@"
+  }
+fi
+
+# lazy load nvm
+if [[ -d "$HOME/.nvm" ]]; then
+  export NVM_DIR="$HOME/.nvm"
+  nvm() {
+    unset -f nvm node npm npx
+    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+    nvm "$@"
+  }
+  node() { nvm use default &>/dev/null; command node "$@"; }
+  npm() { nvm use default &>/dev/null; command npm "$@"; }
+  npx() { nvm use default &>/dev/null; command npx "$@"; }
+fi
