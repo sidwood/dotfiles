@@ -1,3 +1,4 @@
+tap "1password/tap"
 tap "jesseduffield/lazydocker"
 tap "jesseduffield/lazygit"
 tap "mongodb/brew"
