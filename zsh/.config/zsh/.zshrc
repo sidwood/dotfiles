@@ -111,7 +111,11 @@ alias gl='git pull'
 alias gp='git push'
 alias gs='git status'
 alias l='ls -Ahl'
-alias ls='ls -F --color'
+if [[ $PLATFORM == 'Darwin' ]]; then
+  alias ls='ls -FG'
+else
+  alias ls='ls -F --color=auto'
+fi
 alias reload='source $ZDOTDIR/.zshrc'
 alias ta='tmux attach'
 alias tl='tmux ls'
