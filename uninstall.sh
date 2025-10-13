@@ -133,8 +133,8 @@ uninstall_dotfiles() {
 
 uninstall_vim_plugins() {
   echo "Uninstalling vim-plug"
-  rm -rf "$HOME/.vim/autoload" 2>/dev/null
-  rm -rf "$HOME/.vim/plugged" 2>/dev/null
+  rm -rf "$HOME/.config/vim/autoload" 2>/dev/null
+  rm -rf "$HOME/.config/vim/plugged" 2>/dev/null
 }
 
 #
