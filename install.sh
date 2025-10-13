@@ -156,7 +156,7 @@ stow_dotfiles() {
 }
 
 install_vim_plugins() {
-  if [[ ! -d ~/.config/vim/autoload/plug.vim ]]; then
+  if [[ ! -f ~/.config/vim/autoload/plug.vim ]]; then
     echo "Installing vim-plug"
     curl -fLo ~/.config/vim/autoload/plug.vim --create-dirs \
       https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
