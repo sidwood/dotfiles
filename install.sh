@@ -83,7 +83,7 @@ print_menu() {
 show_menu() {
   local key escape_seq
   local menu_lines=${#options[@]}
-  printf "\n\033[1mSelect installations\033[0m (↑/↓ navigate, Space toggle, Enter confirm):\n\n"
+  printf "\n\033[1mSelect installations\033[0m (↑/↓/k/j navigate, Space toggle, Enter confirm):\n\n"
   hide_cursor
   print_menu
   while true; do
