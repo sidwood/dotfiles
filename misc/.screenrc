@@ -28,5 +28,5 @@ bind t focus top
 bind b focus bottom
 
 # Screen region resize bindings
-bind b resize +5
-bind s resize -5
+bind = resize +5
+bind - resize -5
