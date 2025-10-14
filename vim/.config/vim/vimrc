@@ -65,9 +65,6 @@ Plug 'puppetlabs/puppet-syntax-vim'
 Plug 'leafgarland/typescript-vim'
 Plug 'lambdatoast/elm.vim'
 
-" Autocomplete
-Plug 'Valloric/YouCompleteMe', {'do': './install.py --tern-completer'}
-
 " Finalize vim-plug initialization
 call plug#end()
 
