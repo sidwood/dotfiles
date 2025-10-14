@@ -2,7 +2,7 @@
 # sourced by both .zshenv and .bashrc
 
 PLATFORM=$(uname)
-export EDITOR="vi"
+export EDITOR="vim"
 
 # reset PATH
 export PATH=/usr/bin:/usr/sbin:/bin:/sbin
