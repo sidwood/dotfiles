@@ -66,7 +66,6 @@ Plug 'leafgarland/typescript-vim'
 Plug 'lambdatoast/elm.vim'
 
 " Autocomplete
-Plug 'ternjs/tern_for_vim', {'do': 'npm install'}
 Plug 'Valloric/YouCompleteMe', {'do': './install.py --tern-completer'}
 
 " Finalize vim-plug initialization
@@ -163,13 +162,6 @@ set signcolumn=yes
 " Json settings
 if isdirectory(expand('~/.config/vim/plugged/vim-json'))
   let g:vim_json_syntax_conceal = 0
-endif
-
-" Tern settings
-if isdirectory(expand('~/.config/vim/plugged/tern_for_vim'))
-  let g:tern_map_prefix = '<leader>'
-  let g:tern_map_keys = 1
-  let g:tern_show_argument_hints = 'on_hold'
 endif
 
 " COLORS
