@@ -158,9 +158,7 @@ if isdirectory(expand('~/.config/vim/plugged/vim-markdown'))
 endif
 
 " GitGutter settings
-if isdirectory(expand('~/.config/vim/plugged/vim-gitgutter'))
-  let g:gitgutter_sign_column_always = 1
-endif
+set signcolumn=yes
 
 " Json settings
 if isdirectory(expand('~/.config/vim/plugged/vim-json'))
