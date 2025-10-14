@@ -51,7 +51,7 @@ autoload -Uz compinit && compinit
 zinit cdreplay -q
 
 # history
-HISTFILE=~/.zsh-history
+HISTFILE="$ZDOTDIR/.zsh_history"
 HISTSIZE=100000
 SAVEHIST=$HISTSIZE
 setopt APPEND_HISTORY HIST_VERIFY EXTENDED_HISTORY INC_APPEND_HISTORY
