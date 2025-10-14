@@ -167,11 +167,6 @@ if isdirectory(expand('~/.config/vim/plugged/vim-json'))
   let g:vim_json_syntax_conceal = 0
 endif
 
-" Markdown settings
-if isdirectory(expand('~/.config/vim/plugged/vim-markdown'))
-  let g:vim_markdown_folding_disabled = 1
-endif
-
 " Tern settings
 if isdirectory(expand('~/.config/vim/plugged/tern_for_vim'))
   let g:tern_map_prefix = '<leader>'
