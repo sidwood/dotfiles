@@ -88,3 +88,15 @@ vim.keymap.set('n', '<leader>ln', function()
     vim.wo.relativenumber = vim.w.saved_relativenumber or false
   end
 end, { desc = 'Toggle line numbers' })
+
+-- Toggle git signs plugin
+vim.keymap.set('n', '<leader>lg', function()
+  if vim.fn.exists(':Gitsigns') == 2 then
+    vim.cmd('Gitsigns toggle_signs')
+  else
+    vim.notify('gitsigns.nvim not installed', vim.log.levels.WARN)
+  end
+end, {
+  silent = true,
+  desc = 'Toggle git signs',
+})
