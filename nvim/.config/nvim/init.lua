@@ -57,3 +57,9 @@ end, {
   silent = true,
   desc = 'Toggle background (light/dark)',
 })
+
+-- Toggle invisible characters
+vim.keymap.set('n', '<leader>ll', ':set list!<CR>', {
+  silent = true,
+  desc = 'Toggle invisible characters',
+})
