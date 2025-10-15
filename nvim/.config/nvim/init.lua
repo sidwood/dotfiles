@@ -44,3 +44,8 @@ vim.keymap.set('n', '<leader>so', ':so %<CR>', {
   silent = true,
   desc = 'Source current file',
 })
+
+-- Move window to new tab
+vim.keymap.set('n', '<leader>nt', '<C-W>T', {
+  desc = 'Move window to new tab',
+})
