@@ -73,4 +73,18 @@ vim.keymap.set('n', '<Space>', function()
     vim.wo.number = true
     vim.wo.relativenumber = true
   end
-end, { desc = 'Toggle relative line numbers' }
+end, { desc = 'Toggle relative line numbers' })
+
+-- Toggle line numbers on/off (preserves relative/absolute state per window)
+vim.keymap.set('n', '<leader>ln', function()
+  if vim.wo.number or vim.wo.relativenumber then
+    -- Save state to window variable before turning off
+    vim.w.saved_relativenumber = vim.wo.relativenumber
+    vim.wo.number = false
+    vim.wo.relativenumber = false
+  else
+    -- Restore previous state
+    vim.wo.number = true
+    vim.wo.relativenumber = vim.w.saved_relativenumber or false
+  end
+end, { desc = 'Toggle line numbers' })
