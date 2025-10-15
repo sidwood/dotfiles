@@ -28,7 +28,10 @@ vim.keymap.set('n', 'k', 'gk')
 vim.keymap.set('n', 'j', 'gj')
 
 -- Toggle spell checking
-vim.keymap.set('n', '<leader>sc', ':set spell!<CR>/<BS>')
+vim.keymap.set('n', '<leader>sc', ':set spell!<CR>', {
+  silent = true,
+  desc = 'Toggle spell checking',
+})
 
 -- Edit vimrc..err..I mean init.lua in new tab
 vim.keymap.set('n', '<leader>vi', ':tabe ~/.config/nvim/init.lua<CR>', {
