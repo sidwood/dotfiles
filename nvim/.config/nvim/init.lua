@@ -49,3 +49,11 @@ vim.keymap.set('n', '<leader>so', ':so %<CR>', {
 vim.keymap.set('n', '<leader>nt', '<C-W>T', {
   desc = 'Move window to new tab',
 })
+
+-- Toggle background color
+vim.keymap.set({'n', 'v'}, '<leader>bg', function()
+  vim.opt.background = vim.o.background == 'dark' and 'light' or 'dark'
+end, {
+  silent = true,
+  desc = 'Toggle background (light/dark)',
+})
