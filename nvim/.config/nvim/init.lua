@@ -3,7 +3,7 @@
 --------------------------------------------------------------------------------
 
 -- Set leader
-vim.g.mapleader= ","
+vim.g.mapleader = ","
 
 -- Whitespace
 vim.opt.expandtab = true
@@ -29,3 +29,9 @@ vim.keymap.set('n', 'j', 'gj')
 
 -- Toggle spell checking
 vim.keymap.set('n', '<leader>sc', ':set spell!<CR>/<BS>')
+
+-- Edit vimrc..err..I mean init.lua in new tab
+vim.keymap.set('n', '<leader>vi', ':tabe ~/.config/nvim/init.lua<CR>', {
+  silent = true,
+  desc = 'Edit init.lua'
+})
