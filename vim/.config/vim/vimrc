@@ -326,13 +326,6 @@ set foldnestmax=10
 set foldlevel=2
 set nofoldenable
 
-" Macvim and gvim settings
-if has('gui_running')
-  set guifont=Menlo-Regular:h18
-  set guioptions=aAc
-  set guioptions-=Be
-endif
-
 " MAPPINGS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
