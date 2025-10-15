@@ -63,3 +63,14 @@ vim.keymap.set('n', '<leader>ll', ':set list!<CR>', {
   silent = true,
   desc = 'Toggle invisible characters',
 })
+
+-- Toggle between absolute and relative line numbers
+vim.keymap.set('n', '<Space>', function()
+  if vim.wo.relativenumber then
+    vim.wo.number = true
+    vim.wo.relativenumber = false
+  else
+    vim.wo.number = true
+    vim.wo.relativenumber = true
+  end
+end, { desc = 'Toggle relative line numbers' }
