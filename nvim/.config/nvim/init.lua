@@ -20,9 +20,12 @@ vim.opt.foldenable = false
 -- Appearance
 vim.opt.listchars:append({ tab = '▸ ', eol = '¬', trail = '·', nbsp = '⍽' })
 
--- SETTINGS
+-- MAPPINGS
 --------------------------------------------------------------------------------
 
 -- Navigate displayed lines over numbered lines (useful for wrapped lines)
 vim.keymap.set('n', 'k', 'gk')
 vim.keymap.set('n', 'j', 'gj')
+
+-- Toggle spell checking
+vim.keymap.set('n', '<leader>sc', ':set spell!<CR>/<BS>')
