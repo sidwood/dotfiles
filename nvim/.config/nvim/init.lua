@@ -38,3 +38,9 @@ vim.keymap.set('n', '<leader>vi', ':tabe ~/.config/nvim/init.lua<CR>', {
   silent = true,
   desc = 'Edit init.lua'
 })
+
+-- Source current file
+vim.keymap.set('n', '<leader>so', ':so %<CR>', {
+  silent = true,
+  desc = 'Source current file',
+})
