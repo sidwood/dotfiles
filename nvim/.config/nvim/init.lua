@@ -37,6 +37,37 @@ vim.opt.scrolloff = 4
 -- No bells
 vim.opt.belloff = 'all'
 
+-- PLUGIN MANAGER
+--------------------------------------------------------------------------------
+
+-- Bootstrap lazy.nvim
+local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
+if not vim.loop.fs_stat(lazypath) then
+  vim.fn.system({
+    'git',
+    'clone',
+    '--filter=blob:none',
+    'https://github.com/folke/lazy.nvim.git',
+    '--branch=stable',
+    lazypath,
+  })
+end
+vim.opt.rtp:prepend(lazypath)
+local plugins = {
+  {
+    'maxmx03/solarized.nvim',
+    lazy = false,
+    priority = 1000,
+    config = function()
+      vim.o.background = 'dark'
+      require('solarized').setup()
+      vim.cmd.colorscheme('solarized')
+    end,
+  },
+}
+local opts = {}
+require('lazy').setup(plugins, opts)
+
 -- MAPPINGS
 --------------------------------------------------------------------------------
 
