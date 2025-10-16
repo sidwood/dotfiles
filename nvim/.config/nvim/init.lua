@@ -27,6 +27,16 @@ vim.opt.listchars:append({ tab = '▸ ', eol = '¬', trail = '·', nbsp = '⍽' 
 vim.keymap.set('n', 'k', 'gk')
 vim.keymap.set('n', 'j', 'gj')
 
+-- Easier horizontal scrolling (half-screen instead of single character)
+vim.keymap.set('n', 'zl', 'zL', { desc = 'Scroll right half-screen' })
+vim.keymap.set('n', 'zh', 'zH', { desc = 'Scroll left half-screen' })
+
+-- Window navigation
+vim.keymap.set('n', '<C-h>', '<C-w>h', { desc = 'Move to left window' })
+vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to window below' })
+vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above' })
+vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to right window' })
+
 -- Toggle spell checking
 vim.keymap.set('n', '<leader>sc', ':set spell!<CR>', {
   silent = true,
