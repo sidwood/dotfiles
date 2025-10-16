@@ -17,8 +17,25 @@ vim.opt.foldnestmax = 10
 vim.opt.foldlevel = 2
 vim.opt.foldenable = false
 
+-- Windows
+vim.opt.splitbelow = true
+vim.opt.splitright = true
+vim.opt.winwidth = 86
+vim.opt.winheight = 5
+vim.opt.winminheight = 5
+vim.opt.winheight = 999
+
 -- Appearance
+vim.opt.cursorline = true
+vim.opt.showmatch = true
+vim.opt.wrap = false
 vim.opt.listchars:append({ tab = '▸ ', eol = '¬', trail = '·', nbsp = '⍽' })
+
+-- Scroll
+vim.opt.scrolloff = 4
+
+-- No bells
+vim.opt.belloff = 'all'
 
 -- MAPPINGS
 --------------------------------------------------------------------------------
