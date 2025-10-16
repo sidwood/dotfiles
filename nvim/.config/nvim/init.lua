@@ -43,6 +43,23 @@ vim.keymap.set('n', '<leader>sc', ':set spell!<CR>', {
   desc = 'Toggle spell checking',
 })
 
+-- Cycle through spell languages (US → British → Canadian)
+local spell_langs = { 'en', 'en_gb', 'en_ca' }
+local spell_names = { en = 'US', en_gb = 'British', en_ca = 'Canadian' }
+vim.keymap.set('n', '<leader>sl', function()
+  local current = vim.opt.spelllang:get()[1]
+  local next_idx = 1
+  for i, lang in ipairs(spell_langs) do
+    if lang == current then
+      next_idx = (i % #spell_langs) + 1
+      break
+    end
+  end
+  local next_lang = spell_langs[next_idx]
+  vim.opt.spelllang = next_lang
+  vim.notify('Spelling: ' .. spell_names[next_lang], vim.log.levels.INFO)
+end, { desc = 'Cycle spell language' })
+
 -- Edit vimrc..err..I mean init.lua in new tab
 vim.keymap.set('n', '<leader>vi', ':tabe ~/.config/nvim/init.lua<CR>', {
   silent = true,
