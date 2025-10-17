@@ -23,6 +23,14 @@ apply() {
   # Smart zoom - disabled (0 = off, 1 = on)
   defaults write com.apple.AppleMultitouchMouse MouseOneFingerDoubleTapGesture -int 0
   defaults write com.apple.driver.AppleBluetoothMultitouch.mouse MouseOneFingerDoubleTapGesture -int 0
+
+  # Dock settings
+  defaults write com.apple.dock tilesize -int 49
+  defaults write com.apple.dock magnification -bool true
+  defaults write com.apple.dock largesize -int 103
+
+  # Restart Dock to apply changes
+  killall Dock
 }
 
 reset() {
@@ -40,6 +48,14 @@ reset() {
   defaults delete com.apple.driver.AppleBluetoothMultitouch.mouse MouseButtonMode 2>/dev/null
   defaults delete com.apple.AppleMultitouchMouse MouseOneFingerDoubleTapGesture 2>/dev/null
   defaults delete com.apple.driver.AppleBluetoothMultitouch.mouse MouseOneFingerDoubleTapGesture 2>/dev/null
+
+  # Reset Dock settings
+  defaults delete com.apple.dock tilesize 2>/dev/null
+  defaults delete com.apple.dock magnification 2>/dev/null
+  defaults delete com.apple.dock largesize 2>/dev/null
+
+  # Restart Dock to apply changes
+  killall Dock
 }
 
 case "${1:-}" in
