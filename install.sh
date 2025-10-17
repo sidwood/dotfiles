@@ -179,6 +179,13 @@ install_vim_plugins() {
   vim +PlugInstall +qall
 }
 
+print_1password_reminder() {
+  printf "\n\033[33m1Password manual setup required:\033[0m\n"
+  printf "  1. Open 1Password → Settings → Developer\n"
+  printf "  2. Enable 'Integrate with 1Password CLI'\n"
+  printf "  3. Enable 'Use the SSH Agent'\n"
+}
+
 #
 # Main
 #
@@ -187,6 +194,7 @@ show_menu
 
 if is_selected "homebrew"; then
   install_homebrew
+  print_1password_reminder
 fi
 
 if is_selected "macos"; then
