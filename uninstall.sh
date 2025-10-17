@@ -22,6 +22,8 @@ option_keys=()
 if [[ "$OSTYPE" == "darwin"* ]]; then
   options+=("Uninstall Homebrew packages and applications.")
   option_keys+=("homebrew")
+  options+=("Reset macOS system defaults.")
+  option_keys+=("macos")
 fi
 options+=("Remove dotfile package symlinks with GNU Stow.")
 option_keys+=("stow")
@@ -124,9 +126,18 @@ uninstall_homebrew() {
   fi
 }
 
+reset_macos_defaults() {
+  if [ -f "$PWD/macos/defaults.sh" ]; then
+    echo "Resetting macOS system defaults"
+    bash "$PWD/macos/defaults.sh" reset
+    echo "Note: Log out and back in for changes to take effect"
+  fi
+}
+
 uninstall_dotfiles() {
   echo "Removing dotfile package symlinks"
   for pkg in */; do
+    [[ "$pkg" == "macos/" ]] && continue
     stow -Dv "${pkg%/}"
   done
 }
@@ -145,6 +156,10 @@ show_menu
 
 if is_selected "homebrew"; then
   uninstall_homebrew
+fi
+
+if is_selected "macos"; then
+  reset_macos_defaults
 fi
 
 if is_selected "stow"; then
