@@ -37,6 +37,8 @@ option_keys=()
 if [[ "$OSTYPE" == "darwin"* ]]; then
   options+=("Install Homebrew packages and applications.")
   option_keys+=("homebrew")
+  options+=("Apply macOS system defaults.")
+  option_keys+=("macos")
 fi
 options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
@@ -147,10 +149,19 @@ install_homebrew() {
   fi
 }
 
+apply_macos_defaults() {
+  if [ -f "$PWD/macos/defaults.sh" ]; then
+    echo "Applying macOS system defaults"
+    bash "$PWD/macos/defaults.sh" apply
+    echo "Note: Log out and back in for modifier key changes to take effect"
+  fi
+}
+
 stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
   echo "Symlinking dotfile packages"
   for pkg in */; do
+    [[ "$pkg" == "macos/" ]] && continue
     stow -v -t "$HOME" "${pkg%/}"
   done
 }
@@ -174,6 +185,10 @@ show_menu
 
 if is_selected "homebrew"; then
   install_homebrew
+fi
+
+if is_selected "macos"; then
+  apply_macos_defaults
 fi
 
 if is_selected "stow"; then
