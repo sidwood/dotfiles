@@ -28,6 +28,7 @@ apply() {
   defaults write com.apple.dock tilesize -int 49
   defaults write com.apple.dock magnification -bool true
   defaults write com.apple.dock largesize -int 103
+  defaults write com.apple.dock autohide -bool true
 
   # Restart Dock to apply changes
   killall Dock
@@ -53,6 +54,7 @@ reset() {
   defaults delete com.apple.dock tilesize 2>/dev/null
   defaults delete com.apple.dock magnification 2>/dev/null
   defaults delete com.apple.dock largesize 2>/dev/null
+  defaults delete com.apple.dock autohide 2>/dev/null
 
   # Restart Dock to apply changes
   killall Dock
