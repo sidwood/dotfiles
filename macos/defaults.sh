@@ -24,14 +24,21 @@ apply() {
   defaults write com.apple.AppleMultitouchMouse MouseOneFingerDoubleTapGesture -int 0
   defaults write com.apple.driver.AppleBluetoothMultitouch.mouse MouseOneFingerDoubleTapGesture -int 0
 
+  # Menu bar settings
+  # Auto-hide menu bar (always)
+  defaults write NSGlobalDomain _HIHideMenuBar -bool true
+  # Show menu bar background (enabled)
+  defaults write NSGlobalDomain AppleMenuBarVisibleInFullscreen -bool true
+
   # Dock settings
   defaults write com.apple.dock tilesize -int 49
   defaults write com.apple.dock magnification -bool true
   defaults write com.apple.dock largesize -int 103
   defaults write com.apple.dock autohide -bool true
 
-  # Restart Dock to apply changes
+  # Restart Dock and SystemUIServer to apply changes
   killall Dock
+  killall SystemUIServer
 }
 
 reset() {
@@ -50,14 +57,19 @@ reset() {
   defaults delete com.apple.AppleMultitouchMouse MouseOneFingerDoubleTapGesture 2>/dev/null
   defaults delete com.apple.driver.AppleBluetoothMultitouch.mouse MouseOneFingerDoubleTapGesture 2>/dev/null
 
+  # Reset menu bar settings
+  defaults delete NSGlobalDomain _HIHideMenuBar 2>/dev/null
+  defaults delete NSGlobalDomain AppleMenuBarVisibleInFullscreen 2>/dev/null
+
   # Reset Dock settings
   defaults delete com.apple.dock tilesize 2>/dev/null
   defaults delete com.apple.dock magnification 2>/dev/null
   defaults delete com.apple.dock largesize 2>/dev/null
   defaults delete com.apple.dock autohide 2>/dev/null
 
-  # Restart Dock to apply changes
+  # Restart Dock and SystemUIServer to apply changes
   killall Dock
+  killall SystemUIServer
 }
 
 case "${1:-}" in
