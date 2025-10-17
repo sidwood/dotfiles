@@ -20,6 +20,7 @@ components to install:
 Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
 > [x] Install Homebrew packages and applications.
+  [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
   [x] Install vim plugins.
 ```
@@ -27,7 +28,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 Use arrow keys or `j`/`k` to navigate, space to toggle options, and enter to
 confirm.
 
-Note: The Homebrew option only appears on macOS.
+Note: The Homebrew and macOS defaults options only appear on macOS.
 
 ## Uninstall
 
@@ -42,6 +43,7 @@ The uninstall script presents a similar interactive menu:
 Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
 > [x] Uninstall Homebrew packages and applications.
+  [x] Reset macOS system defaults.
   [x] Remove dotfile package symlinks with GNU Stow.
   [x] Uninstall vim plugins.
 ```
