@@ -8,7 +8,7 @@ Linux and macOS environments.
 Installation requires `bash`, `curl`, and `git`.
 
 ```bash
-git clone https://github.com/sidwood/dotfiles.git
+git clone git@github.com:sidwood/dotfiles.git
 cd dotfiles
 ./install.sh
 ```
