@@ -163,7 +163,7 @@ stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
   echo "Symlinking dotfile packages"
   for pkg in */; do
-    [[ "$pkg" == "macos/" ]] && continue
+    [[ "$pkg" == "macos/" || "$pkg" == "alfred/" ]] && continue
     stow -v -t "$HOME" "${pkg%/}"
   done
 }
