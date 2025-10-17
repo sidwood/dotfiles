@@ -5,6 +5,7 @@ font-size = 20
 # Window
 macos-titlebar-proxy-icon = hidden
 title = " "
+window-decoration = false
 
 # Solarized Dark color scheme
 background = 002b36
