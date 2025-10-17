@@ -144,6 +144,8 @@ install_homebrew() {
   fi
 
   if [ -f "$PWD/Brewfile" ]; then
+    echo "Updating Homebrew"
+    brew update
     echo "Installing Homebrew packages from Brewfile"
     brew bundle --file="$PWD/Brewfile"
   fi
