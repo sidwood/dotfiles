@@ -24,7 +24,6 @@ source "${ZINIT_HOME}/zinit.zsh"
 
 # add plugins
 zinit light Aloxaf/fzf-tab
-zinit light lukechilds/zsh-nvm
 zinit light zsh-users/zsh-autosuggestions
 zinit light zsh-users/zsh-completions
 zinit light zsh-users/zsh-syntax-highlighting
@@ -147,26 +146,9 @@ if command -v direnv &> /dev/null; then
   eval "$(direnv hook zsh)"
 fi
 
-# lazy load pyenv
-if [[ -d "$HOME/.pyenv" ]]; then
-  export PYENV_ROOT="$HOME/.pyenv"
-  path=("$PYENV_ROOT/bin" $path)
-  pyenv() {
-    unfunction pyenv
-    eval "$(command pyenv init -)"
-    eval "$(command pyenv virtualenv-init -)"
-    pyenv "$@"
-  }
-fi
-
-# lazy load rbenv
-if [[ -d "$HOME/.rbenv" ]]; then
-  path=("$HOME/.rbenv/bin" $path)
-  rbenv() {
-    unfunction rbenv
-    eval "$(command rbenv init -)"
-    rbenv "$@"
-  }
+# mise (version manager for node, python, ruby, etc.)
+if command -v mise &> /dev/null; then
+  eval "$(mise activate zsh)"
 fi
 
 # zoxide (cd but smarter)

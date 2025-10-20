@@ -13,6 +13,9 @@ export PATH=/usr/local/bin:/usr/local/sbin:$PATH
 # add home .bin to PATH
 export PATH=$HOME/.bin:$PATH
 
+# add mise shims to PATH (for non-interactive shells)
+export PATH=$HOME/.local/share/mise/shims:$PATH
+
 # add /usr/local/heroku/bin to PATH
 export PATH=/usr/local/heroku/bin:$PATH
 
@@ -31,18 +34,3 @@ export PATH=$GOPATH/bin:$PATH
 
 # add my timecraft cli tool to PATH (temp solution)
 export PATH=$HOME/code/timecraft/bin:$PATH
-
-# set node version manager directory
-if [ -d "$HOME/.nvm" ] && [ -s "$HOME/.nvm/nvm.sh" ]; then
-  export NVM_DIR=$HOME/.nvm
-fi
-
-# add pyenv to PATH
-if [ -d "$HOME/.pyenv" ] && [ -s "$HOME/.pyenv/bin/pyenv" ]; then
-  export PATH=$HOME/.pyenv/bin:$PATH
-fi
-
-# add rbenv to PATH
-if [ -d "$HOME/.rbenv" ] && [ -s "$HOME/.rbenv/bin/rbenv" ]; then
-  export PATH=$HOME/.rbenv/bin:$PATH
-fi
