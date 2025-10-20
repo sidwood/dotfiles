@@ -185,6 +185,8 @@ stow_dotfiles() {
   echo "Symlinking dotfile packages"
   for pkg in */; do
     [[ "$pkg" == "macos/" || "$pkg" == "alfred/" ]] && continue
+    # Skip bash on Omarchy (it manages ~/.bashrc)
+    is_omarchy && [[ "$pkg" == "bash/" ]] && continue
     stow -v -t "$HOME" "${pkg%/}"
   done
 }
