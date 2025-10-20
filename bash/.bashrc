@@ -136,37 +136,7 @@ if command -v direnv &> /dev/null; then
   eval "$(direnv hook bash)"
 fi
 
-# lazy load pyenv
-if [[ -d "$HOME/.pyenv" ]]; then
-  export PYENV_ROOT="$HOME/.pyenv"
-  export PATH="$PYENV_ROOT/bin:$PATH"
-  pyenv() {
-    unset -f pyenv
-    eval "$(command pyenv init -)"
-    eval "$(command pyenv virtualenv-init -)"
-    pyenv "$@"
-  }
-fi
-
-# lazy load rbenv
-if [[ -d "$HOME/.rbenv" ]]; then
-  export PATH="$HOME/.rbenv/bin:$PATH"
-  rbenv() {
-    unset -f rbenv
-    eval "$(command rbenv init -)"
-    rbenv "$@"
-  }
-fi
-
-# lazy load nvm
-if [[ -d "$HOME/.nvm" ]]; then
-  export NVM_DIR="$HOME/.nvm"
-  nvm() {
-    unset -f nvm node npm npx
-    [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-    nvm "$@"
-  }
-  node() { nvm use default &>/dev/null; command node "$@"; }
-  npm() { nvm use default &>/dev/null; command npm "$@"; }
-  npx() { nvm use default &>/dev/null; command npx "$@"; }
+# mise (version manager for node, python, ruby, etc.)
+if command -v mise &> /dev/null; then
+  eval "$(mise activate bash)"
 fi
