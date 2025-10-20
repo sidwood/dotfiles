@@ -1,0 +1,58 @@
+# Unified shell aliases (sourced by both bash and zsh)
+# Requires PLATFORM variable from .profile
+
+# ------------------------------------------------------------------------------
+# Navigation
+# ------------------------------------------------------------------------------
+
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias cdd='cd - 1>/dev/null'
+
+# ------------------------------------------------------------------------------
+# Git
+# ------------------------------------------------------------------------------
+
+alias g='git'
+alias gaa='git add --all'
+alias gb='git branch'
+alias gba='git branch -a'
+alias gc='git commit --verbose'
+alias gca='git commit --verbose --all'
+alias gco='git checkout'
+alias gd='git diff'
+alias gdm='git diff main'
+alias ge='vi .git/config'
+alias gg='git log --graph --all'
+alias ggf='git log --graph --all --pretty=fuller --decorate'
+alias gl='git pull'
+alias gp='git push'
+alias gs='git status'
+
+# ------------------------------------------------------------------------------
+# General
+# ------------------------------------------------------------------------------
+
+alias c='clear'
+alias l='ls -Ahl'
+alias ta='tmux attach'
+alias tl='tmux ls'
+alias www='python3 -m http.server 8000'
+
+# Platform-specific ls colors
+if [[ "$PLATFORM" == 'Darwin' ]]; then
+  alias ls='ls -FG'
+else
+  alias ls='ls -F --color=auto'
+fi
+
+# ------------------------------------------------------------------------------
+# macOS-specific
+# ------------------------------------------------------------------------------
+
+if [[ "$PLATFORM" == 'Darwin' ]]; then
+  alias dsunhook="find . -name '.DS_Store' -exec rm -rf {} \;"
+  alias tu='top -o cpu'
+  alias tm='top -o vsize'
+fi
