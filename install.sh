@@ -41,11 +41,14 @@ option_keys=()
 # Build menu options based on OS
 #
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if is_macos; then
   options+=("Install Homebrew packages and applications.")
   option_keys+=("homebrew")
   options+=("Apply macOS system defaults.")
   option_keys+=("macos")
+elif is_omarchy; then
+  options+=("Install Arch packages (pacman + AUR).")
+  option_keys+=("arch")
 fi
 options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
@@ -235,6 +238,10 @@ show_menu
 if is_selected "homebrew"; then
   install_homebrew
   print_1password_reminder
+fi
+
+if is_selected "arch"; then
+  install_arch_packages
 fi
 
 if is_selected "macos"; then
