@@ -42,6 +42,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
+options+=("Set up mise with default runtimes.")
+option_keys+=("mise")
 options+=("Install vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -179,6 +181,28 @@ install_vim_plugins() {
   vim +PlugInstall +qall
 }
 
+setup_mise() {
+  command -v mise >/dev/null 2>&1 || abort 'mise required (install Homebrew packages first)'
+
+  echo "Setting up mise runtimes"
+
+  # Trust mise to run hooks (global settings, no specific config file)
+  mise settings set experimental true 2>/dev/null || true
+
+  # Install latest LTS/stable versions globally
+  echo "Installing Node.js LTS..."
+  mise use --global node@lts
+
+  echo "Installing Python..."
+  mise use --global python@latest
+
+  echo "Installing Ruby..."
+  mise use --global ruby@latest
+
+  echo "Mise setup complete. Installed versions:"
+  mise list
+}
+
 print_1password_reminder() {
   printf "\n\033[33m1Password manual setup required:\033[0m\n"
   printf "  1. Open 1Password → Settings → Developer\n"
@@ -203,6 +227,10 @@ fi
 
 if is_selected "stow"; then
   stow_dotfiles
+fi
+
+if is_selected "mise"; then
+  setup_mise
 fi
 
 if is_selected "vim"; then
