@@ -160,6 +160,15 @@ install_homebrew() {
   fi
 }
 
+install_arch_packages() {
+  echo "Installing official Arch packages..."
+  omarchy-pkg-add zsh tmux stow aws-cli-v2 azure-cli cmatrix difftastic \
+    ffmpeg git-filter-repo make tree yazi
+
+  echo "Installing AUR packages..."
+  omarchy-pkg-aur-add gifski heroku-cli
+}
+
 apply_macos_defaults() {
   if [ -f "$PWD/macos/defaults.sh" ]; then
     echo "Applying macOS system defaults"
