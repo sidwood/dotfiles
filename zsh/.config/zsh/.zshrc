@@ -176,5 +176,9 @@ fi
 
 # heroku autocomplete setup
 if command -v heroku &> /dev/null; then
-  eval "$(heroku autocomplete:script zsh)"
+  HEROKU_AC_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/heroku/autocomplete"
+  if [[ ! -d "$HEROKU_AC_CACHE" ]]; then
+    heroku autocomplete &>/dev/null
+  fi
+  eval "$(heroku autocomplete:script zsh)" 2>/dev/null || true
 fi
