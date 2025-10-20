@@ -22,6 +22,13 @@ command -v curl >/dev/null 2>&1 || abort 'curl required'
 command -v git >/dev/null 2>&1 || abort 'git required'
 
 #
+# Platform detection
+#
+
+is_macos() { [[ "$OSTYPE" == "darwin"* ]]; }
+is_omarchy() { [[ -d "$HOME/.local/share/omarchy" ]]; }
+
+#
 # Menu state
 #
 
