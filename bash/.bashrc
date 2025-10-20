@@ -83,60 +83,15 @@ fi
 PS1="$PS1\n\[$GREEN\]λ\[$RESET_COLOR\] "
 
 # ------------------------------------------------------------------------------
-# aliases
+# unified shell config (aliases, functions, init)
 # ------------------------------------------------------------------------------
 
-alias ....='cd ../../..'
-alias ...='cd ../..'
-alias ..='cd ..'
-alias c='clear'
-alias cdd='cd - 1>/dev/null'
-alias gaa='git add --all'
-alias gb='git branch'
-alias gba='git branch -a'
-alias gc='git commit --verbose'
-alias gca='git commit --verbose --all'
-alias gco='git checkout'
-alias gd='git diff'
-alias gdm='git diff main'
-alias ge='vi .git/config'
-alias gg='git log --graph --all'
-alias ggf='git log --graph --all --pretty=fuller --decorate'
-alias gl='git pull'
-alias gp='git push'
-alias gs='git status'
-alias l='ls -Ahl'
-if [[ $PLATFORM == 'Darwin' ]]; then
-  alias ls='ls -FG'
-else
-  alias ls='ls -F --color=auto'
-fi
+for f in ~/.config/shell/{aliases,functions,init}; do
+  [[ -r "$f" ]] && source "$f"
+done
+
+# ------------------------------------------------------------------------------
+# bash-specific aliases
+# ------------------------------------------------------------------------------
+
 alias reload='source ~/.bashrc'
-alias ta='tmux attach'
-alias tl='tmux ls'
-alias www='python3 -m http.server 8000'
-
-# recursively remove .DS_Store files on macOS
-if [[ $PLATFORM == 'Darwin' ]]; then
-  alias dsunhook="find . -name '.DS_Store' -exec rm -rf {} \;"
-fi
-
-# top aliases for macOS
-if [[ $PLATFORM == 'Darwin' ]]; then
-  alias tu='top -o cpu'
-  alias tm='top -o vsize'
-fi
-
-# ------------------------------------------------------------------------------
-# shell integrations
-# ------------------------------------------------------------------------------
-
-# direnv
-if command -v direnv &> /dev/null; then
-  eval "$(direnv hook bash)"
-fi
-
-# mise (version manager for node, python, ruby, etc.)
-if command -v mise &> /dev/null; then
-  eval "$(mise activate bash)"
-fi
