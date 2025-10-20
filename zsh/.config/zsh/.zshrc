@@ -10,6 +10,12 @@ if [[ $PLATFORM == "Darwin" && -f "/opt/homebrew/bin/brew" ]]; then
   eval $(/opt/homebrew/bin/brew shellenv)
 fi
 
+# initialize omarchy
+if [[ -d "$HOME/.local/share/omarchy" ]]; then
+  export OMARCHY_PATH="$HOME/.local/share/omarchy"
+  export PATH="$OMARCHY_PATH/bin:$PATH"
+fi
+
 # set the zinit directory for plugins
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
