@@ -7,6 +7,13 @@
 cd "$(dirname "$0")" || { printf "\n \033[31mError: Failed to change to script directory\033[0m\n\n"; exit 1; }
 
 #
+# Platform detection
+#
+
+is_macos() { [[ "$OSTYPE" == "darwin"* ]]; }
+is_omarchy() { [[ -d "$HOME/.local/share/omarchy" ]]; }
+
+#
 # Menu state
 #
 
@@ -19,11 +26,14 @@ option_keys=()
 # Build menu options based on OS
 #
 
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if is_macos; then
   options+=("Uninstall Homebrew packages and applications.")
   option_keys+=("homebrew")
   options+=("Reset macOS system defaults.")
   option_keys+=("macos")
+elif is_omarchy; then
+  options+=("Uninstall Arch packages (pacman + AUR).")
+  option_keys+=("arch")
 fi
 options+=("Remove dotfile package symlinks with GNU Stow.")
 option_keys+=("stow")
@@ -126,6 +136,26 @@ uninstall_homebrew() {
   fi
 }
 
+uninstall_arch_packages() {
+  echo "Uninstalling Arch packages..."
+
+  # AUR packages
+  local aur_pkgs=(gifski heroku-cli)
+  for pkg in "${aur_pkgs[@]}"; do
+    if pacman -Q "$pkg" &>/dev/null; then
+      yay -Rns --noconfirm "$pkg" 2>/dev/null || true
+    fi
+  done
+
+  # Official packages (only those we explicitly installed)
+  local official_pkgs=(zsh tmux stow aws-cli-v2 azure-cli cmatrix difftastic ffmpeg git-filter-repo make tree yazi)
+  for pkg in "${official_pkgs[@]}"; do
+    if pacman -Q "$pkg" &>/dev/null; then
+      sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null || true
+    fi
+  done
+}
+
 reset_macos_defaults() {
   if [ -f "$PWD/macos/defaults.sh" ]; then
     echo "Resetting macOS system defaults"
@@ -137,7 +167,9 @@ reset_macos_defaults() {
 uninstall_dotfiles() {
   echo "Removing dotfile package symlinks"
   for pkg in */; do
-    [[ "$pkg" == "macos/" ]] && continue
+    [[ "$pkg" == "macos/" || "$pkg" == "alfred/" ]] && continue
+    # Skip bash on Omarchy (it manages ~/.bashrc)
+    is_omarchy && [[ "$pkg" == "bash/" ]] && continue
     stow -Dv "${pkg%/}"
   done
 }
@@ -156,6 +188,10 @@ show_menu
 
 if is_selected "homebrew"; then
   uninstall_homebrew
+fi
+
+if is_selected "arch"; then
+  uninstall_arch_packages
 fi
 
 if is_selected "macos"; then
