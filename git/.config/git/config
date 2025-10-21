@@ -44,6 +44,8 @@
 	algorithm = histogram
 	colorMoved = plain
 	mnemonicPrefix = true
+[commit]
+	verbose = true
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
