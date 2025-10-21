@@ -48,6 +48,8 @@
 	verbose = true
 [column]
 	ui = auto
+[branch]
+	sort = -committerdate
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
