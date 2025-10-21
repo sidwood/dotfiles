@@ -78,11 +78,23 @@ cd /path/to/dotfiles
 
 The uninstall script presents a similar interactive menu:
 
+### macOS
+
 ```
 Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
 > [x] Uninstall Homebrew packages and applications.
   [x] Reset macOS system defaults.
+  [x] Remove dotfile package symlinks with GNU Stow.
+  [x] Uninstall vim plugins.
+```
+
+### Arch Linux (Omarchy)
+
+```
+Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
+
+> [x] Uninstall Arch packages (pacman + AUR).
   [x] Remove dotfile package symlinks with GNU Stow.
   [x] Uninstall vim plugins.
 ```
