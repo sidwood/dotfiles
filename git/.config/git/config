@@ -35,6 +35,7 @@
 	driver = npx npm-merge-driver merge %A %O %B %P
 [push]
 	default = simple
+	autoSetupRemote = true
 [pull]
 	rebase = true
 [rebase]
