@@ -40,6 +40,8 @@
 	rebase = true
 [rebase]
 	autoStash = true
+[diff]
+	algorithm = histogram
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
