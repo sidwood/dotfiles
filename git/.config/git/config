@@ -42,6 +42,7 @@
 	autoStash = true
 [diff]
 	algorithm = histogram
+	colorMoved = plain
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
