@@ -52,6 +52,8 @@
 	sort = -committerdate
 [tag]
 	sort = -version:refname
+[rerere]
+	enabled = true
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
