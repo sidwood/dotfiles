@@ -50,6 +50,8 @@
 	ui = auto
 [branch]
 	sort = -committerdate
+[tag]
+	sort = -version:refname
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
