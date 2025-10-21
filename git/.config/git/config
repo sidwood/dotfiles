@@ -46,6 +46,8 @@
 	mnemonicPrefix = true
 [commit]
 	verbose = true
+[column]
+	ui = auto
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
