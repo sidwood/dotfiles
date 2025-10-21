@@ -1,7 +1,7 @@
 # dotfiles
 
 Configuration files for `bash`, `zsh`, `vim`, `git`, and more. Compatible with
-Linux and macOS environments.
+macOS and Arch Linux ([Omarchy](https://github.com/basecamp/omarchy)).
 
 ## Installation
 
@@ -14,7 +14,9 @@ cd dotfiles
 ```
 
 The install script presents an interactive menu where you can select which
-components to install:
+components to install. The available options vary by platform:
+
+### macOS
 
 ```
 Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
@@ -22,13 +24,50 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 > [x] Install Homebrew packages and applications.
   [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
+  [x] Set up mise with default runtimes.
+  [x] Install vim plugins.
+```
+
+### Arch Linux (Omarchy)
+
+```
+Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
+
+> [x] Install Arch packages (pacman + AUR).
+  [x] Symlink dotfile packages with GNU Stow.
+  [x] Set up mise with default runtimes.
   [x] Install vim plugins.
 ```
 
 Use arrow keys or `j`/`k` to navigate, space to toggle options, and enter to
 confirm.
 
-Note: The Homebrew and macOS defaults options only appear on macOS.
+## Structure
+
+The dotfiles are organized as [GNU Stow](https://www.gnu.org/software/stow/)
+packages. Each top-level directory is a package that gets symlinked to `$HOME`.
+
+```
+dotfiles/
+├── bash/           # Bash config (macOS only, skipped on Omarchy)
+├── git/            # Git config
+├── ghostty/        # Ghostty terminal config
+├── profile/        # Shared environment variables (.profile)
+├── shell/          # Unified shell config (aliases, functions, init)
+├── tmux/           # Tmux config
+├── vim/            # Vim config and plugins
+├── yazi/           # Yazi file manager config
+└── zsh/            # Zsh config with zinit and powerlevel10k
+```
+
+### Unified Shell Config
+
+The `shell/` package provides cross-platform configuration that works in both
+bash and zsh:
+
+- `~/.config/shell/aliases` - Common aliases
+- `~/.config/shell/functions` - Utility functions
+- `~/.config/shell/init` - Tool integrations (mise, zoxide, fzf, direnv)
 
 ## Uninstall
 
