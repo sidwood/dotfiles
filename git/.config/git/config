@@ -54,6 +54,7 @@
 	sort = -version:refname
 [rerere]
 	enabled = true
+	autoupdate = true
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
