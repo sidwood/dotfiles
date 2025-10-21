@@ -43,6 +43,7 @@
 [diff]
 	algorithm = histogram
 	colorMoved = plain
+	mnemonicPrefix = true
 [url "git@github.com:"]
 	insteadOf = "gh:"
 	pushInsteadOf = "github:"
