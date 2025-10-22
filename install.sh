@@ -184,10 +184,15 @@ stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
 
   # Backup existing ghostty config if present (e.g., Omarchy default)
+  # Only backup if it's a regular file AND not already linking to our repo
   local ghostty_config="$HOME/.config/ghostty/config"
-  if [[ -f "$ghostty_config" && ! -L "$ghostty_config" ]]; then
-    echo "Backing up existing ghostty config to ${ghostty_config}.bak"
-    mv "$ghostty_config" "${ghostty_config}.bak"
+  if [[ -e "$ghostty_config" && ! -L "$ghostty_config" ]]; then
+    local real_path
+    real_path="$(cd "$(dirname "$ghostty_config")" && pwd -P)/$(basename "$ghostty_config")"
+    if [[ "$real_path" != "$PWD/ghostty/.config/ghostty/config" ]]; then
+      echo "Backing up existing ghostty config to ${ghostty_config}.bak"
+      mv "$ghostty_config" "${ghostty_config}.bak"
+    fi
   fi
 
   echo "Symlinking dotfile packages"
