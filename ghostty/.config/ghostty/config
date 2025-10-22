@@ -24,8 +24,6 @@ macos-titlebar-proxy-icon = hidden
 cursor-style = "block"
 cursor-style-blink = false
 shell-integration-features = no-cursor,ssh-env
-cursor-color = 839496
-cursor-text = 073642
 
 # Keyboard bindings
 keybind = shift+insert=paste_from_clipboard
