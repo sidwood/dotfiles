@@ -15,6 +15,10 @@ alias cdd='cd - 1>/dev/null'
 # ------------------------------------------------------------------------------
 
 alias g='git'
+# Enable git completions for the 'g' alias in bash
+if [[ -n "$BASH_VERSION" ]] && type _git &>/dev/null; then
+  complete -o default -o nospace -F _git g
+fi
 alias gaa='git add --all'
 alias gb='git branch'
 alias gba='git branch -a'
