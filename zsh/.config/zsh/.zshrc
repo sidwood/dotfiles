@@ -5,11 +5,6 @@
 # shell options
 # ------------------------------------------------------------------------------
 
-# initialize homebrew
-if [[ $PLATFORM == "Darwin" && -f "/opt/homebrew/bin/brew" ]]; then
-  eval $(/opt/homebrew/bin/brew shellenv)
-fi
-
 # initialize omarchy
 if [[ -d "$HOME/.local/share/omarchy" ]]; then
   export OMARCHY_PATH="$HOME/.local/share/omarchy"
