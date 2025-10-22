@@ -35,16 +35,33 @@ alias gs='git status'
 # ------------------------------------------------------------------------------
 
 alias c='clear'
-alias l='ls -Ahl'
 alias ta='tmux attach'
 alias tl='tmux ls'
 alias www='python3 -m http.server 8000'
 
-# Platform-specific ls colors
-if [[ "$PLATFORM" == 'Darwin' ]]; then
-  alias ls='ls -FG'
+# fzf file picker with bat preview
+if command -v fzf &>/dev/null && command -v bat &>/dev/null; then
+  alias e='vim $(fzf -m --preview "bat --color=always --style=numbers {}")'
+fi
+
+# ------------------------------------------------------------------------------
+# ls / eza
+# ------------------------------------------------------------------------------
+
+# Use eza for ls with icons if available
+if command -v eza &>/dev/null; then
+  alias ls='eza -lh --group-directories-first --icons=auto'
+  alias l='ls'
+  alias lsa='ls -a'
+  alias lt='eza --tree --level=2 --long --icons --git'
+  alias lta='lt -a'
 else
-  alias ls='ls -F --color=auto'
+  alias l='ls -Ahl'
+  if [[ "$PLATFORM" == 'Darwin' ]]; then
+    alias ls='ls -FG'
+  else
+    alias ls='ls -F --color=auto'
+  fi
 fi
 
 # ------------------------------------------------------------------------------
