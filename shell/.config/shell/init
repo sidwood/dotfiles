@@ -19,9 +19,9 @@ fi
 
 if command -v zoxide &>/dev/null; then
   if [[ -n "$ZSH_VERSION" ]]; then
-    eval "$(zoxide init zsh)"
+    eval "$(zoxide init --cmd cd zsh)"
   else
-    eval "$(zoxide init bash)"
+    eval "$(zoxide init --cmd cd bash)"
   fi
 fi
 
