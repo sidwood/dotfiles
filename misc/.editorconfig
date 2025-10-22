@@ -6,10 +6,22 @@ end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 
-[{*.css,*.less,*.sass,*.scss,*.styl}]
+[*.{css,less,sass,scss,styl}]
 indent_style = space
 indent_size = 2
 tab_width = 2
+
+[*.{sh,bash,zsh}]
+indent_style = space
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[*.{json,toml}]
+indent_style = space
+indent_size = 2
 
 [*.html]
 indent_style = space
@@ -30,3 +42,10 @@ tab_width = 4
 indent_style = space
 indent_size = 2
 tab_width = 2
+
+[*.lua]
+indent_style = space
+indent_size = 2
+
+[Makefile]
+indent_style = tab
