@@ -115,17 +115,28 @@ alias ggf='git log --graph --all --pretty=fuller --decorate'
 alias gl='git pull'
 alias gp='git push'
 alias gs='git status'
-alias l='ls -Ahl'
-if [[ $PLATFORM == 'Darwin' ]]; then
-  alias ls='ls -FG'
-else
-  alias ls='ls -F --color=auto'
-fi
 alias reload='source $ZDOTDIR/.zshrc'
 alias ta='tmux attach'
 alias tl='tmux ls'
 # alias vim='nvim'
 alias www='python3 -m http.server 8000'
+
+# use eza for ls with icons
+if command -v eza &> /dev/null; then
+  alias ls='eza -lh --group-directories-first --icons=auto'
+  alias l='ls'
+  alias lsa='ls -a'
+  alias lt='eza --tree --level=2 --long --icons --git'
+  alias lta='lt -a'
+else
+  alias l='ls -Ahl'
+  if [[ $PLATFORM == 'Darwin' ]]; then
+    alias ls='ls -FG'
+  else
+    alias ls='ls -F --color=auto'
+  fi
+fi
+
 
 # recursively remove .DS_Store files on macOS
 if [[ $PLATFORM == 'Darwin' ]]; then
