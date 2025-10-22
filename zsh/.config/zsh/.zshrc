@@ -81,10 +81,10 @@ zstyle ':completion:*' insert-tab pending
 [[ -f "$ZDOTDIR/.p10k.zsh" ]] && source "$ZDOTDIR/.p10k.zsh"
 
 # ------------------------------------------------------------------------------
-# unified shell config (aliases, functions)
+# unified shell config (aliases, functions, tool integrations)
 # ------------------------------------------------------------------------------
 
-for f in ~/.config/shell/{aliases,functions}; do
+for f in ~/.config/shell/{aliases,functions,init}; do
   [[ -r "$f" ]] && source "$f"
 done
 
@@ -95,28 +95,8 @@ done
 alias reload='source $ZDOTDIR/.zshrc'
 
 # ------------------------------------------------------------------------------
-# shell integrations
+# zsh-specific integrations
 # ------------------------------------------------------------------------------
-
-# fzf
-if command -v fzf &> /dev/null; then
-  eval "$(fzf --zsh)"
-fi
-
-# direnv
-if command -v direnv &> /dev/null; then
-  eval "$(direnv hook zsh)"
-fi
-
-# mise (version manager for node, python, ruby, etc.)
-if command -v mise &> /dev/null; then
-  eval "$(mise activate zsh)"
-fi
-
-# zoxide (cd but smarter)
-if command -v zoxide &> /dev/null; then
-  eval "$(zoxide init --cmd cd zsh)"
-fi
 
 # heroku autocomplete setup
 if command -v heroku &> /dev/null; then
