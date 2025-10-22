@@ -80,74 +80,19 @@ zstyle ':completion:*' insert-tab pending
 # load powerlevel10k configuration
 [[ -f "$ZDOTDIR/.p10k.zsh" ]] && source "$ZDOTDIR/.p10k.zsh"
 
-# legacy manual prompt (commented out in favor of powerlevel10k)
-# local CR=$'\n'
-# local ICON="%(?,%{$fg[green]%}λ,%{$fg[red]%}λ)"
-# if [[ -n $SSH_CONNECTION ]]; then
-#   PROMPT='${CR}%n@%M:%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
-# else
-#   PROMPT='${CR}%~%{$fg[black]%}$(vcprompt)%{$reset_color%}'
-# fi
-# PROMPT="${PROMPT}${CR}${ICON}%{$reset_color%} "
-# RPROMPT='%{$fg[gray]%}$($ZDOTDIR/git-cwd-info.sh)%{$reset_color%}'
-
 # ------------------------------------------------------------------------------
-# aliases
+# unified shell config (aliases, functions)
 # ------------------------------------------------------------------------------
 
-alias ....='cd ../../..'
-alias ...='cd ../..'
-alias ..='cd ..'
-alias c='clear'
-alias cdd='cd - 1>/dev/null'
-alias e='vim $(fzf -m --preview "bat --color=always --style=numbers {}")'
-alias gaa='git add --all'
-alias gb='git branch'
-alias gba='git branch -a'
-alias gc='git commit --verbose'
-alias gca='git commit --verbose --all'
-alias gco='git checkout'
-alias gd='git diff'
-alias gdm='git diff main'
-alias ge='vi .git/config'
-alias gg='git log --graph --all'
-alias ggf='git log --graph --all --pretty=fuller --decorate'
-alias gl='git pull'
-alias gp='git push'
-alias gs='git status'
+for f in ~/.config/shell/{aliases,functions}; do
+  [[ -r "$f" ]] && source "$f"
+done
+
+# ------------------------------------------------------------------------------
+# zsh-specific aliases
+# ------------------------------------------------------------------------------
+
 alias reload='source $ZDOTDIR/.zshrc'
-alias ta='tmux attach'
-alias tl='tmux ls'
-# alias vim='nvim'
-alias www='python3 -m http.server 8000'
-
-# use eza for ls with icons
-if command -v eza &> /dev/null; then
-  alias ls='eza -lh --group-directories-first --icons=auto'
-  alias l='ls'
-  alias lsa='ls -a'
-  alias lt='eza --tree --level=2 --long --icons --git'
-  alias lta='lt -a'
-else
-  alias l='ls -Ahl'
-  if [[ $PLATFORM == 'Darwin' ]]; then
-    alias ls='ls -FG'
-  else
-    alias ls='ls -F --color=auto'
-  fi
-fi
-
-
-# recursively remove .DS_Store files on macOS
-if [[ $PLATFORM == 'Darwin' ]]; then
-  alias dsunhook="find . -name '.DS_Store' -exec rm -rf {} \;"
-fi
-
-# top aliases for macOS
-if [[ $PLATFORM == 'Darwin' ]]; then
-  alias tu='top -o cpu'
-  alias tm='top -o vsize'
-fi
 
 # ------------------------------------------------------------------------------
 # shell integrations
