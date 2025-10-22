@@ -182,6 +182,14 @@ apply_macos_defaults() {
 
 stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
+
+  # Backup existing ghostty config if present (e.g., Omarchy default)
+  local ghostty_config="$HOME/.config/ghostty/config"
+  if [[ -f "$ghostty_config" && ! -L "$ghostty_config" ]]; then
+    echo "Backing up existing ghostty config to ${ghostty_config}.bak"
+    mv "$ghostty_config" "${ghostty_config}.bak"
+  fi
+
   echo "Symlinking dotfile packages"
   for pkg in */; do
     [[ "$pkg" == "macos/" || "$pkg" == "alfred/" ]] && continue
