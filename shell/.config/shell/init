@@ -31,11 +31,9 @@ fi
 
 if command -v fzf &>/dev/null; then
   if [[ -n "$ZSH_VERSION" ]]; then
-    [[ -f /usr/share/fzf/key-bindings.zsh ]] && source /usr/share/fzf/key-bindings.zsh
-    [[ -f /usr/share/fzf/completion.zsh ]] && source /usr/share/fzf/completion.zsh
+    eval "$(fzf --zsh)"
   else
-    [[ -f /usr/share/fzf/key-bindings.bash ]] && source /usr/share/fzf/key-bindings.bash
-    [[ -f /usr/share/fzf/completion.bash ]] && source /usr/share/fzf/completion.bash
+    eval "$(fzf --bash)"
   fi
 fi
 
