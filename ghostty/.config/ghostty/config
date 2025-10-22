@@ -1,56 +1,39 @@
-# Font settings
-font-family = JetBrains Mono
+# Solarized Dark default theme colors
+config-file = ?"~/.config/ghostty/solarized-dark.conf"
+
+# Omarchy dynamic theme colors
+config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
+
+# Font
+font-family = "JetBrainsMono Nerd Font"
+font-style = Regular
 font-size = 20
 
 # Window
-macos-titlebar-proxy-icon = hidden
 title = " "
+window-theme = ghostty
+window-padding-x = 14
+window-padding-y = 14
 window-decoration = false
-
-# Solarized Dark color scheme
-background = 002b36
-foreground = 839496
+confirm-close-surface=false
+resize-overlay = never
+gtk-toolbar-style = flat
+macos-titlebar-proxy-icon = hidden
 
 # Cursor
-cursor-style = block
+cursor-style = "block"
 cursor-style-blink = false
-shell-integration-features = no-cursor
+shell-integration-features = no-cursor,ssh-env
 cursor-color = 839496
 cursor-text = 073642
 
-# Selection
-selection-background = 073642
-selection-foreground = 93a1a1
+# Keyboard bindings
+keybind = shift+insert=paste_from_clipboard
+keybind = control+insert=copy_to_clipboard
+keybind = super+control+shift+alt+arrow_down=resize_split:down,100
+keybind = super+control+shift+alt+arrow_up=resize_split:up,100
+keybind = super+control+shift+alt+arrow_left=resize_split:left,100
+keybind = super+control+shift+alt+arrow_right=resize_split:right,100
 
-# ANSI Colors (Solarized Dark)
-# Black
-palette = 0=073642
-palette = 8=002b36
-
-# Red
-palette = 1=dc322f
-palette = 9=cb4b16
-
-# Green
-palette = 2=859900
-palette = 10=586e75
-
-# Yellow
-palette = 3=b58900
-palette = 11=657b83
-
-# Blue
-palette = 4=268bd2
-palette = 12=839496
-
-# Magenta
-palette = 5=d33682
-palette = 13=6c71c4
-
-# Cyan
-palette = 6=2aa198
-palette = 14=93a1a1
-
-# White
-palette = 7=eee8d5
-palette = 15=fdf6e3
+# Slowdown mouse scrolling
+mouse-scroll-multiplier = 0.95
