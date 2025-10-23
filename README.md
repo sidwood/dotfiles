@@ -106,3 +106,18 @@ Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Remove dotfile package symlinks with GNU Stow.
   [x] Uninstall vim plugins.
 ```
+
+## 1Password Secrets
+
+Some projects require secrets stored in 1Password (e.g., private GitHub Package
+registries). The `profile/.profile` exports environment variables using
+[1Password secret references](https://developer.1password.com/docs/cli/secret-references/).
+
+To inject secrets when running npm commands, use `op run`:
+
+```bash
+op run -- npm install
+```
+
+This replaces secret references (e.g., `op://Personal/GitHub Registry Token/token`)
+with their actual values for the duration of that command.
