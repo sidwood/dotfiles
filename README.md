@@ -25,6 +25,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
   [x] Set up mise with default runtimes.
+  [x] Install global npm packages.
   [x] Install vim plugins.
 ```
 
@@ -36,6 +37,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 > [x] Install Arch packages (pacman + AUR).
   [x] Symlink dotfile packages with GNU Stow.
   [x] Set up mise with default runtimes.
+  [x] Install global npm packages.
   [x] Install vim plugins.
 ```
 
