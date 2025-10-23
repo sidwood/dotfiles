@@ -50,12 +50,20 @@ packages. Each top-level directory is a package that gets symlinked to `$HOME`.
 ```
 dotfiles/
 ├── bash/           # Bash config (macOS only, skipped on Omarchy)
-├── git/            # Git config
 ├── ghostty/        # Ghostty terminal config
+├── git/            # Git config and global ignore
+├── htop/           # htop process viewer config
+├── iterm2/         # iTerm2 terminal config (macOS)
+├── misc/           # Miscellaneous dotfiles (.editorconfig, .agignore, etc.)
+├── mutt/           # Mutt email client config
+├── npm/            # NPM configuration
+├── nvim/           # Neovim config (Lua with lazy.nvim)
 ├── profile/        # Shared environment variables (.profile)
+├── ruby/           # Ruby/Bundler/IRB config
 ├── shell/          # Unified shell config (aliases, functions, init)
+├── ssh/            # SSH config (1Password agent)
 ├── tmux/           # Tmux config
-├── vim/            # Vim config and plugins
+├── vim/            # Vim config and plugins (vim-plug)
 ├── yazi/           # Yazi file manager config
 └── zsh/            # Zsh config with zinit and powerlevel10k
 ```
@@ -67,7 +75,7 @@ bash and zsh:
 
 - `~/.config/shell/aliases` - Common aliases
 - `~/.config/shell/functions` - Utility functions
-- `~/.config/shell/init` - Tool integrations (mise, zoxide, fzf, direnv)
+- `~/.config/shell/init` - Tool integrations (mise, zoxide, fzf)
 
 ## Uninstall
 
