@@ -34,8 +34,5 @@ export NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/npm/npmrc"
 export GOPATH=$HOME/code/golang
 export PATH=$GOPATH/bin:$PATH
 
-# add my timecraft cli tool to PATH (temp solution)
-export PATH=$HOME/code/timecraft/bin:$PATH
-
 # 1Password secret references (used with `op run`)
 export GITHUB_REGISTRY_TOKEN="op://Personal/GitHub Registry Token/token"
