@@ -54,6 +54,8 @@ options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
 options+=("Set up mise with default runtimes.")
 option_keys+=("mise")
+options+=("Install global npm packages.")
+option_keys+=("npm_globals")
 options+=("Install vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -237,6 +239,14 @@ setup_mise() {
   mise list
 }
 
+setup_npm_globals() {
+  command -v npm >/dev/null 2>&1 || abort 'npm required (install mise runtimes first)'
+  command -v op >/dev/null 2>&1 || abort '1Password CLI required (install Homebrew packages first)'
+
+  echo "Installing global npm packages..."
+  op run -- npm install -g @sidwood/timecraft
+}
+
 print_1password_reminder() {
   printf "\n\033[33m1Password manual setup required:\033[0m\n"
   printf "  1. Open 1Password → Settings → Developer\n"
@@ -269,6 +279,10 @@ fi
 
 if is_selected "mise"; then
   setup_mise
+fi
+
+if is_selected "npm_globals"; then
+  setup_npm_globals
 fi
 
 if is_selected "vim"; then
