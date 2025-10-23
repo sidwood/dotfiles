@@ -38,10 +38,13 @@ alias gs='git status'
 # General
 # ------------------------------------------------------------------------------
 
-alias c='clear'
+alias c='opencode'
+alias d='docker'
+alias r='rails'
 alias ta='tmux attach'
 alias tl='tmux ls'
 alias www='python3 -m http.server 8000'
+n() { if [ "$#" -eq 0 ]; then nvim .; else nvim "$@"; fi; }
 
 # fzf file picker with bat preview
 if command -v fzf &>/dev/null && command -v bat &>/dev/null; then
