@@ -6,6 +6,19 @@
 // For information on binding keys, see the Zed
 // documentation: https://zed.dev/docs/key-bindings
 [
+  {
+    "context": "Workspace",
+    "bindings": {
+      // "shift shift": "file_finder::Toggle"
+    },
+  },
+  {
+    "context": "Editor && vim_mode == insert",
+    "bindings": {
+      // "j k": "vim::NormalBefore"
+    },
+  },
+
   // ==========================================================================
   // Normal & Visual mode bindings (VimControl)
   // ==========================================================================
@@ -34,7 +47,7 @@
       "space": "editor::ToggleRelativeLineNumbers",
       ", l n": "editor::ToggleLineNumbers",
       ", l g": "editor::ToggleGitBlameInline",
-      ", l l": "editor::ToggleWhitespace",
+      ", i g": "editor::ToggleIndentGuides",
       ", v i": "zed::OpenSettings",
       ", b g": "theme_selector::Toggle",
       "j": "vim::Down",
