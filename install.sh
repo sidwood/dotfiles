@@ -202,6 +202,26 @@ stow_dotfiles() {
     fi
   fi
 
+  local zed_settings="$HOME/.config/zed/settings.json"
+  if [[ -e "$zed_settings" && ! -L "$zed_settings" ]]; then
+    local real_path
+    real_path="$(cd "$(dirname "$zed_settings")" && pwd -P)/$(basename "$zed_settings")"
+    if [[ "$real_path" != "$PWD/zed/.config/zed/settings.json" ]]; then
+      echo "Backing up existing zed settings to ${zed_settings}.bak"
+      mv "$zed_settings" "${zed_settings}.bak"
+    fi
+  fi
+
+  local zed_keymap="$HOME/.config/zed/keymap.json"
+  if [[ -e "$zed_keymap" && ! -L "$zed_keymap" ]]; then
+    local real_path
+    real_path="$(cd "$(dirname "$zed_keymap")" && pwd -P)/$(basename "$zed_keymap")"
+    if [[ "$real_path" != "$PWD/zed/.config/zed/keymap.json" ]]; then
+      echo "Backing up existing zed keymap to ${zed_keymap}.bak"
+      mv "$zed_keymap" "${zed_keymap}.bak"
+    fi
+  fi
+
   echo "Symlinking dotfile packages"
   for pkg in */; do
     [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "install/" ]] && continue
