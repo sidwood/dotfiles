@@ -39,6 +39,13 @@ apply() {
   # Restart Dock and SystemUIServer to apply changes
   killall Dock
   killall SystemUIServer
+
+  # Ghostty macOS-specific config (overrides ~/.config/ghostty/config)
+  ghostty_dir="$HOME/Library/Application Support/com.mitchellh.ghostty"
+  mkdir -p "$ghostty_dir"
+  cat > "$ghostty_dir/config" << 'EOF'
+font-size = 20
+EOF
 }
 
 reset() {
@@ -70,6 +77,9 @@ reset() {
   # Restart Dock and SystemUIServer to apply changes
   killall Dock
   killall SystemUIServer
+
+  # Remove Ghostty macOS-specific config
+  rm -f "$HOME/Library/Application Support/com.mitchellh.ghostty/config"
 }
 
 case "${1:-}" in
