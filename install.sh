@@ -177,50 +177,28 @@ apply_macos_defaults() {
   fi
 }
 
+backup_config() {
+  local target_path="$1"
+  local expected_source="$2"
+  local config_name="$3"
+
+  if [[ -e "$target_path" && ! -L "$target_path" ]]; then
+    local real_path
+    real_path="$(cd "$(dirname "$target_path")" && pwd -P)/$(basename "$target_path")"
+    if [[ "$real_path" != "$expected_source" ]]; then
+      echo "Backing up existing ${config_name} to ${target_path}.bak"
+      mv "$target_path" "${target_path}.bak"
+    fi
+  fi
+}
+
 stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
 
-  # Backup existing configs if present (e.g., Omarchy defaults)
-  # Only backup if it's a regular file AND not already linking to our repo
-  local ghostty_config="$HOME/.config/ghostty/config"
-  if [[ -e "$ghostty_config" && ! -L "$ghostty_config" ]]; then
-    local real_path
-    real_path="$(cd "$(dirname "$ghostty_config")" && pwd -P)/$(basename "$ghostty_config")"
-    if [[ "$real_path" != "$PWD/ghostty/.config/ghostty/config" ]]; then
-      echo "Backing up existing ghostty config to ${ghostty_config}.bak"
-      mv "$ghostty_config" "${ghostty_config}.bak"
-    fi
-  fi
-
-  local git_config="$HOME/.config/git/config"
-  if [[ -e "$git_config" && ! -L "$git_config" ]]; then
-    local real_path
-    real_path="$(cd "$(dirname "$git_config")" && pwd -P)/$(basename "$git_config")"
-    if [[ "$real_path" != "$PWD/git/.config/git/config" ]]; then
-      echo "Backing up existing git config to ${git_config}.bak"
-      mv "$git_config" "${git_config}.bak"
-    fi
-  fi
-
-  local zed_settings="$HOME/.config/zed/settings.json"
-  if [[ -e "$zed_settings" && ! -L "$zed_settings" ]]; then
-    local real_path
-    real_path="$(cd "$(dirname "$zed_settings")" && pwd -P)/$(basename "$zed_settings")"
-    if [[ "$real_path" != "$PWD/zed/.config/zed/settings.json" ]]; then
-      echo "Backing up existing zed settings to ${zed_settings}.bak"
-      mv "$zed_settings" "${zed_settings}.bak"
-    fi
-  fi
-
-  local zed_keymap="$HOME/.config/zed/keymap.json"
-  if [[ -e "$zed_keymap" && ! -L "$zed_keymap" ]]; then
-    local real_path
-    real_path="$(cd "$(dirname "$zed_keymap")" && pwd -P)/$(basename "$zed_keymap")"
-    if [[ "$real_path" != "$PWD/zed/.config/zed/keymap.json" ]]; then
-      echo "Backing up existing zed keymap to ${zed_keymap}.bak"
-      mv "$zed_keymap" "${zed_keymap}.bak"
-    fi
-  fi
+  backup_config "$HOME/.config/ghostty/config" "$PWD/ghostty/.config/ghostty/config" "ghostty config"
+  backup_config "$HOME/.config/git/config" "$PWD/git/.config/git/config" "git config"
+  backup_config "$HOME/.config/zed/settings.json" "$PWD/zed/.config/zed/settings.json" "zed settings"
+  backup_config "$HOME/.config/zed/keymap.json" "$PWD/zed/.config/zed/keymap.json" "zed keymap"
 
   echo "Symlinking dotfile packages"
   for pkg in */; do

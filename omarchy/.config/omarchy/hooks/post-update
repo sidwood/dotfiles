@@ -1,0 +1,33 @@
+#!/bin/bash
+#
+# Omarchy post-update hook
+# Runs after omarchy updates to ensure custom configs are sourced
+#
+
+BINDINGS_CONF="$HOME/.config/hypr/bindings.conf"
+CUSTOM_BINDINGS="$HOME/.config/hypr/bindings-custom.conf"
+SOURCE_LINE="source = $CUSTOM_BINDINGS"
+
+# Check if bindings.conf exists
+if [[ ! -f "$BINDINGS_CONF" ]]; then
+    echo "Warning: $BINDINGS_CONF not found, skipping custom bindings setup"
+    exit 0
+fi
+
+# Check if custom bindings file exists
+if [[ ! -f "$CUSTOM_BINDINGS" ]]; then
+    echo "Warning: $CUSTOM_BINDINGS not found, skipping"
+    exit 0
+fi
+
+# Check if source line already present
+if grep -qF "$SOURCE_LINE" "$BINDINGS_CONF"; then
+    echo "Custom bindings already sourced in $BINDINGS_CONF"
+    exit 0
+fi
+
+# Append source line
+echo "" >> "$BINDINGS_CONF"
+echo "# Custom bindings" >> "$BINDINGS_CONF"
+echo "$SOURCE_LINE" >> "$BINDINGS_CONF"
+echo "Added custom bindings source to $BINDINGS_CONF"
