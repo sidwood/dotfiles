@@ -180,7 +180,7 @@ apply_macos_defaults() {
 stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
 
-  # Backup existing ghostty config if present (e.g., Omarchy default)
+  # Backup existing configs if present (e.g., Omarchy defaults)
   # Only backup if it's a regular file AND not already linking to our repo
   local ghostty_config="$HOME/.config/ghostty/config"
   if [[ -e "$ghostty_config" && ! -L "$ghostty_config" ]]; then
@@ -189,6 +189,16 @@ stow_dotfiles() {
     if [[ "$real_path" != "$PWD/ghostty/.config/ghostty/config" ]]; then
       echo "Backing up existing ghostty config to ${ghostty_config}.bak"
       mv "$ghostty_config" "${ghostty_config}.bak"
+    fi
+  fi
+
+  local git_config="$HOME/.config/git/config"
+  if [[ -e "$git_config" && ! -L "$git_config" ]]; then
+    local real_path
+    real_path="$(cd "$(dirname "$git_config")" && pwd -P)/$(basename "$git_config")"
+    if [[ "$real_path" != "$PWD/git/.config/git/config" ]]; then
+      echo "Backing up existing git config to ${git_config}.bak"
+      mv "$git_config" "${git_config}.bak"
     fi
   fi
 
