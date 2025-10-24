@@ -2,6 +2,8 @@ alfred/Alfred.alfredpreferences/preferences/local/
 iterm2/.config/iterm2/AppSupport
 iterm2/.config/iterm2/sockets/
 ruby/.bundle/cache
+ssh/.ssh/known_hosts
+ssh/.ssh/known_hosts.old
 vim/.config/vim/autoload/
 vim/.config/vim/plugged/
 zsh/.config/zsh/.zcompdump*
