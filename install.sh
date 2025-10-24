@@ -47,8 +47,8 @@ if is_macos; then
   options+=("Apply macOS system defaults.")
   option_keys+=("macos")
 elif is_omarchy; then
-  options+=("Install Arch packages (pacman + AUR).")
-  option_keys+=("arch")
+  options+=("Install Omarchy packages (pacman + AUR).")
+  option_keys+=("omarchy")
 fi
 options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
@@ -165,13 +165,8 @@ install_homebrew() {
   fi
 }
 
-install_arch_packages() {
-  echo "Installing official Arch packages..."
-  omarchy-pkg-add zsh tmux stow aws-cli-v2 azure-cli cmatrix difftastic \
-    ffmpeg git-filter-repo make tree yazi
-
-  echo "Installing AUR packages..."
-  omarchy-pkg-aur-add gifski heroku-cli
+install_omarchy_packages() {
+  bash "$PWD/install/omarchy/packages/install-all.sh"
 }
 
 apply_macos_defaults() {
@@ -265,8 +260,8 @@ if is_selected "homebrew"; then
   print_1password_reminder
 fi
 
-if is_selected "arch"; then
-  install_arch_packages
+if is_selected "omarchy"; then
+  install_omarchy_packages
 fi
 
 if is_selected "macos"; then
