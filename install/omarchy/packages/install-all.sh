@@ -34,6 +34,9 @@ bash "$SCRIPT_DIR/install-neovim.sh"
 bash "$SCRIPT_DIR/install-lazygit.sh"
 bash "$SCRIPT_DIR/install-lazydocker.sh"
 
+# GUI applications
+bash "$SCRIPT_DIR/install-zed.sh"
+
 # Environment tools
 bash "$SCRIPT_DIR/install-fastfetch.sh"
 bash "$SCRIPT_DIR/install-direnv.sh"
