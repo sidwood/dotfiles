@@ -1,0 +1,79 @@
+// Zed keymap
+//
+// Custom vim keybindings replicating vim/neovim configuration
+// Leader key is set to "," in settings.json
+//
+// For information on binding keys, see the Zed
+// documentation: https://zed.dev/docs/key-bindings
+[
+  // ==========================================================================
+  // Normal & Visual mode bindings (VimControl)
+  // ==========================================================================
+  {
+    "context": "VimControl && !menu",
+    "bindings": {
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight",
+      ", f f": "file_finder::Toggle",
+      ", f g": "pane::DeploySearch",
+      ", f b": "tab_switcher::Toggle",
+      ", f o": "projects::OpenRecent",
+      ", m": "workspace::ToggleLeftDock",
+      "enter": "search::SelectNextMatch",
+    },
+  },
+
+  // ==========================================================================
+  // Normal mode only bindings
+  // ==========================================================================
+  {
+    "context": "vim_mode == normal && !menu",
+    "bindings": {
+      "space": "editor::ToggleRelativeLineNumbers",
+      ", l n": "editor::ToggleLineNumbers",
+      ", l g": "editor::ToggleGitBlameInline",
+      ", l l": "editor::ToggleWhitespace",
+      ", v i": "zed::OpenSettings",
+      ", b g": "theme_selector::Toggle",
+      "j": "vim::Down",
+      "k": "vim::Up",
+    },
+  },
+
+  // ==========================================================================
+  // Visual mode bindings
+  // ==========================================================================
+  {
+    "context": "vim_mode == visual",
+    "bindings": {
+      "shift-s": "vim::PushAddSurrounds",
+      ", b g": "theme_selector::Toggle",
+    },
+  },
+
+  // ==========================================================================
+  // Dock context (for pane navigation in panels)
+  // ==========================================================================
+  {
+    "context": "Dock",
+    "bindings": {
+      "ctrl-h": "workspace::ActivatePaneLeft",
+      "ctrl-j": "workspace::ActivatePaneDown",
+      "ctrl-k": "workspace::ActivatePaneUp",
+      "ctrl-l": "workspace::ActivatePaneRight",
+    },
+  },
+
+  // ==========================================================================
+  // Empty pane / no editor open
+  // ==========================================================================
+  {
+    "context": "EmptyPane || SharedScreen",
+    "bindings": {
+      ", f f": "file_finder::Toggle",
+      ", f o": "projects::OpenRecent",
+    },
+  },
+]
