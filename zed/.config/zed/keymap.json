@@ -1,8 +1,5 @@
 // Zed keymap
 //
-// Custom vim keybindings replicating vim/neovim configuration
-// Leader key is set to "," in settings.json
-//
 // For information on binding keys, see the Zed
 // documentation: https://zed.dev/docs/key-bindings
 [
