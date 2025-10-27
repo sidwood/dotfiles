@@ -200,13 +200,45 @@ stow_dotfiles() {
   backup_config "$HOME/.config/zed/settings.json" "$PWD/zed/.config/zed/settings.json" "zed settings"
   backup_config "$HOME/.config/zed/keymap.json" "$PWD/zed/.config/zed/keymap.json" "zed keymap"
 
+  # Cursor settings backup (path differs by platform)
+  local cursor_user_path
+  if is_macos; then
+    cursor_user_path="$HOME/Library/Application Support/Cursor/User"
+  else
+    cursor_user_path="$HOME/.config/Cursor/User"
+  fi
+
+  backup_config "$cursor_user_path/settings.json" "$PWD/cursor/.config/Cursor/User/settings.json" "Cursor settings"
+  backup_config "$cursor_user_path/keybindings.json" "$PWD/cursor/.config/Cursor/User/keybindings.json" "Cursor keybindings"
+
+  # Backup Cursor snippets if they exist
+  for snippet in javascript.json javascriptreact.json typescript.json; do
+    if [[ -f "$cursor_user_path/snippets/$snippet" ]]; then
+      backup_config "$cursor_user_path/snippets/$snippet" "$PWD/cursor/.config/Cursor/User/snippets/$snippet" "Cursor snippet $snippet"
+    fi
+  done
+
   echo "Symlinking dotfile packages"
   for pkg in */; do
     [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "install/" ]] && continue
     # Skip bash on Omarchy (it manages ~/.bashrc)
     is_omarchy && [[ "$pkg" == "bash/" ]] && continue
+    # Skip cursor on macOS (handled separately below due to non-XDG path)
+    is_macos && [[ "$pkg" == "cursor/" ]] && continue
     stow -v -t "$HOME" "${pkg%/}"
   done
+
+  # macOS: Cursor uses ~/Library/Application Support/ (not XDG-compliant)
+  # We manually symlink instead of using stow
+  if is_macos; then
+    echo "Symlinking Cursor settings for macOS"
+    mkdir -p "$cursor_user_path/snippets"
+    ln -sf "$PWD/cursor/.config/Cursor/User/settings.json" "$cursor_user_path/settings.json"
+    ln -sf "$PWD/cursor/.config/Cursor/User/keybindings.json" "$cursor_user_path/keybindings.json"
+    for snippet in "$PWD/cursor/.config/Cursor/User/snippets/"*.json; do
+      [[ -f "$snippet" ]] && ln -sf "$snippet" "$cursor_user_path/snippets/$(basename "$snippet")"
+    done
+  fi
 }
 
 install_vim_plugins() {
