@@ -11,6 +11,7 @@ bash "$SCRIPT_DIR/install-tmux.sh"
 bash "$SCRIPT_DIR/install-stow.sh"
 
 # Development tools
+bash "$SCRIPT_DIR/install-biome.sh"
 bash "$SCRIPT_DIR/install-make.sh"
 bash "$SCRIPT_DIR/install-tree.sh"
 bash "$SCRIPT_DIR/install-difftastic.sh"
