@@ -12,6 +12,7 @@
       // "shift shift": "file_finder::Toggle"
     },
   },
+
   {
     "context": "Editor && vim_mode == insert",
     "bindings": {
@@ -76,6 +77,16 @@
       "ctrl-j": "workspace::ActivatePaneDown",
       "ctrl-k": "workspace::ActivatePaneUp",
       "ctrl-l": "workspace::ActivatePaneRight",
+    },
+  },
+
+  // ==========================================================================
+  // Terminal context
+  // ==========================================================================
+  {
+    "context": "Terminal",
+    "bindings": {
+      "ctrl-l": "terminal::Clear",
     },
   },
 
