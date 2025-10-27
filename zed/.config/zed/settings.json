@@ -19,7 +19,6 @@
   },
   "vim_mode": true,
   "vim": {
-    "leader": ",",
     "toggle_relative_line_numbers": true,
   },
   "ui_font_size": 16,
