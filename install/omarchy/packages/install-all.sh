@@ -20,6 +20,7 @@ bash "$SCRIPT_DIR/install-git-filter-repo.sh"
 # Cloud CLIs
 bash "$SCRIPT_DIR/install-aws-cli.sh"
 bash "$SCRIPT_DIR/install-azure-cli.sh"
+bash "$SCRIPT_DIR/install-gh.sh"
 bash "$SCRIPT_DIR/install-heroku-cli.sh"
 
 # Shell enhancements
