@@ -1,0 +1,214 @@
+// Place your key bindings in this file to overwrite the defaults
+// - workbench.action.nextPanelView
+// - workbench.action.nextSideBarView
+// - workbench.action.previousSideBarView
+// - workbench.action.focusSideBar
+// - workbench.action.firstEditorInGroup
+// - workbench.action.focusActiveEditorGroup
+// - workbench.action.focusCommentsPanel
+// - workbench.action.focusLastEditorGroup
+// - workbench.action.focusNextGroup
+// - workbench.action.focusPanel
+// - workbench.action.focusPreviousGroup
+// - workbench.action.focusQuickOpen
+[
+  // Sidebar Keybindings
+  {
+    "key": "ctrl+]",
+    "command": "workbench.action.nextSideBarView",
+    "when": "sideBarFocus"
+  },
+  {
+    "key": "ctrl+[",
+    "command": "workbench.action.previousSideBarView",
+    "when": "sideBarFocus"
+  },
+  // Terminal Keybindings
+  {
+    "key": "ctrl+a ,",
+    "command": "workbench.action.terminal.rename",
+    "when": "terminalFocus"
+  },
+  // next two are used for vertical split terminals
+  // {
+  //   "key": "ctrl+a l",
+  //   "command": "workbench.action.terminal.focus",
+  //   "when": "editorTextFocus"
+  // },
+  // {
+  //   "key": "ctrl+a h",
+  //   "command": "workbench.action.focusActiveEditorGroup",
+  //   "when": "terminalFocus"
+  // },
+  {
+    "key": "ctrl+a j",
+    "command": "workbench.action.terminal.focus",
+    "when": "editorTextFocus"
+  },
+  {
+    "key": "ctrl+a k",
+    "command": "workbench.action.focusActiveEditorGroup",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+a ctrl+h",
+    "command": "workbench.action.terminal.focusPrevious",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+a ctrl+l",
+    "command": "workbench.action.terminal.focusNext",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+a z",
+    "command": "workbench.action.toggleMaximizedPanel",
+    // "command": "terminal.toggleVisibility",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+a z",
+    "command": "workbench.action.togglePanel",
+    "when": "editorTextFocus"
+  },
+  {
+    "key": "ctrl+a c",
+    "command": "workbench.action.terminal.new",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+a shift+j",
+    "command": "workbench.action.terminal.resizePaneDown",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+a shift+k",
+    "command": "workbench.action.terminal.resizePaneUp",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "s",
+    "command": "openReferenceToSide",
+    "when": "referenceSearchTreeFocused && referenceSearchVisible"
+  },
+  {
+    "key": "ctrl+h",
+    // "command": "workbench.action.focusSideBar",
+    "command": "workbench.files.action.focusFilesExplorer",
+    "when": "editorTextFocus && vim.active && vim.mode != 'Insert'"
+  },
+  {
+    "key": "ctrl+h",
+    "command": "workbench.action.focusPreviousGroup",
+    "when": "editorTextFocus && activeEditorGroupLast && vim.active && vim.mode != 'Insert'"
+  },
+  {
+    "key": "ctrl+h",
+    "command": "-deleteLeft",
+    "when": "editorTextFocus && !editorReadonly && vim.active && vim.mode === 'Insert'"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "workbench.files.action.focusFilesExplorer",
+    "when": "listFocus"
+  },
+  {
+    "key": "ctrl+j",
+    "command": "workbench.action.quickOpenSelectNext",
+    "when": "inQuickOpen"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.focusActiveEditorGroup",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.files.action.focusOpenEditorsView",
+    "when": "listFocus"
+  },
+  {
+    "key": "ctrl+k",
+    "command": "workbench.action.quickOpenSelectPrevious",
+    "when": "inQuickOpen"
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.action.focusActiveEditorGroup",
+    "when": "explorerViewletFocus"
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.action.terminal.clear",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.action.focusNextGroup",
+    "when": "editorTextFocus && vim.active && vim.mode != 'Insert'"
+  },
+  {
+    "key": ", m",
+    "command": "workbench.action.toggleSidebarVisibility",
+    "when": "editorTextFocus && vim.active && vim.mode != 'Insert'"
+  },
+  {
+    "key": ", l n",
+    "command": "toggle",
+    "args": {
+      "id": "lineNumbers",
+      "value": [{ "editor.lineNumbers": "on" }, { "editor.lineNumbers": "off" }]
+    },
+    "when": "editorTextFocus && vim.active && vim.mode != 'Insert'"
+  },
+  {
+    "key": "space",
+    "command": "toggle",
+    "args": {
+      "id": "lineNumbers",
+      "value": [
+        { "editor.lineNumbers": "on" },
+        { "editor.lineNumbers": "relative" }
+      ]
+    },
+    "when": "editorTextFocus && vim.active && vim.mode != 'Insert'"
+  },
+  {
+    "key": ", m",
+    "command": "workbench.action.toggleSidebarVisibility",
+    "when": "explorerViewletFocus"
+  },
+  {
+    "key": ", m",
+    "command": "workbench.action.toggleSidebarVisibility",
+    "when": "terminalFocus"
+  },
+  {
+    "key": "ctrl+p",
+    "command": "workbench.action.quickOpen"
+  },
+  {
+    "key": "l",
+    "command": "list.expand",
+    "when": "listFocus && !inputFocus"
+  },
+  {
+    "key": "h",
+    "command": "list.collapse",
+    "when": "listFocus && !inputFocus"
+  },
+  {
+    "key": "a",
+    "command": "explorer.newFile",
+    "when": "listFocus && !inputFocus"
+  },
+  {
+    "key": "shift+a",
+    "command": "explorer.newFolder",
+    "when": "listFocus && !inputFocus"
+  },
+  {
+    "key": "shift+cmd+t",
+    "command": "workbench.action.gotoSymbol"
+  }
+]
