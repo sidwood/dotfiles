@@ -111,7 +111,7 @@
   ],
   "explorer.confirmDragAndDrop": false,
   "explorer.openEditors.visible": 1,
-  "extensions.ignoreRecommendations": false,
+  "extensions.ignoreRecommendations": true,
   "files.autoSave": "onFocusChange",
   "files.trimTrailingWhitespace": true,
   "git.confirmSync": false,
@@ -149,7 +149,7 @@
     "statusBar.debuggingBackground": "#005f5f",
     "statusBar.noFolderBackground": "#005f5f",
     "statusBar.foreground": "#ffffff",
-    "statusBar.debuggingForeground": "#ffffff",
+    "statusBar.debuggingForeground": "#ffffff"
   },
   "workbench.iconTheme": "vs-minimal",
   "workbench.panel.defaultLocation": "right",
