@@ -47,7 +47,7 @@
 [commit]
 	verbose = true
 [column]
-	ui = auto
+	ui = never
 [branch]
 	sort = -committerdate
 [tag]
