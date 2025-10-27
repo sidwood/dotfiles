@@ -1,0 +1,17 @@
+{
+  "describe": {
+    "prefix": "des",
+    "body": "describe('${1:description}', () => {\n\t$0\n})",
+    "description": "creates a describe block"
+  },
+  "expect": {
+    "prefix": "ex",
+    "body": "expect($1)$0",
+    "description": "expect something"
+  },
+  "test": {
+    "prefix": "test",
+    "body": "test('${1:description}', () => {\n\t$0\n})${2:;}",
+    "description": "creates a test block"
+  }
+}
