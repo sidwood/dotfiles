@@ -12,10 +12,11 @@ bash "$SCRIPT_DIR/install-stow.sh"
 
 # Development tools
 bash "$SCRIPT_DIR/install-biome.sh"
-bash "$SCRIPT_DIR/install-make.sh"
-bash "$SCRIPT_DIR/install-tree.sh"
 bash "$SCRIPT_DIR/install-difftastic.sh"
 bash "$SCRIPT_DIR/install-git-filter-repo.sh"
+bash "$SCRIPT_DIR/install-make.sh"
+bash "$SCRIPT_DIR/install-postgresql-libs.sh"
+bash "$SCRIPT_DIR/install-tree.sh"
 
 # Cloud CLIs
 bash "$SCRIPT_DIR/install-aws-cli.sh"
