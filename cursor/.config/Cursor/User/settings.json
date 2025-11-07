@@ -82,7 +82,7 @@
     "unstub",
     "volar",
     "vueuse",
-    "yazi"
+    "yazi",
   ],
   "css.lint.unknownAtRules": "ignore",
   "cursor.cpp.disabledLanguages": ["plaintext", "scminput"],

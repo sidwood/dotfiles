@@ -13,6 +13,7 @@ export PATH=/usr/local/bin:/usr/local/sbin:$PATH
 # initialize homebrew (macOS)
 if [[ "$PLATFORM" == "Darwin" && -f "/opt/homebrew/bin/brew" ]]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
+  export PATH=/opt/homebrew/opt/libpq/bin:$PATH
 fi
 
 # add home .bin to PATH
@@ -20,6 +21,7 @@ export PATH=$HOME/.bin:$PATH
 
 # add mise shims to PATH (for non-interactive shells)
 export PATH=$HOME/.local/share/mise/shims:$PATH
+
 
 # add local node_modules/.bin to PATH
 export PATH=./node_modules/.bin:$PATH
