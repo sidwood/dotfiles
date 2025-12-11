@@ -39,6 +39,7 @@ alias gs='git status'
 # ------------------------------------------------------------------------------
 
 alias c='opencode'
+alias claude-danger='claude --dangerously-skip-permissions'
 alias d='docker'
 alias r='rails'
 alias ta='tmux attach'
