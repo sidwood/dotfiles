@@ -1,7 +1,7 @@
 {
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma",
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": true
   },
   "breadcrumbs.enabled": true,
   "cSpell.language": "en-GB",
@@ -82,7 +82,7 @@
     "unstub",
     "volar",
     "vueuse",
-    "yazi",
+    "yazi"
   ],
   "css.lint.unknownAtRules": "ignore",
   "cursor.cpp.disabledLanguages": ["plaintext", "scminput"],
@@ -92,6 +92,7 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.biome": "always",
     "source.fixAll.ts": "always",
+    "source.organizeImports.biome": "always"
   },
   "editor.defaultFormatter": "biomejs.biome",
   "editor.fontFamily": "JetBrains Mono, Fira Code, Menlo, Monaco, 'Courier New', monospace",
@@ -117,7 +118,7 @@
     "javascript",
     "javascriptreact",
     "typescript",
-    "typescriptreact",
+    "typescriptreact"
   ],
   "eslint.probe": [
     "javascript",
@@ -126,7 +127,7 @@
     "typescriptreact",
     "html",
     "vue",
-    "markdown",
+    "markdown"
   ],
   "explorer.confirmDragAndDrop": false,
   "explorer.openEditors.visible": 1,
@@ -140,16 +141,16 @@
   "redhat.telemetry.enabled": false,
   "scm.diffDecorationsGutterPattern": {
     "added": true,
-    "modified": true,
+    "modified": true
   },
   "terminal.integrated.commandsToSkipShell": [
     "workbench.action.focusActiveEditorGroup",
     "workbench.action.focusPreviousGroup",
     "workbench.action.terminal.rename",
-    "workbench.action.toggleSidebarVisibility",
+    "workbench.action.toggleSidebarVisibility"
   ],
   "terminal.integrated.env.osx": {
-    "FIG_NEW_SESSION": "1",
+    "FIG_NEW_SESSION": "1"
   },
   "terminal.integrated.fontSize": 16,
   "typescript.preferences.importModuleSpecifier": "project-relative",
@@ -172,5 +173,5 @@
   },
   "workbench.iconTheme": "vs-minimal",
   "workbench.panel.defaultLocation": "right",
-  "workbench.colorTheme": "Solarized Dark",
+  "workbench.colorTheme": "Solarized Dark"
 }
