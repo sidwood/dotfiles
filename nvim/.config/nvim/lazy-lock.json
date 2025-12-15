@@ -15,6 +15,10 @@
     "branch": "main",
     "commit": "de740991c12411b663994b2860f1a4fd0937c130"
   },
+  "nvim-treesitter": {
+    "branch": "main",
+    "commit": "d3218d988f72ed34414959c9ccd802d393432d6e"
+  },
   "nvim-web-devicons": {
     "branch": "master",
     "commit": "8dcb311b0c92d460fac00eac706abd43d94d68af"
