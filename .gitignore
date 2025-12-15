@@ -4,6 +4,7 @@ iterm2/.config/iterm2/sockets/
 ruby/.bundle/cache
 ssh/.ssh/known_hosts
 ssh/.ssh/known_hosts.old
+shell/.config/shell/local.env
 vim/.config/vim/autoload/
 vim/.config/vim/plugged/
 zsh/.config/zsh/.zcompdump*
