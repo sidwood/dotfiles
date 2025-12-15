@@ -1,5 +1,8 @@
 # AGENTS.md
 
+## Ownership
+- Agent-owned working context: keep concise, high-signal, and update freely when it improves future task execution.
+
 ## Purpose
 - Personal dotfiles for macOS and Omarchy (Arch Linux).
 - Managed as GNU Stow packages plus menu-driven `install.sh` / `uninstall.sh`.
@@ -68,4 +71,5 @@ Notes:
 
 ## Operational Notes
 - `npm` globals step depends on 1Password CLI and uses: `op run -- npm install -g @sidwood/timecraft`.
+- Local secrets template is `shell/.config/shell/local.env.tpl`; `install.sh` resolves it with 1Password and writes `~/.config/shell/local.env` (gitignored).
 - Prefer idempotent shell changes and existing conventions over new abstractions.
