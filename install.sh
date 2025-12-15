@@ -282,6 +282,51 @@ setup_npm_globals() {
   op run -- npm install -g @sidwood/timecraft
 }
 
+setup_local_shell_env() {
+  local template_path="$PWD/shell/.config/shell/local.env.tpl"
+  local target_path="$HOME/.config/shell/local.env"
+  local tmp_path
+  local -a template_vars
+  local var_line
+
+  if [[ ! -f "$template_path" ]]; then
+    echo "Skipping local shell env setup (template not found)"
+    return 0
+  fi
+
+  if ! command -v op >/dev/null 2>&1; then
+    echo "Skipping local shell env setup (1Password CLI not installed)"
+    return 0
+  fi
+
+  echo "Generating local shell env from 1Password template"
+  mkdir -p "$(dirname "$target_path")"
+  tmp_path="$(mktemp)"
+  while IFS= read -r var_line; do
+    template_vars+=("$var_line")
+  done < <(awk '/^export [A-Za-z_][A-Za-z0-9_]*=/{sub(/^export /, ""); sub(/=.*/, ""); print}' "$template_path")
+
+  if [[ ${#template_vars[@]} -eq 0 ]]; then
+    rm -f "$tmp_path"
+    echo "Skipping local shell env setup (no export variables found in template)"
+    return 0
+  fi
+
+  if op run --env-file="$template_path" -- bash -c '
+for name in "$@"; do
+  value="${!name}"
+  printf "export %s=%q\n" "$name" "$value"
+done
+' _ "${template_vars[@]}" > "$tmp_path"; then
+    mv "$tmp_path" "$target_path"
+    chmod 600 "$target_path"
+    echo "Wrote $target_path"
+  else
+    rm -f "$tmp_path"
+    echo "Skipping local shell env setup (could not resolve 1Password secrets)"
+  fi
+}
+
 print_1password_reminder() {
   printf "\n\033[33m1Password manual setup required:\033[0m\n"
   printf "  1. Open 1Password → Settings → Developer\n"
@@ -311,6 +356,8 @@ fi
 if is_selected "stow"; then
   stow_dotfiles
 fi
+
+setup_local_shell_env
 
 if is_selected "mise"; then
   setup_mise

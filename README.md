@@ -123,3 +123,16 @@ op run -- npm install
 
 This replaces secret references (e.g., `op://Personal/GitHub Registry Token/token`)
 with their actual values for the duration of that command.
+
+## Local Shell API Keys (Generated)
+
+This repo includes a template at `shell/.config/shell/local.env.tpl` for
+machine-local API keys using 1Password secret references.
+
+During `./install.sh`, the script resolves that template with `op run` and
+generates:
+
+- `~/.config/shell/local.env`
+
+The generated file is sourced by `shell/.config/shell/init`, overwritten on
+each install run, permissioned to `600`, and ignored by git.
