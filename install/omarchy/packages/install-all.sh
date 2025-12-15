@@ -28,6 +28,7 @@ bash "$SCRIPT_DIR/install-heroku-cli.sh"
 # Shell enhancements
 bash "$SCRIPT_DIR/install-bat.sh"
 bash "$SCRIPT_DIR/install-eza.sh"
+bash "$SCRIPT_DIR/install-fd.sh"
 bash "$SCRIPT_DIR/install-fzf.sh"
 bash "$SCRIPT_DIR/install-ripgrep.sh"
 bash "$SCRIPT_DIR/install-zoxide.sh"
