@@ -49,7 +49,6 @@ return {
           vim.keymap.set('n', 'gy', vim.lsp.buf.type_definition, opts)
           vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
 
-          vim.keymap.set('n', '<leader>f', function() vim.lsp.buf.format({ async = true }) end, opts)
           vim.keymap.set('n', '<leader>d', vim.diagnostic.open_float, opts)
           vim.keymap.set('n', '[d', function() vim.diagnostic.jump({ count = -1 }) end, opts)
           vim.keymap.set('n', ']d', function() vim.diagnostic.jump({ count = 1 }) end, opts)
