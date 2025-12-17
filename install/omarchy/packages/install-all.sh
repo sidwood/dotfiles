@@ -34,6 +34,7 @@ bash "$SCRIPT_DIR/install-ripgrep.sh"
 bash "$SCRIPT_DIR/install-zoxide.sh"
 
 # TUI applications
+bash "$SCRIPT_DIR/install-btop.sh"
 bash "$SCRIPT_DIR/install-htop.sh"
 bash "$SCRIPT_DIR/install-neovim.sh"
 bash "$SCRIPT_DIR/install-lazygit.sh"
