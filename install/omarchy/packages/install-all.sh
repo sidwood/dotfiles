@@ -16,6 +16,7 @@ bash "$SCRIPT_DIR/install-difftastic.sh"
 bash "$SCRIPT_DIR/install-git-filter-repo.sh"
 bash "$SCRIPT_DIR/install-make.sh"
 bash "$SCRIPT_DIR/install-postgresql-libs.sh"
+bash "$SCRIPT_DIR/install-shellcheck.sh"
 bash "$SCRIPT_DIR/install-tree.sh"
 
 # Cloud CLIs
