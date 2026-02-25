@@ -11,7 +11,7 @@ cd "$(dirname "$0")" || { printf "\n \033[31mError: Failed to change to script d
 #
 
 abort() {
-  printf "\n \033[31mError: $@\033[0m\n\n" && exit 1
+  printf "\n \033[31mError: %s\033[0m\n\n" "$*" && exit 1
 }
 
 #
@@ -59,7 +59,7 @@ option_keys+=("npm_globals")
 options+=("Install vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
-  selected[$i]=true
+  selected[i]=true
 done
 
 #
@@ -119,9 +119,9 @@ show_menu() {
       ((cursor < menu_lines - 1)) && ((cursor++))
     elif [[ "$key" == ' ' ]]; then
       if [[ "${selected[$cursor]}" == "true" ]]; then
-        selected[$cursor]=false
+        selected[cursor]=false
       else
-        selected[$cursor]=true
+        selected[cursor]=true
       fi
     elif [[ "$key" == '' ]]; then
       break
