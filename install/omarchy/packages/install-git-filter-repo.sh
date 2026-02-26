@@ -1,12 +1,5 @@
 #!/bin/bash
 set -e
 
-PACKAGE="git-filter-repo"
-
-if command -v "$PACKAGE" &>/dev/null; then
-    echo "$PACKAGE is already installed"
-    exit 0
-fi
-
-omarchy-pkg-add "$PACKAGE"
-echo "$PACKAGE installed successfully"
+omarchy-pkg-add git-filter-repo
+echo "git-filter-repo installed successfully"
