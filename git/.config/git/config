@@ -22,7 +22,7 @@
 	changed = yellow
 	untracked = red
 [core]
-	editor = vim
+	editor = nvim
 	excludesfile = ~/.config/git/ignore
 [format]
 	pretty = %C(yellow)%h%Creset%Cred%d%Creset %s %Cgreen%an, %cr%Creset
