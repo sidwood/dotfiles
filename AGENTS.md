@@ -40,18 +40,12 @@ Use the existing structure:
 #!/bin/bash
 set -e
 
-PACKAGE="cmd-name"
-
-if command -v "$PACKAGE" &>/dev/null; then
-    echo "... is already installed"
-    exit 0
-fi
-
 omarchy-pkg-add repo-package-name
 echo "... installed successfully"
 ```
 
 Notes:
+- No guard clause needed; `omarchy-pkg-add` and `omarchy-pkg-aur-add` are already idempotent (they check `omarchy-pkg-missing` and pass `--needed`).
 - Prefer one package concern per `install/omarchy/packages/install-*.sh`.
 - Add new scripts to `install/omarchy/packages/install-all.sh` in the correct section.
 - If package naming is unclear, verify against official package indexes before editing.
