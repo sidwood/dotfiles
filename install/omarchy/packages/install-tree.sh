@@ -1,12 +1,5 @@
 #!/bin/bash
 set -e
 
-PACKAGE="tree"
-
-if command -v "$PACKAGE" &>/dev/null; then
-    echo "$PACKAGE is already installed"
-    exit 0
-fi
-
-omarchy-pkg-add "$PACKAGE"
-echo "$PACKAGE installed successfully"
+omarchy-pkg-add tree
+echo "tree installed successfully"
