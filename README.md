@@ -109,6 +109,28 @@ Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Uninstall vim plugins.
 ```
 
+## Neovim on Omarchy
+
+Omarchy ships with a default [LazyVim](https://www.lazyvim.org/) configuration
+in `~/.config/nvim`. This repo includes its own neovim config (custom lazy.nvim
+setup in the `nvim/` stow package), which conflicts with those files.
+
+During installation, `install.sh` automatically backs up the Omarchy neovim
+config before stowing:
+
+```
+~/.config/nvim → ~/.config/nvim.omarchy-backup
+```
+
+To restore the original Omarchy neovim config:
+
+```bash
+cd /path/to/dotfiles
+stow -D -t "$HOME" nvim              # remove dotfile symlinks
+rm -rf ~/.config/nvim                 # clean up any leftover files
+mv ~/.config/nvim.omarchy-backup ~/.config/nvim
+```
+
 ## 1Password Secrets
 
 Some projects require secrets stored in 1Password (e.g., private GitHub Package

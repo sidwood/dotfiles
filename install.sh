@@ -195,6 +195,16 @@ backup_config() {
 stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
 
+  # On Omarchy, back up the default neovim config before stowing ours
+  if is_omarchy; then
+    local nvim_config="$HOME/.config/nvim"
+    local nvim_backup="$HOME/.config/nvim.omarchy-backup"
+    if [[ -d "$nvim_config" && ! -L "$nvim_config" && ! -d "$nvim_backup" ]]; then
+      echo "Backing up Omarchy neovim config to $nvim_backup"
+      mv "$nvim_config" "$nvim_backup"
+    fi
+  fi
+
   backup_config "$HOME/.config/ghostty/config" "$PWD/ghostty/.config/ghostty/config" "ghostty config"
   backup_config "$HOME/.config/git/config" "$PWD/git/.config/git/config" "git config"
   backup_config "$HOME/.config/zed/settings.json" "$PWD/zed/.config/zed/settings.json" "zed settings"
