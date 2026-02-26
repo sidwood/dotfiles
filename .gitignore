@@ -2,6 +2,7 @@ alfred/Alfred.alfredpreferences/preferences/local/
 iterm2/.config/iterm2/AppSupport
 iterm2/.config/iterm2/sockets/
 ruby/.bundle/cache
+ssh/.ssh/1Password
 ssh/.ssh/known_hosts
 ssh/.ssh/known_hosts.old
 shell/.config/shell/local.env
