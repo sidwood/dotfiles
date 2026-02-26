@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
 
-omarchy-pkg-add gh
+omarchy-pkg-add github-cli
 echo "gh installed successfully"

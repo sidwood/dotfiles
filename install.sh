@@ -166,7 +166,9 @@ install_homebrew() {
 }
 
 install_omarchy_packages() {
-  bash "$PWD/install/omarchy/packages/install-all.sh"
+  if ! bash "$PWD/install/omarchy/packages/install-all.sh"; then
+    printf "\n \033[33mWarning: Some Omarchy packages failed to install (see above)\033[0m\n\n"
+  fi
 }
 
 apply_macos_defaults() {
