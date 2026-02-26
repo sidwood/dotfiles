@@ -1,66 +1,81 @@
 #!/bin/bash
-set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+failed=()
+
+run() {
+  if ! bash "$SCRIPT_DIR/$1"; then
+    failed+=("$1")
+  fi
+}
 
 echo "Installing Omarchy packages..."
 
 # Shell fundamentals
-bash "$SCRIPT_DIR/install-zsh.sh"
-bash "$SCRIPT_DIR/install-tmux.sh"
-bash "$SCRIPT_DIR/install-stow.sh"
+run install-zsh.sh
+run install-tmux.sh
+run install-stow.sh
 
 # Development tools
-bash "$SCRIPT_DIR/install-biome.sh"
-bash "$SCRIPT_DIR/install-difftastic.sh"
-bash "$SCRIPT_DIR/install-git-filter-repo.sh"
-bash "$SCRIPT_DIR/install-make.sh"
-bash "$SCRIPT_DIR/install-postgresql-libs.sh"
-bash "$SCRIPT_DIR/install-shellcheck.sh"
-bash "$SCRIPT_DIR/install-tree.sh"
+run install-biome.sh
+run install-difftastic.sh
+run install-git-filter-repo.sh
+run install-make.sh
+run install-postgresql-libs.sh
+run install-shellcheck.sh
+run install-tree.sh
 
 # Cloud CLIs
-bash "$SCRIPT_DIR/install-aws-cli.sh"
-bash "$SCRIPT_DIR/install-azure-cli.sh"
-bash "$SCRIPT_DIR/install-codex.sh"
-bash "$SCRIPT_DIR/install-gh.sh"
-bash "$SCRIPT_DIR/install-heroku-cli.sh"
+run install-aws-cli.sh
+run install-azure-cli.sh
+run install-codex.sh
+run install-gh.sh
+run install-heroku-cli.sh
 
 # Shell enhancements
-bash "$SCRIPT_DIR/install-bat.sh"
-bash "$SCRIPT_DIR/install-eza.sh"
-bash "$SCRIPT_DIR/install-fd.sh"
-bash "$SCRIPT_DIR/install-fzf.sh"
-bash "$SCRIPT_DIR/install-ripgrep.sh"
-bash "$SCRIPT_DIR/install-zoxide.sh"
+run install-bat.sh
+run install-eza.sh
+run install-fd.sh
+run install-fzf.sh
+run install-ripgrep.sh
+run install-zoxide.sh
 
 # TUI applications
-bash "$SCRIPT_DIR/install-claude-code.sh"
-bash "$SCRIPT_DIR/install-btop.sh"
-bash "$SCRIPT_DIR/install-htop.sh"
-bash "$SCRIPT_DIR/install-neovim.sh"
-bash "$SCRIPT_DIR/install-lazygit.sh"
-bash "$SCRIPT_DIR/install-lazydocker.sh"
+run install-claude-code.sh
+run install-btop.sh
+run install-htop.sh
+run install-neovim.sh
+run install-lazygit.sh
+run install-lazydocker.sh
 
 # GUI applications
-bash "$SCRIPT_DIR/install-cursor.sh"
-bash "$SCRIPT_DIR/install-zed.sh"
+run install-cursor.sh
+run install-zed.sh
 
 # Environment tools
-bash "$SCRIPT_DIR/install-fastfetch.sh"
-bash "$SCRIPT_DIR/install-direnv.sh"
+run install-fastfetch.sh
+run install-direnv.sh
 
 # Media and utilities
-bash "$SCRIPT_DIR/install-ffmpeg.sh"
-bash "$SCRIPT_DIR/install-cmatrix.sh"
-bash "$SCRIPT_DIR/install-jq.sh"
+run install-ffmpeg.sh
+run install-cmatrix.sh
+run install-jq.sh
 
 # File manager and preview dependencies
-bash "$SCRIPT_DIR/install-yazi.sh"
-bash "$SCRIPT_DIR/install-poppler.sh"
-bash "$SCRIPT_DIR/install-imagemagick.sh"
-bash "$SCRIPT_DIR/install-resvg.sh"
-bash "$SCRIPT_DIR/install-7zip.sh"
-bash "$SCRIPT_DIR/install-gifski.sh"
+run install-yazi.sh
+run install-poppler.sh
+run install-imagemagick.sh
+run install-resvg.sh
+run install-7zip.sh
+run install-gifski.sh
+
+if [[ ${#failed[@]} -gt 0 ]]; then
+  printf "\n\033[31mThe following packages failed to install:\033[0m\n"
+  for f in "${failed[@]}"; do
+    printf "  - %s\n" "${f#install-}"
+  done
+  exit 1
+fi
 
 echo "All Omarchy packages installed successfully"

@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
 
-omarchy-pkg-aur-add claude-code-bin
+omarchy-pkg-add claude-code
 
 echo "claude-code installed successfully"
