@@ -42,6 +42,7 @@ bash "$SCRIPT_DIR/install-lazygit.sh"
 bash "$SCRIPT_DIR/install-lazydocker.sh"
 
 # GUI applications
+bash "$SCRIPT_DIR/install-cursor.sh"
 bash "$SCRIPT_DIR/install-zed.sh"
 
 # Environment tools
