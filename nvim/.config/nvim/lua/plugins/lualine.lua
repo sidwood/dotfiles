@@ -37,6 +37,28 @@ return {
         'fileformat',
         'filetype',
       },
+      lualine_y = {
+        {
+          function()
+            local wc = vim.fn.wordcount()
+            local words = wc.visual_words or wc.words or 0
+            return string.format('%d words', words)
+          end,
+          cond = function()
+            return vim.bo.buftype == ''
+          end,
+        },
+      },
+      lualine_z = {
+        {
+          function()
+            local line = vim.fn.line('.')
+            local total = vim.fn.line('$')
+            local col = vim.fn.col('.')
+            return string.format('%d/%d:%d', line, total, col)
+          end,
+        },
+      },
     },
   },
 }
