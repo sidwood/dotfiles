@@ -20,6 +20,7 @@ vim.opt.winwidth = 86
 vim.opt.winheight = 5
 vim.opt.winminheight = 5
 vim.opt.winheight = 999
+vim.opt.showtabline = 2
 
 -- Appearance
 vim.opt.termguicolors = true
@@ -27,6 +28,13 @@ vim.opt.cursorline = true
 vim.opt.showmatch = true
 vim.opt.wrap = false
 vim.opt.listchars:append({ tab = '▸ ', eol = '¬', trail = '·', nbsp = '⍽' })
+do
+  local cols = {}
+  for i = 81, 999 do
+    cols[#cols + 1] = tostring(i)
+  end
+  vim.opt.colorcolumn = table.concat(cols, ',')
+end
 
 -- Spelling
 vim.opt.spelllang = 'en_gb'

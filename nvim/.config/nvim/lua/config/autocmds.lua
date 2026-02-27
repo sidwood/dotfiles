@@ -12,13 +12,6 @@ vim.api.nvim_create_autocmd('BufWritePre', {
 -- - first line chars 1-50 => green
 -- - first line chars 51+ => warning highlight
 local gitcommit_subject_ns = vim.api.nvim_create_namespace('GitCommitSubjectHighlight')
-local gitcommit_colorcolumn = (function()
-  local cols = {}
-  for i = 81, 999 do
-    cols[#cols + 1] = tostring(i)
-  end
-  return table.concat(cols, ',')
-end)()
 
 local function highlight_gitcommit_subject(bufnr)
   local line = vim.api.nvim_buf_get_lines(bufnr, 0, 1, false)[1] or ''
@@ -46,9 +39,6 @@ end
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'gitcommit',
   callback = function(args)
-    -- Match Vim behavior: subtly shade all columns 81+.
-    vim.opt_local.colorcolumn = gitcommit_colorcolumn
-
     vim.api.nvim_set_hl(0, 'GitCommitSubjectOk', {
       fg = '#9acd32',
       bold = true,

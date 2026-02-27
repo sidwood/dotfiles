@@ -8,6 +8,19 @@ return {
       component_separators = { left = '', right = '' },
       section_separators = { left = '', right = '' },
     },
+    tabline = {
+      lualine_a = {
+        {
+          'buffers',
+          mode = 2, -- index + filename
+          symbols = {
+            modified = '+',
+            alternate_file = '#',
+          },
+        },
+      },
+      lualine_z = { 'tabs' },
+    },
     sections = {
       lualine_x = {
         {
