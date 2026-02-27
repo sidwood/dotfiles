@@ -19,9 +19,8 @@ vim.opt.splitright = true
 vim.opt.number = true
 vim.opt.relativenumber = true
 vim.opt.winwidth = 86
-vim.opt.winheight = 5
-vim.opt.winminheight = 5
 vim.opt.winheight = 999
+vim.opt.winminheight = 5
 vim.opt.showtabline = 2
 
 -- Appearance
