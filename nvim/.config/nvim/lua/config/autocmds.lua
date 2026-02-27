@@ -1,10 +1,31 @@
+local trim_whitespace_excluded_filetypes = {
+  gitcommit = true,
+  markdown = true,
+}
+
 -- Remove trailing whitespace before saving
 vim.api.nvim_create_autocmd('BufWritePre', {
   pattern = '*',
-  callback = function()
-    local pos = vim.api.nvim_win_get_cursor(0)
-    vim.cmd([[%s/\s\+$//e]])
-    vim.api.nvim_win_set_cursor(0, pos)
+  callback = function(args)
+    local bufnr = args.buf
+    local buftype = vim.bo[bufnr].buftype
+    local filetype = vim.bo[bufnr].filetype
+
+    if buftype ~= '' then
+      return
+    end
+    if trim_whitespace_excluded_filetypes[filetype] then
+      return
+    end
+    if not vim.bo[bufnr].modifiable or vim.bo[bufnr].readonly or vim.bo[bufnr].binary then
+      return
+    end
+
+    local view = vim.fn.winsaveview()
+    vim.api.nvim_buf_call(bufnr, function()
+      vim.cmd([[silent! keepjumps keeppatterns %s/\s\+$//e]])
+    end)
+    vim.fn.winrestview(view)
   end,
 })
 

@@ -34,8 +34,14 @@ return {
       'williamboman/mason-lspconfig.nvim',
     },
     config = function()
+      local capabilities = vim.lsp.protocol.make_client_capabilities()
+      local has_blink, blink = pcall(require, 'blink.cmp')
+      if has_blink and blink.get_lsp_capabilities then
+        capabilities = blink.get_lsp_capabilities(capabilities)
+      end
+
       vim.lsp.config('*', {
-        capabilities = vim.lsp.protocol.make_client_capabilities(),
+        capabilities = capabilities,
       })
 
       vim.api.nvim_create_autocmd('LspAttach', {
