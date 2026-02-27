@@ -12,9 +12,8 @@ vim.keymap.set('n', '<C-j>', '<C-w>j', { desc = 'Move to window below' })
 vim.keymap.set('n', '<C-k>', '<C-w>k', { desc = 'Move to window above' })
 vim.keymap.set('n', '<C-l>', '<C-w>l', { desc = 'Move to right window' })
 
--- Toggle spell checking
-vim.keymap.set('n', '<leader>sc', ':set spell!<CR>', {
-  silent = true,
+-- Toggle spell checking (/<BS> forces command-line redraw to show state change)
+vim.keymap.set('n', '<leader>sc', ':set spell!<CR>/<BS>', {
   desc = 'Toggle spell checking',
 })
 

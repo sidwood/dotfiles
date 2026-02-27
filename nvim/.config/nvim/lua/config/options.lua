@@ -22,10 +22,14 @@ vim.opt.winminheight = 5
 vim.opt.winheight = 999
 
 -- Appearance
+vim.opt.termguicolors = true
 vim.opt.cursorline = true
 vim.opt.showmatch = true
 vim.opt.wrap = false
 vim.opt.listchars:append({ tab = '▸ ', eol = '¬', trail = '·', nbsp = '⍽' })
+
+-- Spelling
+vim.opt.spelllang = 'en_gb'
 
 -- Scroll
 vim.opt.scrolloff = 4
