@@ -50,6 +50,7 @@ brew "tree"
 brew "vim"
 brew "wget"
 brew "yazi"
+brew "yt-dlp"
 brew "yq"
 brew "zoxide"
 
