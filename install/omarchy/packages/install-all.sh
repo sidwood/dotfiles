@@ -20,6 +20,8 @@ run install-stow.sh
 # Development tools
 run install-biome.sh
 run install-difftastic.sh
+run install-elixir.sh
+run install-erlang.sh
 run install-git-filter-repo.sh
 run install-make.sh
 run install-postgresql-libs.sh
