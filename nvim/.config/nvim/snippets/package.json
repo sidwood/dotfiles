@@ -1,0 +1,16 @@
+{
+  "name": "sidwood-nvim-snippets",
+  "contributes": {
+    "snippets": [
+      {
+        "language": [
+          "javascript",
+          "javascriptreact",
+          "typescript",
+          "typescriptreact"
+        ],
+        "path": "./vitest.json"
+      }
+    ]
+  }
+}
