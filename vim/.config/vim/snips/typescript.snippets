@@ -1,0 +1,100 @@
+snippet vit "import Vitest API" b
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, test, vi } from 'vitest'
+
+$0
+endsnippet
+
+snippet aa "afterAll function is called once after all specs" b
+afterAll(() => {
+	$0
+})${1:;}
+endsnippet
+
+snippet ae "afterEach function is called once after each spec" b
+afterEach(() => {
+	$0
+})${1:;}
+endsnippet
+
+snippet ba "beforeAll function is called once before all specs" b
+beforeAll(() => {
+	$0
+})${1:;}
+endsnippet
+
+snippet be "beforeEach function is called once before each spec" b
+beforeEach(() => {
+	$0
+})${1:;}
+endsnippet
+
+snippet cli "Console log with util.inspect" b
+import { inspect } from 'util'
+console.log(inspect(${1:obj}, true, ${2:10}, true))$0
+endsnippet
+
+snippet des "creates a describe block" b
+describe('${1:description}', () => {
+	$0
+})
+endsnippet
+
+snippet deso "creates a describe block that runs only" b
+describe.only('${1:description}', () => {
+	$0
+})
+endsnippet
+
+snippet dess "creates a describe block that will be skipped" b
+describe.skip('${1:description}', () => {
+	$0
+})
+endsnippet
+
+snippet ex "expect something" b
+expect($1)$0
+endsnippet
+
+snippet given "creates a context block" b
+describe('given ${1:description}', () => {
+	$0
+})${2:;}
+endsnippet
+
+snippet it "creates an it block" b
+it('${1:description}', () => {
+	$0
+})${2:;}
+endsnippet
+
+snippet ito "creates an it block that runs in isolation" b
+it.only('${1:description}', () => {
+	$0
+})${2:;}
+endsnippet
+
+snippet its "creates an it block that will be skipped" b
+it.skip('${1:description}', () => {
+	$0
+})${2:;}
+endsnippet
+
+snippet cut "create class under test block" b
+describe('${1:ClassUnderTest}', () => {
+	let ${2:subject}
+
+	beforeEach(() => {
+		$2 = ${3:createSubject()}
+	});
+
+	it('#${4:method}()', () => {
+		expect($2.$4).toBeInstanceOf(Function)
+	});
+});$0
+endsnippet
+
+snippet test "creates a test block" b
+test('${1:description}', () => {
+	$0
+})${2:;}
+endsnippet
