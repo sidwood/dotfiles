@@ -1,23 +1,28 @@
 {
+  "vitest import": {
+    "prefix": "vit",
+    "body": "import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, test, vi } from 'vitest'\n\n$0",
+    "description": "import the Vitest test API"
+  },
   "afterAll": {
     "prefix": "aa",
     "body": "afterAll(() => {\n\t$0\n})${1:;}",
-    "description": "afterAll function is called once after all specs"
+    "description": "Vitest afterAll hook"
   },
   "afterEach": {
     "prefix": "ae",
     "body": "afterEach(() => {\n\t$0\n})${1:;}",
-    "description": "afterEach function is called once after each spec"
+    "description": "Vitest afterEach hook"
   },
   "beforeAll": {
     "prefix": "ba",
     "body": "beforeAll(() => {\n\t$0\n})${1:;}",
-    "description": "beforeAll function is called once before all specs"
+    "description": "Vitest beforeAll hook"
   },
   "beforeEach": {
     "prefix": "be",
     "body": "beforeEach(() => {\n\t$0\n})${1:;}",
-    "description": "beforeEach function is called once before each spec"
+    "description": "Vitest beforeEach hook"
   },
   "cli": {
     "prefix": "cli",
@@ -27,59 +32,59 @@
   "describe": {
     "prefix": "des",
     "body": "describe('${1:description}', () => {\n\t$0\n})",
-    "description": "creates a describe block"
+    "description": "creates a Vitest describe block"
   },
   "describe.only": {
     "prefix": "deso",
     "body": "describe.only('${1:description}', () => {\n\t$0\n})",
-    "description": "creates a describe block that runs only"
+    "description": "creates a Vitest describe.only block"
   },
   "describe.skip": {
     "prefix": "dess",
-    "body": "describe.('${1:description}', () => {\n\t$0\n})",
-    "description": "creates a describe block that will be skipped"
+    "body": "describe.skip('${1:description}', () => {\n\t$0\n})",
+    "description": "creates a Vitest describe.skip block"
   },
   "expect": {
     "prefix": "ex",
     "body": "expect($1)$0",
-    "description": "expect something"
+    "description": "create a Vitest expectation"
   },
   "given": {
     "prefix": "given",
-    "body": "given('${1:description}', () => {\n\t$0\n})${2:;}",
-    "description": "creates a context block"
+    "body": "describe('given ${1:description}', () => {\n\t$0\n})${2:;}",
+    "description": "creates a Vitest describe block for a given condition"
   },
   "it": {
     "prefix": "it",
     "body": "it('${1:description}', () => {\n\t$0\n})${2:;}",
-    "description": "creates an it block"
+    "description": "creates a Vitest it block"
   },
   "it.only": {
     "prefix": "ito",
     "body": "it.only('${1:description}', () => {\n\t$0\n})${2:;}",
-    "description": "creates an it block that runs in isolation"
+    "description": "creates a Vitest it.only block"
   },
   "it.skip": {
     "prefix": "its",
     "body": "it.skip('${1:description}', () => {\n\t$0\n})${2:;}",
-    "description": "creates an it block that will be skipped"
+    "description": "creates a Vitest it.skip block"
   },
   "template:cut": {
     "prefix": "cut",
     "body": [
       "describe('${1:ClassUnderTest}', () => {",
-      "\tlet ${3:cut};\n",
-      "\tbeforeEach(() => {\n\t\tthis.$3 = $4\n\t})$2\n",
-      "\tit('#${5:method}()', () => {",
-      "\t\texpect(this.$3.$5).toBeInstanceOf(Function)$2",
-      "\t})$2",
-      "})${2:;}"
+      "\tlet ${2:subject}\n",
+      "\tbeforeEach(() => {\n\t\t$2 = ${3:createSubject()}\n\t});\n",
+      "\tit('#${4:method}()', () => {",
+      "\t\texpect($2.$4).toBeInstanceOf(Function)",
+      "\t});",
+      "});$0"
     ],
-    "description": "create class under test block"
+    "description": "create a Vitest class-under-test block"
   },
   "test": {
     "prefix": "test",
     "body": "test('${1:description}', () => {\n\t$0\n})${2:;}",
-    "description": "creates a test block"
+    "description": "creates a Vitest test block"
   }
 }

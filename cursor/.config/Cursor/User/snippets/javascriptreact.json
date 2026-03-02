@@ -1,17 +1,22 @@
 {
+  "vitest import": {
+    "prefix": "vit",
+    "body": "import { describe, expect, test } from 'vitest'\n\n$0",
+    "description": "import the Vitest test API"
+  },
   "describe": {
     "prefix": "des",
     "body": "describe('${1:description}', () => {\n\t$0\n})",
-    "description": "creates a describe block"
+    "description": "creates a Vitest describe block"
   },
   "expect": {
     "prefix": "ex",
     "body": "expect($1)$0",
-    "description": "expect something"
+    "description": "create a Vitest expectation"
   },
   "test": {
     "prefix": "test",
     "body": "test('${1:description}', () => {\n\t$0\n})${2:;}",
-    "description": "creates a test block"
+    "description": "creates a Vitest test block"
   }
 }
