@@ -210,10 +210,5 @@
   {
     "key": "shift+cmd+t",
     "command": "workbench.action.gotoSymbol"
-  },
-  {
-    "key": "alt+cmd+s",
-    "command": "workbench.action.toggleUnifiedSidebarFromKeyboard",
-    "when": "cursor.agentIdeUnification.enabled == true && !isAuxiliaryWindowFocusedContext"
   }
 ]

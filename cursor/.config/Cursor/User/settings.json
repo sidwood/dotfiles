@@ -3,43 +3,49 @@
     "editor.defaultFormatter": "Prisma.prisma",
     "editor.formatOnSave": true
   },
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
   "breadcrumbs.enabled": true,
   "cSpell.language": "en-GB",
   "cSpell.userWords": [
     "admin",
     "aurelia",
-    "awscli",
     "axios",
-    "balenaetcher",
     "buildpacks",
     "bullmq",
     "casl",
-    "cmatrix",
     "composables",
     "creds",
     "datastore",
     "datetime",
-    "dbeaver",
-    "difftastic",
-    "direnv",
     "dtos",
     "elem",
     "endswith",
-    "fastfetch",
     "foobar",
     "formkit",
-    "ghostty",
-    "gifski",
     "Gravitar",
     "guid",
     "headlessui",
     "heroicons",
     "heroku",
     "hotjar",
-    "iterm",
     "kata",
-    "lazydocker",
-    "libpq",
     "Logtail",
     "lowercase",
     "maxlength",
@@ -49,25 +55,16 @@
     "nextjs",
     "nightwatch",
     "nprogress",
-    "omarchy",
-    "opencode",
     "paralleldrive",
     "Pinia",
     "Popover",
-    "poppler",
     "postbuild",
     "presigner",
-    "psql",
     "puzzlebox",
-    "resvg",
-    "rubocop",
     "rushstack",
     "Seets",
-    "sevenzip",
     "sidwood",
-    "solarized",
     "stdlib",
-    "superwhisper",
     "syncfusion",
     "tailwindcss",
     "talkjs",
@@ -81,19 +78,18 @@
     "unhover",
     "unplugin",
     "unstub",
+    "UPSR",
     "volar",
-    "vueuse",
-    "yazi"
+    "vueuse"
   ],
   "css.lint.unknownAtRules": "ignore",
   "cursor.cpp.disabledLanguages": ["plaintext", "scminput"],
   "debug.console.fontSize": 16,
-  "docker.extension.enableComposeLanguageServer": false,
   "editor.accessibilitySupport": "off",
   "editor.codeActionsOnSave": {
+    "source.fixAll": "always",
     "source.fixAll.biome": "always",
-    "source.fixAll.ts": "always",
-    "source.organizeImports.biome": "always"
+    "source.fixAll.ts": "always"
   },
   "editor.defaultFormatter": "biomejs.biome",
   "editor.fontFamily": "JetBrains Mono, Fira Code, Menlo, Monaco, 'Courier New', monospace",
@@ -112,6 +108,9 @@
   "editor.snippetSuggestions": "top",
   "editor.tabCompletion": "on",
   "editor.tabSize": 2,
+  "emmet.includeLanguages": {
+    "phoenix-heex": "html"
+  },
   "eslint.format.enable": true,
   "eslint.lintTask.enable": true,
   "eslint.useFlatConfig": true,
@@ -144,6 +143,10 @@
     "added": true,
     "modified": true
   },
+  "tailwindCSS.includeLanguages": {
+    "elixir": "html",
+    "phoenix-heex": "html"
+  },
   "terminal.integrated.commandsToSkipShell": [
     "workbench.action.focusActiveEditorGroup",
     "workbench.action.focusPreviousGroup",
@@ -174,5 +177,45 @@
   },
   "workbench.iconTheme": "vs-minimal",
   "workbench.panel.defaultLocation": "right",
-  "workbench.colorTheme": "Solarized Dark"
+  "totalTypeScript.hideAllTips": false,
+  "totalTypeScript.hideBasicTips": false,
+  "totalTypeScript.hiddenTips": [
+    "basic-types",
+    "array-type",
+    "union-type",
+    "variable-type-annotation",
+    "ts-object-type",
+    "type-alias-declaration",
+    "passing-generics-to-types",
+    "awaited-utility-type",
+    "typeof",
+    "returntype-utility-type",
+    "typing-function-parameters",
+    "record-utility-type",
+    "as-assertion",
+    "function-return-type",
+    "partial-utility-type",
+    "any-type",
+    "literal-type",
+    "pick-utility-type",
+    "null-keyword",
+    "keyof",
+    "undefined-keyword",
+    "non-null-expression",
+    "interface-declaration",
+    "optional-object-property",
+    "interface-with-generics",
+    "interface-with-multiple-generics",
+    "readonly-utility-type",
+    "omit-utility-type",
+    "as-const",
+    "parameters-utility-type",
+    "type-alias-with-generics",
+    "type-alias-with-multiple-generics",
+    "generic-slots-in-functions",
+    "tuple-type"
+  ],
+  "docker.extension.enableComposeLanguageServer": false,
+  "workbench.colorTheme": "Solarized Dark",
+  "window.autoDetectColorScheme": false
 }
