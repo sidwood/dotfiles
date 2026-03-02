@@ -22,6 +22,8 @@ export PATH=$HOME/.bin:$PATH
 # add mise shims to PATH (for non-interactive shells)
 export PATH=$HOME/.local/share/mise/shims:$PATH
 
+# enable shell history for Erlang & Elixir
+export ERL_AFLAGS="-kernel shell_history enabled"
 
 # add local node_modules/.bin to PATH
 export PATH=./node_modules/.bin:$PATH
