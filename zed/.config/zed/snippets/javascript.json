@@ -1,0 +1,174 @@
+{
+  "vitest import": {
+    "prefix": "vit",
+    "body": [
+      "import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, test, vi } from 'vitest'",
+      "",
+      "$0"
+    ],
+    "description": "import the Vitest test API"
+  },
+  "afterAll": {
+    "prefix": "aa",
+    "body": [
+      "afterAll(() => {",
+      "\t$0",
+      "})${1:;}"
+    ],
+    "description": "Vitest afterAll hook"
+  },
+  "afterEach": {
+    "prefix": "ae",
+    "body": [
+      "afterEach(() => {",
+      "\t$0",
+      "})${1:;}"
+    ],
+    "description": "Vitest afterEach hook"
+  },
+  "beforeAll": {
+    "prefix": "ba",
+    "body": [
+      "beforeAll(() => {",
+      "\t$0",
+      "})${1:;}"
+    ],
+    "description": "Vitest beforeAll hook"
+  },
+  "beforeEach": {
+    "prefix": "be",
+    "body": [
+      "beforeEach(() => {",
+      "\t$0",
+      "})${1:;}"
+    ],
+    "description": "Vitest beforeEach hook"
+  },
+  "cli": {
+    "prefix": "cli",
+    "body": [
+      "import { inspect } from 'util'",
+      "console.log(inspect(${1:obj}, true, ${2:10}, true))$0"
+    ],
+    "description": "Console log with util.inspect"
+  },
+  "context": {
+    "prefix": "con",
+    "body": [
+      "describe('${1:description}', () => {",
+      "\t$0",
+      "})"
+    ],
+    "description": "creates a Vitest describe block"
+  },
+  "describe": {
+    "prefix": "des",
+    "body": [
+      "describe('${1:description}', () => {",
+      "\t$0",
+      "})"
+    ],
+    "description": "creates a Vitest describe block"
+  },
+  "describe.only": {
+    "prefix": "deso",
+    "body": [
+      "describe.only('${1:description}', () => {",
+      "\t$0",
+      "})"
+    ],
+    "description": "creates a Vitest describe.only block"
+  },
+  "describe.skip": {
+    "prefix": "dess",
+    "body": [
+      "describe.skip('${1:description}', () => {",
+      "\t$0",
+      "})"
+    ],
+    "description": "creates a Vitest describe.skip block"
+  },
+  "expect": {
+    "prefix": "ex",
+    "body": [
+      "expect($1)$0"
+    ],
+    "description": "create a Vitest expectation"
+  },
+  "expect.resolves": {
+    "prefix": "er",
+    "body": [
+      "expect($1).resolves$0"
+    ],
+    "description": "expect promise resolves to"
+  },
+  "expect.rejects": {
+    "prefix": "ej",
+    "body": [
+      "expect($1).rejects$0"
+    ],
+    "description": "expect promise rejects to"
+  },
+  "given": {
+    "prefix": "given",
+    "body": [
+      "describe('given ${1:description}', () => {",
+      "\t$0",
+      "})${2:;}"
+    ],
+    "description": "creates a Vitest describe block for a given condition"
+  },
+  "it": {
+    "prefix": "it",
+    "body": [
+      "it('${1:description}', () => {",
+      "\t$0",
+      "})${2:;}"
+    ],
+    "description": "creates a Vitest it block"
+  },
+  "it.only": {
+    "prefix": "ito",
+    "body": [
+      "it.only('${1:description}', () => {",
+      "\t$0",
+      "})${2:;}"
+    ],
+    "description": "creates a Vitest it.only block"
+  },
+  "it.skip": {
+    "prefix": "its",
+    "body": [
+      "it.skip('${1:description}', () => {",
+      "\t$0",
+      "})${2:;}"
+    ],
+    "description": "creates a Vitest it.skip block"
+  },
+  "template:cut": {
+    "prefix": "cut",
+    "body": [
+      "describe('${1:ClassUnderTest}', () => {",
+      "\tlet ${2:subject}",
+      "",
+      "\tbeforeEach(() => {",
+      "\t\t$2 = ${3:createSubject()}",
+      "\t});",
+      "",
+      "\tit('#${4:method}()', () => {",
+      "\t\texpect($2.$4).toBeInstanceOf(Function)",
+      "\t});",
+      "});$0"
+    ],
+    "description": "create a Vitest class-under-test block"
+  },
+  "test": {
+    "prefix": "test",
+    "body": [
+      "test('${1:description}', () => {",
+      "\t$0",
+      "})${2:;}"
+    ],
+    "description": "creates a Vitest test block"
+  }
+}
