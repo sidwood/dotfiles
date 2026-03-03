@@ -140,7 +140,7 @@ uninstall_arch_packages() {
   echo "Uninstalling Arch packages..."
 
   # AUR packages
-  local aur_pkgs=(gifski heroku-cli)
+  local aur_pkgs=(gifski heroku-cli lm-studio-bin)
   for pkg in "${aur_pkgs[@]}"; do
     if pacman -Q "$pkg" &>/dev/null; then
       yay -Rns --noconfirm "$pkg" 2>/dev/null || true
