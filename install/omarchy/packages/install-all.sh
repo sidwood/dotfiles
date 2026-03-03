@@ -24,6 +24,7 @@ run install-elixir.sh
 run install-erlang.sh
 run install-git-filter-repo.sh
 run install-make.sh
+run install-ollama.sh
 run install-postgresql-libs.sh
 run install-shellcheck.sh
 run install-tree.sh
