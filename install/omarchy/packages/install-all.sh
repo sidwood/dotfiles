@@ -55,6 +55,7 @@ run install-lazydocker.sh
 
 # GUI applications
 run install-cursor.sh
+run install-lm-studio.sh
 run install-zed.sh
 
 # Environment tools
