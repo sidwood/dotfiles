@@ -40,3 +40,7 @@ export PATH=$GOPATH/bin:$PATH
 
 # 1Password secret references (used with `op run`)
 export GITHUB_REGISTRY_TOKEN="op://Personal/GitHub Registry Token/token"
+
+# add lm studio cli (lms)
+export PATH="$PATH:/Users/sidwood/.lmstudio/bin"
+
