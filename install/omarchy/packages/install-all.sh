@@ -27,6 +27,7 @@ run install-make.sh
 run install-postgresql-libs.sh
 run install-shellcheck.sh
 run install-tree.sh
+run install-vale.sh
 
 # Cloud CLIs
 run install-aws-cli.sh
