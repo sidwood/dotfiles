@@ -7,27 +7,28 @@
 BINDINGS_CONF="$HOME/.config/hypr/bindings.conf"
 CUSTOM_BINDINGS="$HOME/.config/hypr/bindings-custom.conf"
 SOURCE_LINE="source = $CUSTOM_BINDINGS"
+INPUT_CONF="$HOME/.config/hypr/input.conf"
+KEYBOARD_OPTIONS="  kb_options = ctrl:nocaps # ,grp:alts_toggle"
 
-# Check if bindings.conf exists
 if [[ ! -f "$BINDINGS_CONF" ]]; then
     echo "Warning: $BINDINGS_CONF not found, skipping custom bindings setup"
-    exit 0
-fi
-
-# Check if custom bindings file exists
-if [[ ! -f "$CUSTOM_BINDINGS" ]]; then
-    echo "Warning: $CUSTOM_BINDINGS not found, skipping"
-    exit 0
-fi
-
-# Check if source line already present
-if grep -qF "$SOURCE_LINE" "$BINDINGS_CONF"; then
+elif [[ ! -f "$CUSTOM_BINDINGS" ]]; then
+    echo "Warning: $CUSTOM_BINDINGS not found, skipping custom bindings setup"
+elif grep -qF "$SOURCE_LINE" "$BINDINGS_CONF"; then
     echo "Custom bindings already sourced in $BINDINGS_CONF"
-    exit 0
+else
+    echo "" >> "$BINDINGS_CONF"
+    echo "# Custom bindings" >> "$BINDINGS_CONF"
+    echo "$SOURCE_LINE" >> "$BINDINGS_CONF"
+    echo "Added custom bindings source to $BINDINGS_CONF"
 fi
 
-# Append source line
-echo "" >> "$BINDINGS_CONF"
-echo "# Custom bindings" >> "$BINDINGS_CONF"
-echo "$SOURCE_LINE" >> "$BINDINGS_CONF"
-echo "Added custom bindings source to $BINDINGS_CONF"
+if [[ ! -f "$INPUT_CONF" ]]; then
+    echo "Warning: $INPUT_CONF not found, skipping keyboard options setup"
+elif grep -q "^[[:space:]]*kb_options =" "$INPUT_CONF"; then
+    sed -i "s/^[[:space:]]*kb_options =.*/$KEYBOARD_OPTIONS/" "$INPUT_CONF"
+    echo "Set Caps Lock to Control in $INPUT_CONF"
+else
+    sed -i "/^[[:space:]]*kb_layout =/a\\$KEYBOARD_OPTIONS" "$INPUT_CONF"
+    echo "Added Caps Lock to Control mapping to $INPUT_CONF"
+fi
