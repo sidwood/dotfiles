@@ -209,6 +209,7 @@ stow_dotfiles() {
 
   backup_config "$HOME/.config/ghostty/config" "$PWD/ghostty/.config/ghostty/config" "ghostty config"
   backup_config "$HOME/.config/git/config" "$PWD/git/.config/git/config" "git config"
+  backup_config "$HOME/.config/tmux/tmux.conf" "$PWD/tmux/.config/tmux/tmux.conf" "tmux config"
   backup_config "$HOME/.config/zed/settings.json" "$PWD/zed/.config/zed/settings.json" "zed settings"
   backup_config "$HOME/.config/zed/keymap.json" "$PWD/zed/.config/zed/keymap.json" "zed keymap"
 
