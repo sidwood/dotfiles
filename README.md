@@ -34,7 +34,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 ```
 Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
-> [x] Install Arch packages (pacman + AUR).
+> [x] Install Omarchy packages and standalone tools.
   [x] Symlink dotfile packages with GNU Stow.
   [x] Set up mise with default runtimes.
   [x] Install global npm packages.
@@ -43,6 +43,10 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
 Use arrow keys or `j`/`k` to navigate, space to toggle options, and enter to
 confirm.
+
+On Omarchy, most packages are installed with `pacman` or AUR helpers. Heroku CLI
+uses Heroku's official standalone installer so it can track upstream CLI
+releases without waiting on AUR package updates.
 
 ## Structure
 
@@ -104,7 +108,7 @@ Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 ```
 Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
-> [x] Uninstall Arch packages (pacman + AUR).
+> [x] Uninstall Omarchy packages and standalone tools.
   [x] Remove dotfile package symlinks with GNU Stow.
   [x] Uninstall vim plugins.
 ```
