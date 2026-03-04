@@ -1,4 +1,11 @@
 alfred/Alfred.alfredpreferences/preferences/local/
+cursor/.config/Cursor/*
+!cursor/.config/Cursor/User/
+cursor/.config/Cursor/User/*
+!cursor/.config/Cursor/User/keybindings.json
+!cursor/.config/Cursor/User/settings.json
+!cursor/.config/Cursor/User/snippets/
+!cursor/.config/Cursor/User/snippets/*.json
 iterm2/.config/iterm2/AppSupport
 iterm2/.config/iterm2/sockets/
 ruby/.bundle/cache
