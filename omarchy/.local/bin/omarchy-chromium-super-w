@@ -1,0 +1,13 @@
+#!/bin/bash
+set -euo pipefail
+
+active_class="$(hyprctl activewindow -j | jq -r '.class // ""')"
+
+case "$active_class" in
+  chromium|Chromium|google-chrome|Google-chrome)
+    hyprctl dispatch sendshortcut "CTRL,W,activewindow"
+    ;;
+  *)
+    hyprctl dispatch killactive
+    ;;
+esac
