@@ -32,7 +32,7 @@ if is_macos; then
   options+=("Reset macOS system defaults.")
   option_keys+=("macos")
 elif is_omarchy; then
-  options+=("Uninstall Arch packages (pacman + AUR).")
+  options+=("Uninstall Omarchy packages and standalone tools.")
   option_keys+=("arch")
 fi
 options+=("Remove dotfile package symlinks with GNU Stow.")
@@ -137,10 +137,18 @@ uninstall_homebrew() {
 }
 
 uninstall_arch_packages() {
-  echo "Uninstalling Arch packages..."
+  echo "Uninstalling Omarchy packages..."
+
+  # Standalone tools
+  if [ -L /usr/local/bin/heroku ] && [[ "$(readlink /usr/local/bin/heroku)" == /usr/local/lib/heroku/* ]]; then
+    sudo rm -f /usr/local/bin/heroku
+  fi
+  if [ -d /usr/local/lib/heroku ]; then
+    sudo rm -rf /usr/local/lib/heroku
+  fi
 
   # AUR packages
-  local aur_pkgs=(gifski heroku-cli lm-studio-bin msty-studio-bin)
+  local aur_pkgs=(gifski heroku-cli-bin lm-studio-bin msty-studio-bin)
   for pkg in "${aur_pkgs[@]}"; do
     if pacman -Q "$pkg" &>/dev/null; then
       yay -Rns --noconfirm "$pkg" 2>/dev/null || true

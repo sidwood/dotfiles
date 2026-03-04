@@ -47,7 +47,7 @@ if is_macos; then
   options+=("Apply macOS system defaults.")
   option_keys+=("macos")
 elif is_omarchy; then
-  options+=("Install Omarchy packages (pacman + AUR).")
+  options+=("Install Omarchy packages and standalone tools.")
   option_keys+=("omarchy")
 fi
 options+=("Symlink dotfile packages with GNU Stow.")
