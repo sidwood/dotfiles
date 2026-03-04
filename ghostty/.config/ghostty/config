@@ -2,7 +2,8 @@
 config-file = ?"~/.config/ghostty/solarized-dark.conf"
 
 # Omarchy dynamic theme colors
-config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
+# Note: disabled so I can fix Ghostty to Solarized Dark
+# config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
 
 # Font
 font-family = "JetBrainsMono Nerd Font"
@@ -35,3 +36,6 @@ keybind = super+control+shift+alt+arrow_right=resize_split:right,100
 
 # Slowdown mouse scrolling
 mouse-scroll-multiplier = 0.95
+
+# Fix general slowness on hyprland (https://github.com/ghostty-org/ghostty/discussions/3224)
+async-backend = epoll
