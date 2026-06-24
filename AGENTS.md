@@ -20,6 +20,7 @@
 - Omarchy packages: `install/omarchy/packages/install-all.sh` + `install-*.sh`
 - macOS defaults: `macos/defaults.sh`
 - Custom executables: `bin/.local/bin/` (+ sourced helpers in `bin/.local/share/`)
+- Global agent memory (every repo, every harness): `agents/.config/agents/AGENTS.md`. This file covers the dotfiles repo only.
 
 ## Platform Model
 - macOS install path: Homebrew via `brew bundle --file=Brewfile`.
@@ -35,6 +36,13 @@
 - On macOS, `omarchy/` is skipped.
 - On macOS, `cursor/` is skipped by Stow and linked manually to `~/Library/Application Support/Cursor/User`.
 - `bin/` is stowed on both platforms and depends on `~/.local/bin` being on PATH (set in `profile/.profile`).
+- `agents/` is stowed on both platforms and folds to `~/.config/agents/`.
+
+## Agent Memory Model
+- Machine-wide tooling belongs in the global file, not this one: this one only loads inside the repo, so it cannot advertise anything installed to `$HOME`.
+- The global file is committed and loaded by every agent on every session. Keep it short, harness-neutral, and free of notes about itself. Anything that must stay out of git history goes in per-agent private memory instead.
+- `link_agent_memory()` symlinks each harness at that single file — never copy it. Verify a new harness's path against the tool itself (shipped docs, `strings` on the binary, its issue tracker); vendor conventions differ more than they look.
+- Cursor is the exception to plain markdown: `~/.cursor/rules/*.mdc`, auto-applied only with `alwaysApply: true` frontmatter, which the shared file deliberately omits. Kimi is absent by design — working-directory `AGENTS.md` only (MoonshotAI/kimi-cli#2152).
 
 ## Custom Executable Pattern
 - Cross-platform scripts live in `bin/.local/bin/` (mode 755, no extension); `omarchy/.local/bin/` is macOS-skipped and Omarchy-only.

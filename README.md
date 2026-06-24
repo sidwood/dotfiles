@@ -55,6 +55,7 @@ packages. Each top-level directory is a package that gets symlinked to `$HOME`.
 
 ```
 dotfiles/
+├── agents/         # Global agent memory shared by every AI harness
 ├── bash/           # Bash config (macOS only, skipped on Omarchy)
 ├── bin/            # Custom executables on PATH via ~/.local/bin
 ├── ghostty/        # Ghostty terminal config
@@ -162,6 +163,62 @@ Three per-repo config keys, all set on the base clone:
 git -C ~/code/myapp config bc.postadd 'mise install && npm ci'
 git -C ~/code/myapp config --add bc.extras 'config/local.yml'
 ```
+
+## Agent Memory
+
+Two layers, both plain markdown so any agent harness can read them:
+
+- `AGENTS.md` in this repo (symlinked as `CLAUDE.md`) — conventions for working
+  on the dotfiles themselves. Only loads when an agent works in this repo.
+- `agents/.config/agents/AGENTS.md` → `~/.config/agents/AGENTS.md` — global
+  memory, loaded in every session in every repository. Machine-wide tooling like
+  `git bc-*` is documented here, since a project-scoped file cannot advertise
+  something installed to `$HOME`.
+
+### One file, every harness
+
+Every harness reads a different filename in a different directory. Rather than
+keeping a copy per tool, `install.sh` symlinks each one at the single canonical
+file:
+
+```
+~/.config/agents/AGENTS.md                   # canonical, the only file to edit
+├── ~/.claude/CLAUDE.md                      # Claude Code
+├── ~/.codex/AGENTS.md                       # Codex
+├── ~/.grok/AGENTS.md                        # Grok
+├── ~/.config/opencode/AGENTS.md             # OpenCode
+├── ~/.cursor/rules/global-agent-memory.mdc  # Cursor
+├── ~/.gemini/GEMINI.md                      # Gemini CLI
+└── ~/.pi/agent/AGENTS.md                    # Pi
+```
+
+Add a harness by adding one `<command>|<path>` line to the `harnesses` table in
+`link_agent_memory()`. Links are only created for harnesses that are actually
+installed, so `$HOME` does not collect config directories for tools you do not
+have. Re-running is a no-op, and any pre-existing real file is moved to `.bak`
+before being replaced.
+
+Every path was verified against the tool itself rather than assumed — Codex from
+strings in its binary, Grok from its shipped `docs/user-guide`, OpenCode from its
+config root, Pi from its `agentDir` default, Cursor and Kimi from their docs and
+issue tracker. Two are worth knowing about:
+
+- **Cursor** does not read a home-level `AGENTS.md`. Its global rules are `.mdc`
+  files in `~/.cursor/rules/`, which is where the link points. Cursor loads a
+  rule in every chat only when it carries `alwaysApply: true` frontmatter, and
+  the canonical file deliberately has none — frontmatter would be dead weight in
+  every other harness's context window. If Cursor does not pick the rule up
+  automatically, enable it in Cursor's own rules settings.
+- **Kimi is deliberately absent.** It only reads `AGENTS.md` from the working
+  directory; global support is an open, unimplemented request
+  ([kimi-cli#2152](https://github.com/MoonshotAI/kimi-cli/issues/2152)). Linking
+  `~/.kimi/AGENTS.md` today would create a file nothing reads; `link_agent_memory()`
+  records the line to add when it ships.
+
+Keep the canonical file short and free of meta-commentary. Every agent loads it
+into context on every session, so it should carry only what an agent needs to
+act on — not notes about the file itself, which belong here instead. Anything
+that should not enter git history does not belong in it at all.
 
 ## SSH server (sshd)
 
