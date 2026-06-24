@@ -178,6 +178,8 @@ uninstall_dotfiles() {
     [[ "$pkg" == "macos/" || "$pkg" == "alfred/" ]] && continue
     # Skip bash on Omarchy (it manages ~/.bashrc)
     is_omarchy && [[ "$pkg" == "bash/" ]] && continue
+    # Skip omarchy package on macOS (Hyprland/Omarchy-only overrides)
+    is_macos && [[ "$pkg" == "omarchy/" ]] && continue
     stow -Dv "${pkg%/}"
   done
 }
