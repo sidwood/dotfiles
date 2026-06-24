@@ -1,9 +1,11 @@
 tap "1password/tap"
+tap "ampcode/tap"
 tap "jesseduffield/lazydocker"
 tap "jesseduffield/lazygit"
 tap "mongodb/brew"
 
 # cli tools
+brew "ampcode"
 brew "awscli"
 brew "azure-cli"
 brew "bat"
