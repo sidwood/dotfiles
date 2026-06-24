@@ -285,6 +285,9 @@ setup_mise() {
   echo "Installing Ruby..."
   mise use --global ruby@latest
 
+  echo "Installing pnpm..."
+  mise use --global pnpm@latest
+
   # Activate so subsequent steps in this process can find node/npm
   eval "$(mise activate bash)"
 
