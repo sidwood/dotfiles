@@ -213,7 +213,9 @@
     "type-alias-with-generics",
     "type-alias-with-multiple-generics",
     "generic-slots-in-functions",
-    "tuple-type"
+    "tuple-type",
+    "as-const-on-object",
+    "type-predicate"
   ],
   "docker.extension.enableComposeLanguageServer": false,
   "workbench.colorTheme": "Solarized Dark",
