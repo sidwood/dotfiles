@@ -36,6 +36,7 @@ run install-azure-cli.sh
 run install-codex.sh
 run install-gcloud-cli.sh
 run install-gh.sh
+run install-grok-build.sh
 run install-heroku-cli.sh
 
 # Shell enhancements
