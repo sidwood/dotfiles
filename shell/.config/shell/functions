@@ -9,6 +9,20 @@ mkcd() {
   mkdir -p "$1" && cd "$1"
 }
 
+# Pick a git branch clone with fzf and cd into it. Extra arguments pass through
+# to git-bc-list, so `gbcd ~/code` scans elsewhere and `gbcd -a` includes base
+# clones. A function rather than an alias because only the shell itself can cd.
+if command -v fzf &>/dev/null && command -v git-bc-list &>/dev/null; then
+  gbcd() {
+    local dir
+    dir="$(git-bc-list --paths "$@" | fzf --no-multi \
+      --preview 'git -C {} status --short --branch' \
+      --preview-window=right,50%)" || return
+    [[ -n "$dir" ]] || return
+    cd "$dir" || return
+  }
+fi
+
 # ------------------------------------------------------------------------------
 # File operations
 # ------------------------------------------------------------------------------

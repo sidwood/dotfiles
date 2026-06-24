@@ -34,6 +34,13 @@ alias gl='git pull'
 alias gp='git push'
 alias gs='git status'
 
+# Branch clones (see bin/.local/bin/git-bc-*); gbcd lives in shell/functions
+alias gbc='git bc-list'
+alias gbca='git bc-add'
+alias gbcp='git bc-prune'
+alias gbcr='git bc-rm'
+alias gbcs='git bc-sync-extras'
+
 # ------------------------------------------------------------------------------
 # General
 # ------------------------------------------------------------------------------
