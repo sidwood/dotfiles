@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+#
+# git-bc-prune — remove branch clones whose work has landed.
+#
+# Usage:
+#   git bc-prune [dir] [-n] [-f] [-y]
+#
+#   [dir]          Directory to scan. Defaults to the parent of the current
+#                  repository, since branch clones are created as siblings.
+#   -n, --dry-run  Report what would be removed without removing it.
+#   -f, --force    Pass --force to git-bc-rm, so clones with uncommitted or
+#                  unpushed work go too. Does not skip confirmation.
+#   -y, --yes      Skip the per-clone confirmation prompt.
+#
+# Only clones carrying a bc.source marker are considered, so base clones are
+# never at risk. For each one the pull request state from gh decides: merged or
+# closed prunes, open keeps. With no gh or no PR found, a clone is pruned when its
+# remote branch is gone and it holds no commits the default branch lacks.
+#
+# Removal goes through git-bc-rm, so its safety checks still apply.
+
+set -euo pipefail
+
+bc_prog="${0##*/}"
+# shellcheck source-path=SCRIPTDIR source=../share/git-bc/common.sh
+source "$(dirname "$0")/../share/git-bc/common.sh"
+
+dry_run=false
+force=false
+bc_assume_yes=false
+scan_arg=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) bc_usage 0 ;;
+    -n|--dry-run) dry_run=true ;;
+    -f|--force) force=true ;;
+    -y|--yes) bc_assume_yes=true ;;
+    -*) bc_abort "unknown option: $1" ;;
+    *)
+      [[ -z "$scan_arg" ]] || bc_usage 2
+      scan_arg="$1"
+      ;;
+  esac
+  shift
+done
+
+scan_root="$(bc_scan_root "$scan_arg")" || bc_abort "not a directory: $scan_arg"
+
+# Only trusted once the remote branch is gone: a branch still on the server has
+# not obviously landed, whatever its commit graph looks like.
+is_merged_locally() {
+  local dir="$1" branch="$2" default_branch unmerged
+
+  git -C "$dir" show-ref --verify --quiet "refs/remotes/origin/$branch" && return 1
+
+  default_branch="$(bc_default_branch "$dir")" || return 1
+  unmerged="$(git -C "$dir" rev-list --count "origin/$default_branch..HEAD" 2>/dev/null || echo 1)"
+  (( unmerged == 0 ))
+}
+
+#
+# Scan
+#
+
+mapfile -t dirs < <(bc_repo_dirs "$scan_root")
+
+pruned=0
+skipped=0
+
+for dir in "${dirs[@]}"; do
+  name="$(basename "$dir")"
+
+  # Base clones are the seeds everything else was made from. Report them rather
+  # than passing over them silently, so the protection is visible.
+  if ! bc_is_branch_clone "$dir"; then
+    bc_info "$name — not a branch clone, skipping"
+    skipped=$(( skipped + 1 ))
+    continue
+  fi
+
+  branch="$(bc_current_branch "$dir")"
+  if [[ -z "$branch" ]]; then
+    bc_info "$name — detached HEAD, skipping"
+    skipped=$(( skipped + 1 ))
+    continue
+  fi
+
+  # Refresh remote-tracking refs so both checks below see current state.
+  git -C "$dir" fetch origin --prune --quiet 2>/dev/null || true
+
+  reason=""
+  case "$(bc_gh_pr_state "$dir" "$branch")" in
+    MERGED) reason="PR merged" ;;
+    CLOSED) reason="PR closed" ;;
+    OPEN) ;;
+    *)
+      if is_merged_locally "$dir" "$branch"; then
+        reason="branch merged, remote ref gone"
+      fi
+      ;;
+  esac
+
+  if [[ -z "$reason" ]]; then
+    skipped=$(( skipped + 1 ))
+    continue
+  fi
+
+  bc_info "$name — $reason"
+
+  if [[ "$dry_run" == true ]]; then
+    printf '   (dry run: would remove %s)\n' "$dir"
+    pruned=$(( pruned + 1 ))
+    continue
+  fi
+
+  if ! bc_confirm "Remove $dir?"; then
+    printf '   skipped\n'
+    skipped=$(( skipped + 1 ))
+    continue
+  fi
+
+  # Already confirmed, so tell git-bc-rm not to ask again. Its dirty and unpushed
+  # gates still apply unless --force is passed through.
+  rm_args=("$dir" "--yes")
+  if [[ "$force" == true ]]; then
+    rm_args+=("--force")
+  fi
+
+  if "$bc_bin_dir/git-bc-rm" "${rm_args[@]}"; then
+    pruned=$(( pruned + 1 ))
+  else
+    bc_warn "git-bc-rm failed for $dir"
+    skipped=$(( skipped + 1 ))
+  fi
+done
+
+bc_info "done — $pruned removed, $skipped skipped"

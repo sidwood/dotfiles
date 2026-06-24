@@ -1,0 +1,173 @@
+#!/usr/bin/env bash
+#
+# git-bc-sync-extras — copy ignored local files from a branch clone's source.
+#
+# Usage:
+#   git bc-sync-extras [source]
+#
+#   [source]  Clone to copy from. Defaults to bc.source, then to a sibling found
+#             by stripping the last dotted segment off this repo's directory name
+#             (myapp.feature-x -> myapp).
+#
+# Copies the gitignored files a fresh clone needs but git will not carry: .env
+# and its variants, .envrc, Rails credentials keys, docker-compose.override.yml,
+# Procfile.local, and mise local config. Each pattern matches at the repo root or
+# in any subdirectory, so monorepo layouts work. Add project-specific patterns on
+# the source clone:
+#
+#   git -C ~/code/myapp config --add bc.extras 'some/local.file'
+#
+# Files missing here are copied. Files that differ are shown as a diff and
+# confirmed before being overwritten; with no terminal they are left untouched.
+# Rebuildable trees (node_modules, vendor, .venv, build output) are never copied.
+
+set -euo pipefail
+
+bc_prog="${0##*/}"
+# shellcheck source-path=SCRIPTDIR source=../share/git-bc/common.sh
+source "$(dirname "$0")/../share/git-bc/common.sh"
+
+case "${1:-}" in
+  -h|--help) bc_usage 0 ;;
+esac
+
+#
+# Resolve target and source
+#
+
+target_dir="$(git rev-parse --show-toplevel 2>/dev/null)" \
+  || bc_abort "not inside a git repository"
+target_dir="$(bc_abs "$target_dir")"
+
+if [[ -n "${1:-}" ]]; then
+  source_abs="$(bc_abs "$1")" || bc_abort "not a directory: $1"
+else
+  configured="$(git -C "$target_dir" config --local --get bc.source 2>/dev/null || true)"
+  if [[ -n "$configured" && -d "$configured" ]]; then
+    source_abs="$(bc_abs "$configured")"
+  else
+    # Infer the seed by stripping the branch suffix: myapp.feature-x -> myapp
+    inferred="$(dirname "$target_dir")/$(basename "$target_dir" | sed 's/\.[^.]*$//')"
+    if [[ "$inferred" != "$target_dir" ]] && bc_is_git_repo "$inferred"; then
+      source_abs="$(bc_abs "$inferred")"
+    else
+      bc_abort "could not determine source; pass it explicitly or set bc.source"
+    fi
+  fi
+fi
+
+[[ "$source_abs" != "$target_dir" ]] || bc_abort "source and target are the same clone"
+
+#
+# Patterns
+#
+
+default_extras=(
+  '.env'
+  '.env.*'
+  '*.env'
+  '.envrc'
+  'config/master.key'
+  'config/credentials/*.key'
+  'docker-compose.override.yml'
+  'Procfile.local'
+  'mise.local.toml'
+  '.mise.local.toml'
+)
+
+# Ignored trees that get rebuilt rather than copied. Also stops a broad pattern
+# like *.env matching something buried in node_modules.
+excluded_prefixes=(
+  '.git/'
+  '.venv/'
+  'build/'
+  'dist/'
+  'node_modules/'
+  'target/'
+  'tmp/'
+  'vendor/'
+)
+
+extras=("${default_extras[@]}")
+while IFS= read -r pattern; do
+  [[ -n "$pattern" ]] && extras+=("$pattern")
+done < <(git -C "$source_abs" config --local --get-all bc.extras 2>/dev/null || true)
+
+# Match a pattern against the path itself or the same name in any subdirectory.
+is_interesting() {
+  local rel="$1" prefix pattern
+  for prefix in "${excluded_prefixes[@]}"; do
+    [[ "$rel" == "$prefix"* || "$rel" == *"/$prefix"* ]] && return 1
+  done
+  for pattern in "${extras[@]}"; do
+    # Unquoted right-hand side on purpose: these are globs, not literals.
+    # shellcheck disable=SC2053
+    [[ "$rel" == $pattern || "$rel" == */$pattern ]] && return 0
+  done
+  return 1
+}
+
+show_diff() {
+  if command -v difft >/dev/null 2>&1; then
+    difft "$1" "$2" || true
+  else
+    diff -u "$1" "$2" || true
+  fi
+}
+
+#
+# Sync
+#
+
+bc_info "syncing extras from $source_abs"
+
+interactive=false
+if [[ -t 0 && -t 1 ]]; then
+  interactive=true
+fi
+
+copied=0
+skipped=0
+
+# --directory collapses a wholly-ignored tree to one entry, so this never walks
+# into node_modules. Without it, listing a Node repo means hundreds of thousands
+# of paths.
+while IFS= read -r rel; do
+  [[ "$rel" == */ ]] && continue
+  is_interesting "$rel" || continue
+
+  src="$source_abs/$rel"
+  dst="$target_dir/$rel"
+  [[ -f "$src" ]] || continue
+
+  if [[ ! -e "$dst" ]]; then
+    mkdir -p "$(dirname "$dst")"
+    cp -p "$src" "$dst"
+    bc_info "copied $rel"
+    copied=$(( copied + 1 ))
+  elif cmp -s "$src" "$dst"; then
+    : # identical, nothing to do
+  elif [[ "$interactive" != true ]]; then
+    bc_warn "$rel differs from source — run interactively to review"
+    skipped=$(( skipped + 1 ))
+  else
+    printf ' %s: %s differs from source:\n' "$bc_prog" "$rel"
+    show_diff "$dst" "$src"
+    if bc_confirm "Overwrite $rel with the source copy?"; then
+      cp -p "$src" "$dst"
+      bc_info "updated $rel"
+      copied=$(( copied + 1 ))
+    else
+      bc_info "skipped $rel"
+      skipped=$(( skipped + 1 ))
+    fi
+  fi
+done < <(
+  git -C "$source_abs" ls-files --others --ignored --exclude-standard --directory 2>/dev/null || true
+)
+
+if (( copied == 0 && skipped == 0 )); then
+  bc_info "no ignored extras to sync"
+else
+  bc_info "$copied copied, $skipped skipped"
+fi

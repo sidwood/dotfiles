@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+#
+# git-bc-add — create a branch clone seeded from an existing local clone.
+#
+# Usage:
+#   git bc-add <source> <branch> [target]
+#
+#   <source>  Existing clone to seed from. Git hardlinks the object files when
+#             the target lands on the same filesystem, so this costs no network
+#             transfer and almost no disk.
+#   <branch>  Branch to check out. Tracked from origin/<branch> when a
+#             remote-tracking ref exists, otherwise created from HEAD.
+#   [target]  Directory for the new clone. Defaults to a sibling of <source>
+#             named <source>.<branch>, with slashes flattened to dashes.
+#
+# The new clone's origin is repointed at the real remote URL, so every later
+# fetch and push reaches the server rather than the seed.
+#
+# Ignored local files (.env and friends) are carried over by git-bc-sync-extras.
+# When the source sets bc.postadd, that command runs in the new clone once the
+# branch is checked out — the place for `mise install`, `npm ci`, `bundle install`:
+#
+#   git -C ~/code/myapp config bc.postadd 'mise install && npm ci'
+#
+# Idempotent: an existing target that is already a git repository just gets its
+# extras re-synced.
+
+set -euo pipefail
+
+bc_prog="${0##*/}"
+# shellcheck source-path=SCRIPTDIR source=../share/git-bc/common.sh
+source "$(dirname "$0")/../share/git-bc/common.sh"
+
+case "${1:-}" in
+  -h|--help|"") bc_usage 0 ;;
+esac
+
+[[ $# -ge 2 && $# -le 3 ]] || bc_usage 2
+
+#
+# Resolve source and target
+#
+
+source_abs="$(bc_abs "$1")" || bc_abort "not a directory: $1"
+branch="$2"
+
+bc_is_git_repo "$source_abs" || bc_abort "not a git repository: $1"
+
+if [[ -n "${3:-}" ]]; then
+  target="$3"
+else
+  target="$(dirname "$source_abs")/$(basename "$source_abs").$(bc_safe_branch "$branch")"
+fi
+
+if [[ -e "$target" ]]; then
+  if bc_is_git_repo "$target"; then
+    bc_info "branch clone already exists: $target — syncing extras"
+    ( cd "$target" && "$bc_bin_dir/git-bc-sync-extras" "$source_abs" )
+    exit 0
+  fi
+  bc_abort "refusing to clobber existing non-git path: $target"
+fi
+
+remote_url="$(bc_real_remote_url "$source_abs")" \
+  || bc_abort "could not resolve an upstream from $1 — does it have an origin?"
+
+#
+# Clone
+#
+
+bc_info "seeding from $source_abs (hardlinks when on the same filesystem)"
+git clone --local "$source_abs" "$target"
+
+# Repoint origin at the server so fetches and pushes bypass the seed, then pick
+# up anything that landed after the seed was last fetched.
+git -C "$target" remote set-url origin "$remote_url"
+git -C "$target" fetch origin --prune
+
+# Track the remote branch when it exists, else reuse a local ref that came
+# across in the clone, else branch from HEAD.
+if git -C "$target" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+  git -C "$target" checkout --track "origin/$branch" 2>/dev/null \
+    || git -C "$target" checkout "$branch"
+elif git -C "$target" show-ref --verify --quiet "refs/heads/$branch"; then
+  git -C "$target" checkout "$branch"
+else
+  git -C "$target" checkout -b "$branch"
+fi
+
+# The marker that makes this a branch clone to git-bc-list, -prune and -rm.
+git -C "$target" config bc.source "$source_abs"
+
+target_abs="$(bc_abs "$target")"
+
+#
+# Local files and setup
+#
+
+( cd "$target_abs" && "$bc_bin_dir/git-bc-sync-extras" "$source_abs" )
+
+# `git clone` writes a fresh config, so the hook has to be read off the source
+# and carried over explicitly.
+postadd="$(git -C "$source_abs" config --local --get bc.postadd 2>/dev/null || true)"
+if [[ -n "$postadd" ]]; then
+  git -C "$target_abs" config bc.postadd "$postadd"
+  bc_info "running bc.postadd: $postadd"
+  if ! ( cd "$target_abs" && bash -c "$postadd" ); then
+    bc_warn "bc.postadd failed — the clone is in place but may need setup"
+  fi
+fi
+
+bc_ok "Branch clone ready: $target_abs"
+printf '   branch: %s\n   origin: %s\n   cd %s\n' "$branch" "$remote_url" "$target_abs"

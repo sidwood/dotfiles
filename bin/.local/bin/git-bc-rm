@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+#
+# git-bc-rm — remove a branch clone created by git-bc-add.
+#
+# Usage:
+#   git bc-rm <clone-dir> [-f] [-y]
+#
+#   <clone-dir>  Branch clone to remove.
+#   -f, --force  Remove even when the target is not a branch clone, has
+#                uncommitted changes, or holds unpushed commits. Does not skip
+#                the confirmation prompt.
+#   -y, --yes    Skip the confirmation prompt.
+#
+# Refuses by default to touch a base clone (one with no bc.source), a clone whose
+# work exists nowhere else, or the clone the current shell is sitting in.
+#
+# Devcontainer containers belonging to the clone are removed first, since they
+# outlive the directory they were built from.
+
+set -euo pipefail
+
+bc_prog="${0##*/}"
+# shellcheck source-path=SCRIPTDIR source=../share/git-bc/common.sh
+source "$(dirname "$0")/../share/git-bc/common.sh"
+
+clone_dir=""
+force=false
+bc_assume_yes=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) bc_usage 0 ;;
+    -f|--force) force=true ;;
+    -y|--yes) bc_assume_yes=true ;;
+    -*) bc_abort "unknown option: $1" ;;
+    *)
+      [[ -z "$clone_dir" ]] || bc_usage 2
+      clone_dir="$1"
+      ;;
+  esac
+  shift
+done
+
+[[ -n "$clone_dir" ]] || bc_usage 2
+
+target="$(bc_abs "$clone_dir")" || bc_abort "not a directory: $clone_dir"
+bc_is_git_repo "$target" || bc_abort "not a git repository: $target"
+
+#
+# Safety gates
+#
+
+# Removing the directory the caller stands in leaves their shell in a deleted
+# cwd, which --force should not be able to talk you into either.
+if bc_path_within "$(pwd -P)" "$target"; then
+  bc_abort "refusing to remove the clone you are currently in: $target"
+fi
+
+if [[ "$force" != true ]]; then
+  bc_is_branch_clone "$target" \
+    || bc_abort "$target is not a branch clone (no bc.source) — use --force to override"
+
+  if ! git -C "$target" diff --quiet 2>/dev/null \
+    || ! git -C "$target" diff --cached --quiet 2>/dev/null; then
+    bc_abort "$target has uncommitted changes (use --force to override)"
+  fi
+
+  branch="$(bc_current_branch "$target")"
+  if [[ -n "$branch" ]]; then
+    # What HEAD gets compared against, in order of preference: the branch's own
+    # upstream, a remote branch of the same name, or the remote default branch.
+    # That last case is the normal one after a PR merges — GitHub deletes the
+    # remote branch, so `fetch --prune` leaves no tracking ref to compare to, and
+    # refusing there would block the very cleanup prune exists to do.
+    if base="$(git -C "$target" rev-parse --abbrev-ref '@{upstream}' 2>/dev/null)"; then
+      :
+    elif git -C "$target" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+      base="origin/$branch"
+    elif default_branch="$(bc_default_branch "$target")"; then
+      base="origin/$default_branch"
+    else
+      bc_abort "nothing to compare '$branch' against in $target (use --force to override)"
+    fi
+
+    unmerged="$(git -C "$target" rev-list --count "$base..HEAD" 2>/dev/null || echo 1)"
+    (( unmerged == 0 )) \
+      || bc_abort "$target has $unmerged commit(s) on '$branch' not in $base (use --force to override)"
+  fi
+fi
+
+#
+# Remove
+#
+
+if ! bc_confirm "Remove branch clone $target?"; then
+  bc_info "aborted, $target not removed"
+  exit 0
+fi
+
+bc_prune_devcontainers "$target"
+rm -rf "$target"
+bc_ok "Removed branch clone: $target"

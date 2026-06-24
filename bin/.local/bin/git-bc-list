@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+#
+# git-bc-list — show the branch clones sitting alongside a clone.
+#
+# Usage:
+#   git bc-list [dir] [-a] [--pr] [--paths]
+#
+#   [dir]        Directory to scan. Defaults to the parent of the current
+#                repository, since branch clones are created as siblings.
+#   -a, --all    Include base clones, which are hidden by default.
+#   --pr         Look up each branch's pull request state with gh. One network
+#                call per clone, so it is off by default.
+#   --paths      Print bare absolute paths only, for scripting and pickers.
+#
+# Columns are working tree status, branch, commits ahead of and behind upstream,
+# and the clone's directory name.
+
+set -euo pipefail
+
+bc_prog="${0##*/}"
+# shellcheck source-path=SCRIPTDIR source=../share/git-bc/common.sh
+source "$(dirname "$0")/../share/git-bc/common.sh"
+
+show_all=false
+show_pr=false
+paths_only=false
+scan_arg=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) bc_usage 0 ;;
+    -a|--all) show_all=true ;;
+    --pr) show_pr=true ;;
+    --paths) paths_only=true ;;
+    -*) bc_abort "unknown option: $1" ;;
+    *)
+      [[ -z "$scan_arg" ]] || bc_usage 2
+      scan_arg="$1"
+      ;;
+  esac
+  shift
+done
+
+scan_root="$(bc_scan_root "$scan_arg")" || bc_abort "not a directory: $scan_arg"
+
+#
+# Gather
+#
+
+if [[ "$show_all" == true ]]; then
+  mapfile -t dirs < <(bc_repo_dirs "$scan_root")
+else
+  mapfile -t dirs < <(bc_clone_dirs "$scan_root")
+fi
+
+if [[ "$paths_only" == true ]]; then
+  if (( ${#dirs[@]} > 0 )); then
+    printf '%s\n' "${dirs[@]}"
+  fi
+  exit 0
+fi
+
+if (( ${#dirs[@]} == 0 )); then
+  bc_info "no branch clones under $scan_root"
+  exit 0
+fi
+
+#
+# Report
+#
+
+printf '\033[1m%-7s %-30s %-10s %s\033[0m\n' "STATUS" "BRANCH" "UPSTREAM" "CLONE"
+
+for dir in "${dirs[@]}"; do
+  branch="$(bc_current_branch "$dir")"
+  [[ -n "$branch" ]] || branch="(detached)"
+
+  if git -C "$dir" diff --quiet 2>/dev/null && git -C "$dir" diff --cached --quiet 2>/dev/null; then
+    status="clean"
+    colour="32"
+  else
+    status="dirty"
+    colour="33"
+  fi
+
+  # With A...B, --left-right counts commits only in A (behind) then only in B
+  # (ahead). Empty when the branch has no upstream.
+  counts="$(git -C "$dir" rev-list --left-right --count '@{upstream}...HEAD' 2>/dev/null || true)"
+  if [[ -n "$counts" ]]; then
+    read -r behind ahead <<< "$counts"
+    upstream="+$ahead/-$behind"
+  else
+    upstream="none"
+  fi
+
+  label="$(basename "$dir")"
+  bc_is_branch_clone "$dir" || label="$label (base)"
+
+  printf '\033[%sm%-7s\033[0m %-30s %-10s %s' "$colour" "$status" "$branch" "$upstream" "$label"
+
+  if [[ "$show_pr" == true ]]; then
+    pr_state="$(bc_gh_pr_state "$dir" "$branch")"
+    [[ -n "$pr_state" ]] && printf '  [%s]' "$pr_state"
+  fi
+
+  printf '\n'
+done
