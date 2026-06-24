@@ -325,8 +325,12 @@ setup_npm_globals() {
     abort "Missing 1Password env template: $template_path"
   fi
 
+  # @google/gemini-cli is installed from npm rather than Homebrew: the brew
+  # formula is deprecated upstream, lags several minor versions, and is disabled
+  # from 2026-12-18. Arch has a current package, so Omarchy uses that instead.
   local global_packages=(
     @sidwood/timecraft
+    @google/gemini-cli
   )
 
   echo "Installing global packages with pnpm..."
@@ -338,7 +342,7 @@ setup_npm_globals() {
 
   # Binaries the packages above expose
   local cmd
-  for cmd in tc; do
+  for cmd in tc gemini; do
     if command -v "$cmd" >/dev/null 2>&1; then
       echo "Installed $cmd -> $(command -v "$cmd")"
     else
