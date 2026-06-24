@@ -61,6 +61,7 @@ brew "zoxide"
 # cli applications
 cask "1password-cli"
 cask "claude-code"
+cask "gcloud-cli"
 
 # gui applications
 cask "1password"
@@ -81,6 +82,7 @@ cask "insomnia"
 cask "iterm2"
 cask "lm-studio"
 cask "microsoft-edge"
+cask "microsoft-teams"
 cask "mongodb-compass"
 cask "mstystudio"
 cask "obsidian"
