@@ -148,7 +148,7 @@ uninstall_arch_packages() {
   fi
 
   # AUR packages
-  local aur_pkgs=(gifski heroku-cli-bin lm-studio-bin msty-studio-bin)
+  local aur_pkgs=(gifski google-cloud-cli heroku-cli-bin lm-studio-bin msty-studio-bin)
   for pkg in "${aur_pkgs[@]}"; do
     if pacman -Q "$pkg" &>/dev/null; then
       yay -Rns --noconfirm "$pkg" 2>/dev/null || true

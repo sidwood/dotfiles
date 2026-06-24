@@ -34,6 +34,7 @@ run install-vale.sh
 run install-aws-cli.sh
 run install-azure-cli.sh
 run install-codex.sh
+run install-gcloud-cli.sh
 run install-gh.sh
 run install-heroku-cli.sh
 
