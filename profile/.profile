@@ -52,3 +52,6 @@ export GITHUB_REGISTRY_TOKEN="op://Personal/GitHub Registry Token/token"
 
 # add lm studio cli (lms)
 export PATH="$PATH:/Users/sidwood/.lmstudio/bin"
+
+# Custom executables (bin/ stow package) and locally installed tools
+export PATH="$HOME/.local/bin:$PATH"
