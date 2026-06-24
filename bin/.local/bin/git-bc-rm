@@ -14,6 +14,11 @@
 # Refuses by default to touch a base clone (one with no bc.source), a clone whose
 # work exists nowhere else, or the clone the current shell is sitting in.
 #
+# "Nowhere else" is measured against the seed as well as the remote: a branch
+# cloned before it was pushed sits above every remote ref yet risks nothing,
+# because the seed still holds it. A seed that has gone missing falls back to
+# comparing against the remote alone.
+#
 # Devcontainer containers belonging to the clone are removed first, since they
 # outlive the directory they were built from.
 
@@ -82,9 +87,30 @@ if [[ "$force" != true ]]; then
       bc_abort "nothing to compare '$branch' against in $target (use --force to override)"
     fi
 
-    unmerged="$(git -C "$target" rev-list --count "$base..HEAD" 2>/dev/null || echo 1)"
-    (( unmerged == 0 )) \
-      || bc_abort "$target has $unmerged commit(s) on '$branch' not in $base (use --force to override)"
+    unmerged_list="$(git -C "$target" rev-list "$base..HEAD" 2>/dev/null)" \
+      || bc_abort "could not compare '$branch' against $base in $target (use --force to override)"
+
+    if [[ -n "$unmerged_list" ]]; then
+      # Sitting above $base is not the same as being at risk. A branch cloned
+      # before it was pushed always looks unmerged, yet every commit is still in
+      # the seed. Only commits the seed lacks would die with this directory.
+      seed="$(git -C "$target" config --local --get bc.source 2>/dev/null || true)"
+      unmerged="$(printf '%s\n' "$unmerged_list" | wc -l | tr -d ' ')"
+      orphans="$unmerged"
+
+      if [[ -n "$seed" ]] && bc_is_git_repo "$seed"; then
+        orphans=0
+        while IFS= read -r sha; do
+          [[ -n "$sha" ]] || continue
+          git -C "$seed" cat-file -e "$sha" 2>/dev/null || orphans=$(( orphans + 1 ))
+        done <<< "$unmerged_list"
+      fi
+
+      (( orphans == 0 )) \
+        || bc_abort "$target has $orphans commit(s) on '$branch' held nowhere else (use --force to override)"
+
+      bc_info "$unmerged commit(s) above $base, all present in the seed"
+    fi
   fi
 fi
 

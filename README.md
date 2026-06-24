@@ -162,6 +162,14 @@ also refuses a clone with uncommitted work, one holding commits that exist
 nowhere else, or the one the current shell is sitting in — `--force` overrides
 the first three, nothing overrides the last.
 
+"Nowhere else" counts the seed, not just the remote. A branch cloned before it
+was pushed sits above every remote ref while risking nothing, since the seed
+still holds every commit; refusing there would mean reaching for `--force` on
+routine cleanup, which is how the one clone that mattered eventually gets
+deleted. Commits absent from both the remote and the seed still block removal,
+and a seed that has since been moved or deleted falls back to comparing against
+the remote alone.
+
 Three per-repo config keys, all set on the base clone:
 
 - `bc.source` - written by `gbca`; marks a directory as a branch clone
