@@ -113,6 +113,37 @@ Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Uninstall vim plugins.
 ```
 
+## SSH server (sshd)
+
+OpenSSH is installed by the package steps (`Brewfile` on macOS, `openssh` on
+Omarchy). The SSH daemon is **not** enabled automatically on either platform.
+
+### Enable sshd on Omarchy
+
+```bash
+sudo systemctl enable --now sshd
+sudo ufw allow ssh   # only if you need inbound SSH through the firewall
+```
+
+To disable later:
+
+```bash
+sudo systemctl disable --now sshd
+sudo ufw delete allow ssh
+```
+
+### Enable sshd on macOS
+
+Prefer Apple’s built-in Remote Login (system `sshd`), not Homebrew’s `openssh`
+daemon:
+
+- **GUI:** System Settings → General → Sharing → Remote Login
+- **CLI:** `sudo systemsetup -setremotelogin on`
+
+Check status with `sudo systemsetup -getremotelogin` or
+`sudo launchctl print system/com.openssh.sshd`. Turn it off with
+`sudo systemsetup -setremotelogin off`.
+
 ## Neovim on Omarchy
 
 Omarchy ships with a default [LazyVim](https://www.lazyvim.org/) configuration
