@@ -59,6 +59,7 @@ run install-lazydocker.sh
 run install-cursor.sh
 run install-lm-studio.sh
 run install-msty-studio.sh
+run install-telegram.sh
 run install-zed.sh
 
 # Environment tools

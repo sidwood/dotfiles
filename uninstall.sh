@@ -156,7 +156,7 @@ uninstall_arch_packages() {
   done
 
   # Official packages (only those we explicitly installed)
-  local official_pkgs=(zsh tmux stow aws-cli-v2 azure-cli cmatrix difftastic elixir erlang ffmpeg git-filter-repo make ollama tree yazi)
+  local official_pkgs=(zsh tmux stow aws-cli-v2 azure-cli cmatrix difftastic elixir erlang ffmpeg git-filter-repo make ollama telegram-desktop tree yazi)
   for pkg in "${official_pkgs[@]}"; do
     if pacman -Q "$pkg" &>/dev/null; then
       sudo pacman -Rns --noconfirm "$pkg" 2>/dev/null || true
