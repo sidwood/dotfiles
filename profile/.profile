@@ -31,8 +31,15 @@ export PATH=./node_modules/.bin:$PATH
 # professional cow-free environment
 export ANSIBLE_NOCOWS=1
 
-# npm XDG config location
+# npm XDG config location (pnpm honours this too, so private registry auth works)
 export NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/npm/npmrc"
+
+# pnpm installs the global packages. Set PNPM_HOME explicitly: pnpm otherwise
+# defaults to ~/Library/pnpm on macOS, and refuses to install globally at all
+# unless its bin directory is on PATH. That directory is $PNPM_HOME/bin, not
+# $PNPM_HOME itself.
+export PNPM_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/pnpm"
+export PATH="$PNPM_HOME/bin:$PATH"
 
 # get my gopher on
 export GOPATH=$HOME/code/golang
