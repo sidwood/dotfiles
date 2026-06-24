@@ -14,12 +14,11 @@
 
 ## Source Of Truth
 - User-facing docs: `README.md`
-- Install entrypoint: `install.sh`
-- Uninstall entrypoint: `uninstall.sh`
+- Install/uninstall entrypoints: `install.sh`, `uninstall.sh`
 - macOS packages/apps: `Brewfile`
 - Omarchy packages: `install/omarchy/packages/install-all.sh` + `install-*.sh`
 - macOS defaults: `macos/defaults.sh`
-- Custom executables: `bin/.local/bin/` (+ sourced helpers in `bin/.local/share/`)
+- Custom executables: `bin/.local/bin/`, sourced helpers in `bin/.local/share/<tool>/`
 - Global agent memory (every repo, every harness): `agents/.config/agents/AGENTS.md`. This file covers the dotfiles repo only.
 
 ## Platform Model
@@ -45,28 +44,16 @@
 - Cursor is the exception to plain markdown: `~/.cursor/rules/*.mdc`, auto-applied only with `alwaysApply: true` frontmatter, which the shared file deliberately omits. Kimi is absent by design — working-directory `AGENTS.md` only (MoonshotAI/kimi-cli#2152).
 
 ## Custom Executable Pattern
-- Cross-platform scripts live in `bin/.local/bin/` (mode 755, no extension); `omarchy/.local/bin/` is macOS-skipped and Omarchy-only.
-- Use `#!/usr/bin/env bash`, not `#!/bin/bash`: macOS `/bin/bash` is 3.2.
-- Shared code goes in `bin/.local/share/<tool>/` (mode 644), sourced via `"$(dirname "$0")/../share/<tool>/lib.sh"` so it resolves both stowed and in-repo.
-- Avoid GNU-only flags; macOS has BSD `realpath`, `sed`, `find` (no `realpath -m`).
-- Lint with `shellcheck -x`; add `# shellcheck source-path=SCRIPTDIR source=...` before a `source` and `# shellcheck shell=bash` atop sourced fragments.
+- `#!/usr/bin/env bash`, never `#!/bin/bash`: macOS `/bin/bash` is 3.2.
+- Mode 755, no extension; shared fragments 644, sourced as `"$(dirname "$0")/../share/<tool>/lib.sh"` so the path resolves both stowed and in-repo.
+- Omarchy-only executables go in `omarchy/.local/bin/` instead.
+- No GNU-only flags; macOS ships BSD `realpath`, `sed`, `find` (no `realpath -m`).
+- shellcheck directives: `# shellcheck source-path=SCRIPTDIR source=...` before a `source`, `# shellcheck shell=bash` atop sourced fragments.
 
 ## Omarchy Package Script Pattern
-Use the existing structure:
-
-```bash
-#!/bin/bash
-set -e
-
-omarchy-pkg-add repo-package-name
-echo "... installed successfully"
-```
-
-Notes:
-- No guard clause needed; `omarchy-pkg-add` and `omarchy-pkg-aur-add` are already idempotent (they check `omarchy-pkg-missing` and pass `--needed`).
-- Prefer one package concern per `install/omarchy/packages/install-*.sh`.
-- Add new scripts to `install/omarchy/packages/install-all.sh` in the correct section.
-- If package naming is unclear, verify against official package indexes before editing.
+- Mirror an existing `install/omarchy/packages/install-*.sh`; one package concern each.
+- No guard clause needed — `omarchy-pkg-add` / `omarchy-pkg-aur-add` are already idempotent (`omarchy-pkg-missing` + `--needed`).
+- Verify package names against the official indexes before editing.
 
 ## Package Change Checklist
 1. macOS: update `Brewfile` (`brew` for CLI libs/tools, `cask` for GUI/apps).
@@ -85,8 +72,6 @@ Notes:
 - Optionally on macOS: `brew bundle check --file=Brewfile`
 
 ## Operational Notes
-- Global packages install with **pnpm**, not npm. pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`, repeated in `setup_npm_globals` for first runs that have not sourced it. pnpm honours `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
-- Local secrets template is `shell/.config/shell/local.env.tpl`; `install.sh` resolves it with 1Password, writes `~/.config/shell/local.env` (gitignored), and sources it into the install process.
-- `install.sh` local env generation / npm globals may block in sandbox/non-interactive environments until 1Password CLI auth is completed.
-- Order matters for first-run npm globals: stow (npmrc) → local env → mise (node/npm) → npm globals; the script aborts if any of those prerequisites are missing.
-- Prefer idempotent shell changes and existing conventions over new abstractions.
+Non-obvious constraints only; the mechanics are in `install.sh`.
+- pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`, repeated in `setup_npm_globals` for first runs that have not sourced it. pnpm honours `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
+- `install.sh` blocks on 1Password CLI auth in sandboxed or non-interactive environments.
