@@ -27,6 +27,7 @@ brew "gh"
 brew "gifski"
 brew "git-filter-repo"
 brew "git"
+brew "herdr", restart_service: :changed
 brew "heroku"
 brew "htop"
 brew "imagemagick"
