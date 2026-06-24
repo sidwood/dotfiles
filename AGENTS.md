@@ -65,7 +65,8 @@ Notes:
 - Optionally on macOS: `brew bundle check --file=Brewfile`
 
 ## Operational Notes
-- `npm` globals step depends on 1Password CLI and uses: `op run -- npm install -g @sidwood/timecraft`.
-- Local secrets template is `shell/.config/shell/local.env.tpl`; `install.sh` resolves it with 1Password and writes `~/.config/shell/local.env` (gitignored).
-- `install.sh` local env generation may block in sandbox/non-interactive environments until 1Password CLI auth is completed.
+- `npm` globals step depends on 1Password CLI, stowed `~/.config/npm/npmrc`, and mise Node. It runs: `op run --env-file=shell/.config/shell/local.env.tpl -- npm install -g @sidwood/timecraft` (exposes `tc`).
+- Local secrets template is `shell/.config/shell/local.env.tpl`; `install.sh` resolves it with 1Password, writes `~/.config/shell/local.env` (gitignored), and sources it into the install process.
+- `install.sh` local env generation / npm globals may block in sandbox/non-interactive environments until 1Password CLI auth is completed.
+- Order matters for first-run npm globals: stow (npmrc) → local env → mise (node/npm) → npm globals; the script aborts if any of those prerequisites are missing.
 - Prefer idempotent shell changes and existing conventions over new abstractions.

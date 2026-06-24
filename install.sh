@@ -285,16 +285,44 @@ setup_mise() {
   echo "Installing Ruby..."
   mise use --global ruby@latest
 
+  # Activate so subsequent steps in this process can find node/npm
+  eval "$(mise activate bash)"
+
   echo "Mise setup complete. Installed versions:"
   mise list
 }
 
 setup_npm_globals() {
-  command -v npm >/dev/null 2>&1 || abort 'npm required (install mise runtimes first)'
   command -v op >/dev/null 2>&1 || abort '1Password CLI required (install Homebrew packages first)'
 
+  # Ensure mise-managed tools are on PATH even if mise step was skipped this run
+  if command -v mise >/dev/null 2>&1; then
+    eval "$(mise activate bash)" 2>/dev/null || true
+  fi
+  command -v npm >/dev/null 2>&1 || abort 'npm required (install mise runtimes first)'
+
+  # GitHub Packages auth comes from stowed npmrc + GITHUB_REGISTRY_TOKEN
+  if [[ ! -f "$HOME/.config/npm/npmrc" ]]; then
+    abort 'npm config missing (~/.config/npm/npmrc). Select "Symlink dotfile packages with GNU Stow" first.'
+  fi
+
+  local template_path="$PWD/shell/.config/shell/local.env.tpl"
+  if [[ ! -f "$template_path" ]]; then
+    abort "Missing 1Password env template: $template_path"
+  fi
+
   echo "Installing global npm packages..."
-  op run -- npm install -g @sidwood/timecraft
+  # --env-file resolves op:// refs for this subprocess only (works on first run
+  # even when local.env has not been sourced into the parent shell)
+  if ! op run --env-file="$template_path" -- npm install -g @sidwood/timecraft; then
+    abort 'Failed to install global npm packages (check 1Password CLI auth and GitHub Registry Token)'
+  fi
+
+  if command -v tc >/dev/null 2>&1; then
+    echo "Installed tc -> $(command -v tc)"
+  else
+    printf "\033[33mWarning: @sidwood/timecraft installed but tc not on PATH in this session\033[0m\n"
+  fi
 }
 
 setup_local_shell_env() {
@@ -319,6 +347,11 @@ setup_local_shell_env() {
   if op inject -i "$template_path" > "$tmp_path"; then
     mv "$tmp_path" "$target_path"
     chmod 600 "$target_path"
+    # Load into this install process for any later steps that need the vars
+    set -a
+    # shellcheck disable=SC1090
+    source "$target_path"
+    set +a
     echo "Wrote $target_path"
   else
     rm -f "$tmp_path"
