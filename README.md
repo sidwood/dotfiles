@@ -56,6 +56,7 @@ packages. Each top-level directory is a package that gets symlinked to `$HOME`.
 ```
 dotfiles/
 ├── bash/           # Bash config (macOS only, skipped on Omarchy)
+├── bin/            # Custom executables on PATH via ~/.local/bin
 ├── ghostty/        # Ghostty terminal config
 ├── git/            # Git config and global ignore
 ├── htop/           # htop process viewer config
@@ -111,6 +112,55 @@ Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 > [x] Uninstall Omarchy packages and standalone tools.
   [x] Remove dotfile package symlinks with GNU Stow.
   [x] Uninstall vim plugins.
+```
+
+## Git Branch Clones
+
+An alternative to `git worktree`, following Avdi Grimm's
+[You probably don't need git worktrees](https://avdi.codes/you-probably-dont-need-git-worktrees/).
+Worktrees bake absolute paths into config files, which breaks containers and
+makes them awkward to move. A plain local clone has none of those problems, and
+git hardlinks the object files when cloning locally — so a second copy of a repo
+is near-instant and costs almost no disk.
+
+The `bin/` package wraps the bookkeeping in five commands:
+
+```bash
+gbca ~/code/myapp feature-x   # clone ~/code/myapp -> ~/code/myapp.feature-x
+gbc                           # list branch clones, with status and ahead/behind
+gbc --pr                      # same, plus each branch's PR state from gh
+gbcd                          # fzf-pick a branch clone and cd into it
+gbcs                          # re-sync ignored local files from the source
+gbcr ~/code/myapp.feature-x   # remove one clone, with safety checks
+gbcp --dry-run                # show which clones have landed and can go
+gbcp                          # remove the clones whose PRs merged or closed
+```
+
+Each has a long form as a git subcommand — `git bc-add`, `git bc-list`,
+`git bc-sync-extras`, `git bc-rm`, `git bc-prune`. Use `-h` for usage: git
+intercepts `--help` on a subcommand and looks for a man page instead.
+
+`gbca` clones from a local seed, repoints `origin` at the real remote so nothing
+depends on the seed, checks out or creates the branch, and copies across the
+gitignored files a fresh clone needs (`.env` and variants, `.envrc`, Rails
+credentials keys, `docker-compose.override.yml`, `Procfile.local`, mise local
+config). Rebuildable trees like `node_modules` are never copied.
+
+A clone is marked as a branch clone by a `bc.source` entry in its local git
+config. Base clones lack it, so `gbcr` and `gbcp` will not touch them. `gbcr`
+also refuses a clone with uncommitted work, one holding commits that exist
+nowhere else, or the one the current shell is sitting in — `--force` overrides
+the first three, nothing overrides the last.
+
+Three per-repo config keys, all set on the base clone:
+
+- `bc.source` - written by `gbca`; marks a directory as a branch clone
+- `bc.postadd` - command run in a new clone once the branch is checked out
+- `bc.extras` - extra file patterns for `gbcs` to copy (repeatable)
+
+```bash
+git -C ~/code/myapp config bc.postadd 'mise install && npm ci'
+git -C ~/code/myapp config --add bc.extras 'config/local.yml'
 ```
 
 ## SSH server (sshd)
