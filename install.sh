@@ -254,6 +254,66 @@ stow_dotfiles() {
       [[ -f "$snippet" ]] && ln -sf "$snippet" "$cursor_user_path/snippets/$(basename "$snippet")"
     done
   fi
+
+  # Depends on the agents package having just been stowed
+  link_agent_memory
+}
+
+link_agent_memory() {
+  local canonical="$HOME/.config/agents/AGENTS.md"
+
+  if [[ ! -e "$canonical" ]]; then
+    echo "Skipping agent memory links (agents package not stowed)"
+    return 0
+  fi
+
+  # <command>|<global instructions path>. Every harness reads a different
+  # filename in a different place, so rather than keep a copy per tool we keep
+  # one file and point them all at it. Add a harness by adding a line.
+  #
+  # Paths verified against the tools themselves: codex (binary references
+  # ~/.codex/AGENTS.md), grok (its shipped docs/user-guide), opencode (config
+  # root ~/.config/opencode), pi (global context lives in agentDir, default
+  # ~/.pi/agent). claude and gemini follow each vendor's documented path.
+  # Cursor's home-level rules are .mdc files in ~/.cursor/rules/. The shared
+  # file carries no alwaysApply frontmatter, so enable the rule in Cursor.
+  #
+  # Deliberately absent: kimi. It only reads AGENTS.md from the working
+  # directory — global support is an open, unimplemented request
+  # (MoonshotAI/kimi-cli#2152). Add "kimi|$HOME/.kimi/AGENTS.md" when it lands.
+  local harnesses=(
+    "claude|$HOME/.claude/CLAUDE.md"
+    "codex|$HOME/.codex/AGENTS.md"
+    "grok|$HOME/.grok/AGENTS.md"
+    "opencode|$HOME/.config/opencode/AGENTS.md"
+    "cursor|$HOME/.cursor/rules/global-agent-memory.mdc"
+    "gemini|$HOME/.gemini/GEMINI.md"
+    "pi|$HOME/.pi/agent/AGENTS.md"
+  )
+
+  echo "Linking global agent memory"
+  local entry cmd target
+  for entry in "${harnesses[@]}"; do
+    cmd="${entry%%|*}"
+    target="${entry#*|}"
+
+    # Only touch harnesses that are actually here, so $HOME does not collect
+    # config directories for tools that were never installed.
+    if ! command -v "$cmd" >/dev/null 2>&1 && [[ ! -d "$(dirname "$target")" ]]; then
+      continue
+    fi
+
+    if [[ -L "$target" ]]; then
+      [[ "$(readlink "$target")" == "$canonical" ]] && continue
+    elif [[ -e "$target" ]]; then
+      echo "  Backing up existing ${target##*/} to ${target}.bak"
+      mv "$target" "${target}.bak"
+    fi
+
+    mkdir -p "$(dirname "$target")"
+    ln -sfn "$canonical" "$target"
+    echo "  ${cmd} -> ~/${target#"$HOME"/}"
+  done
 }
 
 install_vim_plugins() {
@@ -349,6 +409,9 @@ setup_npm_globals() {
       printf "\033[33mWarning: %s installed but not on PATH in this session\033[0m\n" "$cmd"
     fi
   done
+
+  # gemini may have just appeared, so its global memory link can now be made
+  link_agent_memory
 }
 
 setup_local_shell_env() {
