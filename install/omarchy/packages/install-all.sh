@@ -16,6 +16,7 @@ echo "Installing Omarchy packages..."
 run install-zsh.sh
 run install-tmux.sh
 run install-stow.sh
+run install-openssh.sh
 
 # Development tools
 run install-biome.sh
