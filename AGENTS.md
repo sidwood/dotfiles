@@ -31,6 +31,7 @@
 - Most top-level dirs are Stow packages into `$HOME`.
 - `install.sh` skips `macos/`, `alfred/`, `install/`.
 - On Omarchy, `bash/` is skipped.
+- On macOS, `omarchy/` is skipped.
 - On macOS, `cursor/` is skipped by Stow and linked manually to `~/Library/Application Support/Cursor/User`.
 
 ## Omarchy Package Script Pattern

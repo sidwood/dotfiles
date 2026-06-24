@@ -236,6 +236,8 @@ stow_dotfiles() {
     [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "install/" ]] && continue
     # Skip bash on Omarchy (it manages ~/.bashrc)
     is_omarchy && [[ "$pkg" == "bash/" ]] && continue
+    # Skip omarchy package on macOS (Hyprland/Omarchy-only overrides)
+    is_macos && [[ "$pkg" == "omarchy/" ]] && continue
     # Skip cursor on macOS (handled separately below due to non-XDG path)
     is_macos && [[ "$pkg" == "cursor/" ]] && continue
     stow -v -t "$HOME" "${pkg%/}"
