@@ -8,8 +8,9 @@
 #   <source>  Existing clone to seed from. Git hardlinks the object files when
 #             the target lands on the same filesystem, so this costs no network
 #             transfer and almost no disk.
-#   <branch>  Branch to check out. Tracked from origin/<branch> when a
-#             remote-tracking ref exists, otherwise created from HEAD.
+#   <branch>  Branch to check out. The seed's own copy wins when it has one,
+#             including unpushed commits and branches never pushed at all;
+#             otherwise origin/<branch>, otherwise a new branch off HEAD.
 #   [target]  Directory for the new clone. Defaults to a sibling of <source>
 #             named <source>.<branch>, with slashes flattened to dashes.
 #
@@ -68,21 +69,58 @@ remote_url="$(bc_real_remote_url "$source_abs")" \
 # Clone
 #
 
+# Put the seed on the requested branch before cloning. A local clone only
+# materialises the seed's HEAD branch; the seed's other branches arrive as
+# remote-tracking refs, and the --prune below deletes any the server has never
+# seen. Cloning from the branch itself sidesteps that entirely.
+seed_restore=""
+restore_seed() {
+  [[ -n "$seed_restore" ]] || return 0
+  git -C "$source_abs" checkout --quiet "$seed_restore" 2>/dev/null \
+    || bc_warn "could not restore '$seed_restore' in $source_abs"
+  seed_restore=""
+}
+trap restore_seed EXIT
+
+if git -C "$source_abs" show-ref --verify --quiet "refs/heads/$branch"; then
+  seed_head="$(git -C "$source_abs" symbolic-ref --short HEAD 2>/dev/null \
+    || git -C "$source_abs" rev-parse HEAD)"
+  if [[ "$seed_head" != "$branch" ]]; then
+    if ! git -C "$source_abs" diff --quiet || ! git -C "$source_abs" diff --cached --quiet; then
+      bc_abort "$source_abs has uncommitted changes — commit or stash before cloning '$branch'"
+    fi
+    bc_info "checking out '$branch' in the seed"
+    git -C "$source_abs" checkout --quiet "$branch" \
+      || bc_abort "could not check out '$branch' in $source_abs"
+    seed_restore="$seed_head"
+  fi
+fi
+
 bc_info "seeding from $source_abs (hardlinks when on the same filesystem)"
 git clone --local "$source_abs" "$target"
+
+# Hand the seed back before the slower steps below.
+restore_seed
 
 # Repoint origin at the server so fetches and pushes bypass the seed, then pick
 # up anything that landed after the seed was last fetched.
 git -C "$target" remote set-url origin "$remote_url"
 git -C "$target" fetch origin --prune
 
-# Track the remote branch when it exists, else reuse a local ref that came
-# across in the clone, else branch from HEAD.
-if git -C "$target" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+# The clone already sits on the branch when the seed had one. Otherwise track
+# the server's copy, else start a new branch off HEAD.
+if git -C "$target" show-ref --verify --quiet "refs/heads/$branch"; then
+  git -C "$target" checkout "$branch"
+
+  if git -C "$target" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    git -C "$target" branch --set-upstream-to "origin/$branch" "$branch" >/dev/null
+    behind="$(git -C "$target" rev-list --count "$branch..origin/$branch")"
+    (( behind == 0 )) \
+      || bc_warn "seed's '$branch' is $behind commit(s) behind origin/$branch — the seed's copy was used"
+  fi
+elif git -C "$target" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
   git -C "$target" checkout --track "origin/$branch" 2>/dev/null \
     || git -C "$target" checkout "$branch"
-elif git -C "$target" show-ref --verify --quiet "refs/heads/$branch"; then
-  git -C "$target" checkout "$branch"
 else
   git -C "$target" checkout -b "$branch"
 fi

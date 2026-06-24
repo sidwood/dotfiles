@@ -142,10 +142,19 @@ Each has a long form as a git subcommand — `git bc-add`, `git bc-list`,
 intercepts `--help` on a subcommand and looks for a man page instead.
 
 `gbca` clones from a local seed, repoints `origin` at the real remote so nothing
-depends on the seed, checks out or creates the branch, and copies across the
-gitignored files a fresh clone needs (`.env` and variants, `.envrc`, Rails
-credentials keys, `docker-compose.override.yml`, `Procfile.local`, mise local
-config). Rebuildable trees like `node_modules` are never copied.
+depends on the seed, and copies across the gitignored files a fresh clone needs
+(`.env` and variants, `.envrc`, Rails credentials keys,
+`docker-compose.override.yml`, `Procfile.local`, mise local config). Rebuildable
+trees like `node_modules` are never copied.
+
+The seed's own copy of a branch always wins, unpushed commits included. If the
+seed has the branch but is parked elsewhere, `gbca` checks it out in the seed
+before cloning and restores the previous branch afterwards; a seed with
+uncommitted changes is refused rather than disturbed. This matters because a
+local clone only materialises the source's *current* branch — the rest arrive as
+remote-tracking refs, which the first `fetch --prune` deletes whenever the server
+has never seen them. Branches that exist only on the server are tracked as
+normal, and a name that exists nowhere starts a new branch off the seed's HEAD.
 
 A clone is marked as a branch clone by a `bc.source` entry in its local git
 config. Base clones lack it, so `gbcr` and `gbcp` will not touch them. `gbcr`
