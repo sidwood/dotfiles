@@ -302,9 +302,20 @@ setup_npm_globals() {
   if command -v mise >/dev/null 2>&1; then
     eval "$(mise activate bash)" 2>/dev/null || true
   fi
-  command -v npm >/dev/null 2>&1 || abort 'npm required (install mise runtimes first)'
+  command -v pnpm >/dev/null 2>&1 || abort 'pnpm required (install mise runtimes first)'
 
-  # GitHub Packages auth comes from stowed npmrc + GITHUB_REGISTRY_TOKEN
+  # pnpm refuses to install globally unless its bin directory ($PNPM_HOME/bin,
+  # not $PNPM_HOME) exists and is on PATH. .profile exports this too, but a
+  # first run may not have sourced it yet.
+  export PNPM_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/pnpm"
+  mkdir -p "$PNPM_HOME/bin"
+  case ":$PATH:" in
+    *":$PNPM_HOME/bin:"*) ;;
+    *) export PATH="$PNPM_HOME/bin:$PATH" ;;
+  esac
+
+  # GitHub Packages auth comes from stowed npmrc + GITHUB_REGISTRY_TOKEN.
+  # pnpm reads it via NPM_CONFIG_USERCONFIG, same as npm.
   if [[ ! -f "$HOME/.config/npm/npmrc" ]]; then
     abort 'npm config missing (~/.config/npm/npmrc). Select "Symlink dotfile packages with GNU Stow" first.'
   fi
@@ -314,18 +325,26 @@ setup_npm_globals() {
     abort "Missing 1Password env template: $template_path"
   fi
 
-  echo "Installing global npm packages..."
+  local global_packages=(
+    @sidwood/timecraft
+  )
+
+  echo "Installing global packages with pnpm..."
   # --env-file resolves op:// refs for this subprocess only (works on first run
   # even when local.env has not been sourced into the parent shell)
-  if ! op run --env-file="$template_path" -- npm install -g @sidwood/timecraft; then
-    abort 'Failed to install global npm packages (check 1Password CLI auth and GitHub Registry Token)'
+  if ! op run --env-file="$template_path" -- pnpm add -g "${global_packages[@]}"; then
+    abort 'Failed to install global packages (check 1Password CLI auth and GitHub Registry Token)'
   fi
 
-  if command -v tc >/dev/null 2>&1; then
-    echo "Installed tc -> $(command -v tc)"
-  else
-    printf "\033[33mWarning: @sidwood/timecraft installed but tc not on PATH in this session\033[0m\n"
-  fi
+  # Binaries the packages above expose
+  local cmd
+  for cmd in tc; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      echo "Installed $cmd -> $(command -v "$cmd")"
+    else
+      printf "\033[33mWarning: %s installed but not on PATH in this session\033[0m\n" "$cmd"
+    fi
+  done
 }
 
 setup_local_shell_env() {

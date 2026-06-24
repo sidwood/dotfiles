@@ -77,7 +77,7 @@ Notes:
 - Optionally on macOS: `brew bundle check --file=Brewfile`
 
 ## Operational Notes
-- `npm` globals step depends on 1Password CLI, stowed `~/.config/npm/npmrc`, and mise Node. It runs: `op run --env-file=shell/.config/shell/local.env.tpl -- npm install -g @sidwood/timecraft` (exposes `tc`).
+- Global packages install with **pnpm**, not npm. pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`, repeated in `setup_npm_globals` for first runs that have not sourced it. pnpm honours `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
 - Local secrets template is `shell/.config/shell/local.env.tpl`; `install.sh` resolves it with 1Password, writes `~/.config/shell/local.env` (gitignored), and sources it into the install process.
 - `install.sh` local env generation / npm globals may block in sandbox/non-interactive environments until 1Password CLI auth is completed.
 - Order matters for first-run npm globals: stow (npmrc) → local env → mise (node/npm) → npm globals; the script aborts if any of those prerequisites are missing.
