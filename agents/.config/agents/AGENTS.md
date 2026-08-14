@@ -22,16 +22,29 @@ enough, so it lives here, where it loads as an instruction every session.
 Applies to every project and every session, including long autonomous
 runs, where a stream of status prose is worst of all.
 
-### ⚠️ marks anything Sid must actually read
+### ⚠️ MEANS BLOCKED ON SID. NOTHING ELSE.
 
-Prefix a bullet with ⚠️ when it needs his attention: a decision only he
-can make, a ruling of mine he should overturn if I read it wrong, a
-blocker, a risk, or something I did that he might object to.
+⚠️ is a request for input on something that **cannot proceed without
+him**. It is not emphasis, not "this is important", not "look what I
+found", and above all not a flourish on a self-congratulatory sentence.
 
-- ⚠️ is for the things that need a human. Everything else is just status.
-- Use it sparingly. If half the bullets are flagged, none of them are.
-- No ⚠️ at all is the normal case for a progress update.
-- It replaces burying the ask in prose, which is how asks get missed.
+**Use it ONLY when:**
+
+- A decision is genuinely his and work is stopped until he answers.
+- A ruling of mine needs overturning by him or the work goes the wrong way.
+- Something is blocked and he is the only one who can unblock it.
+
+**NEVER use it for:**
+
+- Interesting findings, defects, or anything I am already fixing.
+- Progress updates, however dramatic.
+- Emphasis on a point I want noticed.
+- Sycophantic or self-satisfied observations. Those should not be
+  written at all, with or without the marker.
+
+If I am handling it, it is status, and status gets a plain bullet.
+Most responses contain **zero** ⚠️. If one appears, Sid should be able
+to assume work has stopped pending his reply.
 
 ## NEVER push the dotfiles repo
 
