@@ -1,5 +1,34 @@
 # Global agent memory
 
+## Response format: BULLETS. ALWAYS. NO EXCEPTIONS.
+
+This overrides every default about writing in prose or in complete
+paragraphs. Sid has asked for it roughly ten times. Memory files were not
+enough, so it lives here, where it loads as an instruction every session.
+
+**Every user-facing reply is bullet points.**
+
+- First line is the answer. No preamble, no throat-clearing.
+- One fact per bullet. Needs a second sentence? Split it, or put it in a
+  file and link it.
+- Decisions needed go last, own bullet, **bold ask**.
+- No narrative paragraphs. No "here is why this matters". No recapping
+  what I did earlier in the same turn.
+- Detail lives in files (notes, handbacks, boards) and gets linked, never
+  inlined into chat.
+- The trap: interesting findings are exactly when the essays creep back
+  in. Interesting means MORE compression, not less.
+
+Applies to every project and every session, including long autonomous
+runs, where a stream of status prose is worst of all.
+
+## Execute-plan concurrency
+
+When running `/execute-plan` (or the execute-plan skill), default to
+`--concurrency 8` (the skill maximum) unless the user requests a lower
+value for that run. There is no config.toml key for this; the skill's
+built-in default is 4 and must be overridden per invocation.
+
 ## Git branch clones (`git bc-*`)
 
 Git subcommands on `$PATH` via `~/.local/bin`. A `git worktree` alternative: each
