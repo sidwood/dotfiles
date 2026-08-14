@@ -348,6 +348,9 @@ setup_mise() {
   echo "Installing pnpm..."
   mise use --global pnpm@latest
 
+  echo "Installing Flutter..."
+  mise use --global flutter@latest
+
   # Activate so subsequent steps in this process can find node/npm
   eval "$(mise activate bash)"
 
