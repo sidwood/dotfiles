@@ -44,7 +44,8 @@
 - Cursor is the exception to plain markdown: `~/.cursor/rules/*.mdc`, auto-applied only with `alwaysApply: true` frontmatter, which the shared file deliberately omits. Kimi is absent by design — working-directory `AGENTS.md` only (MoonshotAI/kimi-cli#2152).
 
 ## Custom Executable Pattern
-- `#!/usr/bin/env bash`, never `#!/bin/bash`: macOS `/bin/bash` is 3.2.
+- `#!/usr/bin/env bash`, never `#!/bin/bash`. This picks the first bash on PATH, which is no guarantee of a modern one — write for bash 3.2, since macOS `/bin/bash` is 3.2 and wins whenever Homebrew's bin is late on PATH or absent (as under `git <subcommand>` dispatch and some tooling).
+- Bash 3.2 means: no `mapfile`/`readarray`, no `declare -A`, no `${var^^}`/`${var,,}`, no namerefs; and write `${arr[@]+"${arr[@]}"}` wherever an array can be empty, because plain `"${arr[@]}"` under `set -u` is an unbound-variable error before 4.4. Test with `/bin/bash <script>`, not just `bash <script>`.
 - Mode 755, no extension; shared fragments 644, sourced as `"$(dirname "$0")/../share/<tool>/lib.sh"` so the path resolves both stowed and in-repo.
 - Omarchy-only executables go in `omarchy/.local/bin/` instead.
 - No GNU-only flags; macOS ships BSD `realpath`, `sed`, `find` (no `realpath -m`).
