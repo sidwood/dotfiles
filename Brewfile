@@ -65,6 +65,7 @@ brew "zoxide"
 # cli applications
 cask "1password-cli"
 cask "claude-code"
+cask "flutter"
 cask "gcloud-cli"
 cask "grok-build"
 
