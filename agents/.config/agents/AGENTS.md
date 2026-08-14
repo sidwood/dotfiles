@@ -22,6 +22,15 @@ enough, so it lives here, where it loads as an instruction every session.
 Applies to every project and every session, including long autonomous
 runs, where a stream of status prose is worst of all.
 
+## NEVER push the dotfiles repo
+
+Commit in `~/code/dotfiles` freely. **Never `git push` it.** Not when the
+work is finished, not when a commit looks trivially safe, not when asked
+to "wrap up". Sid pushes it himself, always.
+
+Stage by path only. `git add -A` there sweeps up unrelated work in
+progress, notably `ssh/` config.
+
 ## Execute-plan concurrency
 
 When running `/execute-plan` (or the execute-plan skill), default to
