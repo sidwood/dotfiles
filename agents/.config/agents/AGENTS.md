@@ -22,6 +22,17 @@ enough, so it lives here, where it loads as an instruction every session.
 Applies to every project and every session, including long autonomous
 runs, where a stream of status prose is worst of all.
 
+### ⚠️ marks anything Sid must actually read
+
+Prefix a bullet with ⚠️ when it needs his attention: a decision only he
+can make, a ruling of mine he should overturn if I read it wrong, a
+blocker, a risk, or something I did that he might object to.
+
+- ⚠️ is for the things that need a human. Everything else is just status.
+- Use it sparingly. If half the bullets are flagged, none of them are.
+- No ⚠️ at all is the normal case for a progress update.
+- It replaces burying the ask in prose, which is how asks get missed.
+
 ## NEVER push the dotfiles repo
 
 Commit in `~/code/dotfiles` freely. **Never `git push` it.** Not when the
