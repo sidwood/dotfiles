@@ -13,17 +13,15 @@
 #
 
 #
-# Interpreter guard
+# Interpreter floor: bash 3.2
 #
-# macOS ships bash 3.2 at /bin/bash. These scripts rely on 4.4+ behaviour
-# (expanding an empty array under `set -u`), so `env bash` must find newer.
+# macOS ships bash 3.2 at /bin/bash, and `git bc-add` and friends run under
+# whichever bash `env` finds first — which is the system one whenever Homebrew's
+# bin is late on PATH or absent, as it is under some tooling. So no bash 4
+# features here: no `mapfile` (read into the array in a loop instead), and every
+# array expansion that can be empty is written ${arr[@]+"${arr[@]}"}, because
+# plain "${arr[@]}" on an empty array is an unbound-variable error until 4.4.
 #
-
-if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
-  printf "\n \033[31mError: git-bc requires bash 4.4 or newer (found %s)\033[0m\n\n" \
-    "$BASH_VERSION" >&2
-  exit 1
-fi
 
 #
 # Script identity
@@ -276,7 +274,7 @@ bc_prune_devcontainers() {
     done < <(printf '%s\n' "${projects[@]}" | sort -u)
   fi
 
-  for cid in "${lone_ids[@]}"; do
+  for cid in ${lone_ids[@]+"${lone_ids[@]}"}; do
     all_ids+=("$cid")
   done
 

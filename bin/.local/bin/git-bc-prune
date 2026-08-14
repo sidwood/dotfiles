@@ -63,12 +63,15 @@ is_merged_locally() {
 # Scan
 #
 
-mapfile -t dirs < <(bc_repo_dirs "$scan_root")
+dirs=()
+while IFS= read -r dir; do
+  dirs+=("$dir")
+done < <(bc_repo_dirs "$scan_root")
 
 pruned=0
 skipped=0
 
-for dir in "${dirs[@]}"; do
+for dir in ${dirs[@]+"${dirs[@]}"}; do
   name="$(basename "$dir")"
 
   # Base clones are the seeds everything else was made from. Report them rather

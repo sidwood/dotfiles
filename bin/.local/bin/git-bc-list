@@ -48,10 +48,15 @@ scan_root="$(bc_scan_root "$scan_arg")" || bc_abort "not a directory: $scan_arg"
 #
 
 if [[ "$show_all" == true ]]; then
-  mapfile -t dirs < <(bc_repo_dirs "$scan_root")
+  lister=bc_repo_dirs
 else
-  mapfile -t dirs < <(bc_clone_dirs "$scan_root")
+  lister=bc_clone_dirs
 fi
+
+dirs=()
+while IFS= read -r dir; do
+  dirs+=("$dir")
+done < <("$lister" "$scan_root")
 
 if [[ "$paths_only" == true ]]; then
   if (( ${#dirs[@]} > 0 )); then
