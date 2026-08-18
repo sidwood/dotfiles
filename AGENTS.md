@@ -62,5 +62,5 @@
 
 ## Operational Notes
 Non-obvious constraints only; the mechanics are in `install.sh`.
-- pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`, repeated in `setup_npm_globals` for first runs that have not sourced it. pnpm honours `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
+- pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`, repeated in `setup_pnpm_globals` for first runs that have not sourced it. pnpm honours `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
 - `install.sh` blocks on 1Password CLI auth in sandboxed or non-interactive environments.

@@ -25,7 +25,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
   [x] Set up mise with default runtimes.
-  [x] Install global npm packages.
+  [x] Install global pnpm packages.
   [x] Install vim plugins.
 ```
 

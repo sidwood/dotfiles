@@ -50,8 +50,8 @@ options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
 options+=("Set up mise with default runtimes.")
 option_keys+=("mise")
-options+=("Install global npm packages.")
-option_keys+=("npm_globals")
+options+=("Install global pnpm packages.")
+option_keys+=("pnpm_globals")
 options+=("Install vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -324,7 +324,7 @@ setup_mise() {
   mise list
 }
 
-setup_npm_globals() {
+setup_pnpm_globals() {
   command -v op >/dev/null 2>&1 || abort '1Password CLI required (install Homebrew packages first)'
 
   # Ensure mise-managed tools are on PATH even if mise step was skipped this run
@@ -354,12 +354,13 @@ setup_npm_globals() {
     abort "Missing 1Password env template: $template_path"
   fi
 
-  # @google/gemini-cli is installed from npm rather than Homebrew: the brew
-  # formula is deprecated upstream, lags several minor versions, and is disabled
-  # from 2026-12-18.
+  # @google/gemini-cli and firecrawl-cli are installed with pnpm rather than
+  # Homebrew: gemini's brew formula is deprecated upstream, lags several minor
+  # versions, and is disabled from 2026-12-18; firecrawl-cli has no brew formula.
   local global_packages=(
     @sidwood/timecraft
     @google/gemini-cli
+    firecrawl-cli
   )
 
   echo "Installing global packages with pnpm..."
@@ -371,7 +372,7 @@ setup_npm_globals() {
 
   # Binaries the packages above expose
   local cmd
-  for cmd in tc gemini; do
+  for cmd in tc gemini firecrawl; do
     if command -v "$cmd" >/dev/null 2>&1; then
       echo "Installed $cmd -> $(command -v "$cmd")"
     else
@@ -454,8 +455,8 @@ if is_selected "mise"; then
   setup_mise
 fi
 
-if is_selected "npm_globals"; then
-  setup_npm_globals
+if is_selected "pnpm_globals"; then
+  setup_pnpm_globals
 fi
 
 if is_selected "vim"; then
