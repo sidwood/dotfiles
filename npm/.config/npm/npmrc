@@ -4,5 +4,5 @@ init-license=UNLICENSED
 init-version=0.0.0
 message=Bump to v%s
 
-@sidwood:registry=https://npm.pkg.github.com
+@sidwood:registry=https://npm.pkg.github.com/
 //npm.pkg.github.com/:_authToken=${GITHUB_REGISTRY_TOKEN}
