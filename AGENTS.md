@@ -12,6 +12,11 @@
 - For package/tool changes, update both platform flows or state why one side is intentionally skipped.
 - Keep edits surgical; do not refactor unrelated files.
 
+## Commit messages
+- `scope: Imperative subject` of 50 characters or fewer, blank line, body wrapped at 72 saying why.
+- Scope is a top-level directory or a short allowlist (`brew`, `doc`, `mise`, and similar). Compound scopes (`bash/zsh`) are fine.
+- A `commit-msg` hook at `.githooks/` rejects a missing scope, an uncapitalised first word, a trailing full stop, and AI attribution trailers. Bypass with `--no-verify`.
+
 ## Source Of Truth
 - User-facing docs: `README.md`
 - Install/uninstall entrypoints: `install.sh`, `uninstall.sh`

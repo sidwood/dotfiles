@@ -417,6 +417,11 @@ setup_npm_globals() {
   link_agent_memory
 }
 
+setup_repo_hooks() {
+  echo "Enabling repository git hooks"
+  git config core.hooksPath .githooks
+}
+
 setup_local_shell_env() {
   local template_path="$PWD/shell/.config/shell/local.env.tpl"
   local target_path="$HOME/.config/shell/local.env"
@@ -481,6 +486,7 @@ if is_selected "stow"; then
 fi
 
 setup_local_shell_env
+setup_repo_hooks
 
 if is_selected "mise"; then
   setup_mise

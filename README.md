@@ -14,7 +14,9 @@ cd dotfiles
 ```
 
 The install script presents an interactive menu where you can select which
-components to install. The available options vary by platform:
+components to install. It also points this repository's `core.hooksPath` at
+`.githooks` so the commit-msg house style is enforced. The available options
+vary by platform:
 
 ### macOS
 
