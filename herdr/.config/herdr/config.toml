@@ -1,0 +1,85 @@
+# Herdr 0.8 — Solarized Dark, tmux-first keys.
+# Palette matches Ghostty's solarized-dark.conf.
+
+onboarding = false
+
+[theme]
+name = "solarized"
+
+[theme.custom]
+accent = "#268bd2"
+panel_bg = "#002b36"
+surface0 = "#073642"
+surface1 = "#586e75"
+surface_dim = "#002b36"
+overlay0 = "#586e75"
+overlay1 = "#657b83"
+text = "#839496"
+subtext0 = "#586e75"
+mauve = "#d33682"
+green = "#859900"
+yellow = "#b58900"
+red = "#dc322f"
+blue = "#268bd2"
+teal = "#2aa198"
+peach = "#cb4b16"
+
+[keys]
+prefix = "ctrl+a"
+help = "prefix+?"
+reload_config = "prefix+r"
+resize_mode = "prefix+shift+r"
+detach = ["prefix+d", "prefix+q"]
+goto = "prefix+g"
+toggle_sidebar = ["prefix+b", "prefix+m"]
+new_tab = "prefix+c"
+rename_tab = ["prefix+comma", "prefix+shift+t"]
+# Tmux window nav: keep Ctrl held, tap A then H/L. Ctrl-H often arrives as Backspace.
+previous_tab = ["prefix+p", "prefix+ctrl+h", "prefix+backspace"]
+next_tab = ["prefix+n", "prefix+ctrl+l"]
+switch_tab = "prefix+1..9"
+copy_mode = "prefix+["
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+split_vertical = ["prefix+|", "prefix+backslash", "prefix+percent"]
+split_horizontal = ["prefix+minus", "prefix+_", "prefix+double_quote"]
+
+# Ctrl-A A sends a literal Ctrl-A into the focused pane (tmux send-prefix).
+# Double Ctrl-A remains Herdr's built-in fallback.
+[[keys.command]]
+key = "prefix+a"
+type = "shell"
+command = '''"$HERDR_BIN_PATH" pane send-keys "$HERDR_ACTIVE_PANE_ID" ctrl+a'''
+description = "Send literal Ctrl-A to the focused pane"
+
+[ui]
+pane_borders = true
+pane_gaps = true
+pane_scrollbars = true
+show_agent_labels_on_pane_borders = true
+tab_bar_position = "top"
+hide_tab_bar_when_single_tab = false
+agent_panel_sort = "spaces"
+
+[ui.sidebar.spaces]
+row_gap = 0
+rows = [
+  ["state_icon", "workspace"],
+  ["branch", "git_status"],
+]
+
+[ui.sidebar.agents]
+row_gap = 0
+rows = [
+  ["state_icon", "workspace", "tab"],
+  ["agent"],
+]
+
+[ui.toast]
+delivery = "herdr"
+delay_seconds = 1
+
+[ui.toast.herdr]
+position = "bottom-right"
