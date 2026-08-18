@@ -259,6 +259,11 @@ op run -- npm install
 This replaces secret references (e.g., `op://Personal/GitHub Registry Token/token`)
 with their actual values for the duration of that command.
 
+The `c` alias launches `opencode-framework`. This wrapper uses `op run` to
+resolve the machine-local `~/.config/opencode/framework.env` reference before
+starting OpenCode, so the Framework Desktop API key is never stored in the
+repository.
+
 ## Local Shell API Keys (Generated)
 
 This repo includes a template at `shell/.config/shell/local.env.tpl` for

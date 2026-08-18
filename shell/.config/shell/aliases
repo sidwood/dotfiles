@@ -41,7 +41,7 @@ alias gbcs='git bc-sync-extras'
 # General
 # ------------------------------------------------------------------------------
 
-alias c='opencode'
+alias c='opencode-framework'
 alias claude-danger='claude --dangerously-skip-permissions'
 alias d='docker'
 alias r='rails'

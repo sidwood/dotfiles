@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+framework_op_bin="$(command -v op || true)"
+framework_opencode_bin="$(command -v opencode || true)"
+framework_config_root="${XDG_CONFIG_HOME:-${HOME}/.config}"
+framework_env_file="${framework_config_root}/opencode/framework.env"
+
+if [[ -z "$framework_op_bin" ]]; then
+  printf 'opencode-framework: 1Password CLI is not installed or not on PATH\n' >&2
+  exit 1
+fi
+
+if [[ -z "$framework_opencode_bin" ]]; then
+  printf 'opencode-framework: OpenCode is not installed or not on PATH\n' >&2
+  exit 1
+fi
+
+if [[ ! -r "$framework_env_file" ]]; then
+  printf 'opencode-framework: missing environment reference: %s\n' \
+    "$framework_env_file" >&2
+  exit 1
+fi
+
+exec "$framework_op_bin" run \
+  --env-file="$framework_env_file" \
+  -- "$framework_opencode_bin" "$@"
