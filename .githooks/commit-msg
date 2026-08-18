@@ -70,7 +70,7 @@ is_ai_trailer() {
   return 1
 }
 
-allowed='brew doc gitignore readme stow editorconfig mise bundler biome gem uninstall'
+allowed='brew doc gitignore readme stow editorconfig mise bundler biome gem install uninstall'
 repo_root="$(git rev-parse --show-toplevel)"
 for dir in "$repo_root"/*/; do
   allowed="$allowed $(basename "$dir")"

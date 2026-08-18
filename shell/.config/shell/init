@@ -1,16 +1,12 @@
-# Unified shell init (sourced by both bash and zsh)
-# Tool integrations that detect shell type at runtime
+# Unified shell init (sourced by zsh)
+# Tool integrations
 
 # ------------------------------------------------------------------------------
 # mise (version manager for node, python, ruby, etc.)
 # ------------------------------------------------------------------------------
 
 if command -v mise &>/dev/null; then
-  if [[ -n "$ZSH_VERSION" ]]; then
-    eval "$(mise activate zsh)"
-  else
-    eval "$(mise activate bash)"
-  fi
+  eval "$(mise activate zsh)"
 fi
 
 # ------------------------------------------------------------------------------
@@ -18,11 +14,7 @@ fi
 # ------------------------------------------------------------------------------
 
 if command -v zoxide &>/dev/null; then
-  if [[ -n "$ZSH_VERSION" ]]; then
-    eval "$(zoxide init --cmd cd zsh)"
-  else
-    eval "$(zoxide init --cmd cd bash)"
-  fi
+  eval "$(zoxide init --cmd cd zsh)"
 fi
 
 # ------------------------------------------------------------------------------
@@ -30,11 +22,7 @@ fi
 # ------------------------------------------------------------------------------
 
 if command -v fzf &>/dev/null; then
-  if [[ -n "$ZSH_VERSION" ]]; then
-    eval "$(fzf --zsh)"
-  else
-    eval "$(fzf --bash)"
-  fi
+  eval "$(fzf --zsh)"
 fi
 
 # ------------------------------------------------------------------------------
@@ -42,11 +30,7 @@ fi
 # ------------------------------------------------------------------------------
 
 if command -v direnv &>/dev/null; then
-  if [[ -n "$ZSH_VERSION" ]]; then
-    eval "$(direnv hook zsh)"
-  else
-    eval "$(direnv hook bash)"
-  fi
+  eval "$(direnv hook zsh)"
 fi
 
 # ------------------------------------------------------------------------------

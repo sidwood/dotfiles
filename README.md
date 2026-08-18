@@ -1,7 +1,8 @@
 # dotfiles
 
-Configuration files for `bash`, `zsh`, `vim`, `git`, and more. Compatible with
-macOS and Arch Linux ([Omarchy](https://github.com/basecamp/omarchy)).
+Configuration files for `zsh`, `vim`, `git`, and more. macOS only. The login
+shell is zsh; install and helper scripts still run under bash 3.2 because that
+is what macOS ships.
 
 ## Installation
 
@@ -15,10 +16,7 @@ cd dotfiles
 
 The install script presents an interactive menu where you can select which
 components to install. It also points this repository's `core.hooksPath` at
-`.githooks` so the commit-msg house style is enforced. The available options
-vary by platform:
-
-### macOS
+`.githooks` so the commit-msg house style is enforced.
 
 ```
 Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
@@ -31,24 +29,8 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Install vim plugins.
 ```
 
-### Arch Linux (Omarchy)
-
-```
-Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
-
-> [x] Install Omarchy packages and standalone tools.
-  [x] Symlink dotfile packages with GNU Stow.
-  [x] Set up mise with default runtimes.
-  [x] Install global npm packages.
-  [x] Install vim plugins.
-```
-
 Use arrow keys or `j`/`k` to navigate, space to toggle options, and enter to
 confirm.
-
-On Omarchy, most packages are installed with `pacman` or AUR helpers. Heroku CLI
-uses Heroku's official standalone installer so it can track upstream CLI
-releases without waiting on AUR package updates.
 
 ## Structure
 
@@ -58,7 +40,6 @@ packages. Each top-level directory is a package that gets symlinked to `$HOME`.
 ```
 dotfiles/
 ├── agents/         # Global agent memory shared by every AI harness
-├── bash/           # Bash config (macOS only, skipped on Omarchy)
 ├── bin/            # Custom executables on PATH via ~/.local/bin
 ├── ghostty/        # Ghostty terminal config
 ├── git/            # Git config and global ignore
@@ -80,8 +61,7 @@ dotfiles/
 
 ### Unified Shell Config
 
-The `shell/` package provides cross-platform configuration that works in both
-bash and zsh:
+The `shell/` package provides configuration sourced from zsh:
 
 - `~/.config/shell/aliases` - Common aliases
 - `~/.config/shell/functions` - Utility functions
@@ -96,23 +76,11 @@ cd /path/to/dotfiles
 
 The uninstall script presents a similar interactive menu:
 
-### macOS
-
 ```
 Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
 > [x] Uninstall Homebrew packages and applications.
   [x] Reset macOS system defaults.
-  [x] Remove dotfile package symlinks with GNU Stow.
-  [x] Uninstall vim plugins.
-```
-
-### Arch Linux (Omarchy)
-
-```
-Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
-
-> [x] Uninstall Omarchy packages and standalone tools.
   [x] Remove dotfile package symlinks with GNU Stow.
   [x] Uninstall vim plugins.
 ```
@@ -241,24 +209,10 @@ that should not enter git history does not belong in it at all.
 
 ## SSH server (sshd)
 
-OpenSSH is installed by the package steps (`Brewfile` on macOS, `openssh` on
-Omarchy). The SSH daemon is **not** enabled automatically on either platform.
+OpenSSH is installed by Homebrew. The SSH daemon is **not** enabled
+automatically.
 
-### Enable sshd on Omarchy
-
-```bash
-sudo systemctl enable --now sshd
-sudo ufw allow ssh   # only if you need inbound SSH through the firewall
-```
-
-To disable later:
-
-```bash
-sudo systemctl disable --now sshd
-sudo ufw delete allow ssh
-```
-
-### Enable sshd on macOS
+### Enable sshd
 
 Prefer Apple’s built-in Remote Login (system `sshd`), not Homebrew’s `openssh`
 daemon:
@@ -269,28 +223,6 @@ daemon:
 Check status with `sudo systemsetup -getremotelogin` or
 `sudo launchctl print system/com.openssh.sshd`. Turn it off with
 `sudo systemsetup -setremotelogin off`.
-
-## Neovim on Omarchy
-
-Omarchy ships with a default [LazyVim](https://www.lazyvim.org/) configuration
-in `~/.config/nvim`. This repo includes its own neovim config (custom lazy.nvim
-setup in the `nvim/` stow package), which conflicts with those files.
-
-During installation, `install.sh` automatically backs up the Omarchy neovim
-config before stowing:
-
-```
-~/.config/nvim → ~/.config/nvim.omarchy-backup
-```
-
-To restore the original Omarchy neovim config:
-
-```bash
-cd /path/to/dotfiles
-stow -D -t "$HOME" nvim              # remove dotfile symlinks
-rm -rf ~/.config/nvim                 # clean up any leftover files
-mv ~/.config/nvim.omarchy-backup ~/.config/nvim
-```
 
 ## 1Password Secrets
 

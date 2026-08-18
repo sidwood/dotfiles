@@ -1,5 +1,5 @@
 # shared environment variables (POSIX-compatible)
-# sourced by both .zshenv and .bashrc
+# sourced by .zshenv
 
 PLATFORM=$(uname)
 export EDITOR="vim"
@@ -46,12 +46,8 @@ export GOPATH=$HOME/code/golang
 export PATH=$GOPATH/bin:$PATH
 
 # 1Password SSH agent
-if [[ "$PLATFORM" == "Darwin" && -S "$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock" ]]; then
-  # macOS
+if [[ -S "$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock" ]]; then
   export SSH_AUTH_SOCK="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
-elif [[ -S "$HOME/.1password/agent.sock" ]]; then
-  # Linux
-  export SSH_AUTH_SOCK="$HOME/.1password/agent.sock"
 fi
 
 # 1Password secret references (used with `op run`)

@@ -26,7 +26,8 @@ command -v git >/dev/null 2>&1 || abort 'git required'
 #
 
 is_macos() { [[ "$OSTYPE" == "darwin"* ]]; }
-is_omarchy() { [[ -d "$HOME/.local/share/omarchy" ]]; }
+
+is_macos || abort 'These dotfiles are for macOS only'
 
 #
 # Menu state
@@ -38,18 +39,13 @@ selected=()
 option_keys=()
 
 #
-# Build menu options based on OS
+# Build menu options
 #
 
-if is_macos; then
-  options+=("Install Homebrew packages and applications.")
-  option_keys+=("homebrew")
-  options+=("Apply macOS system defaults.")
-  option_keys+=("macos")
-elif is_omarchy; then
-  options+=("Install Omarchy packages and standalone tools.")
-  option_keys+=("omarchy")
-fi
+options+=("Install Homebrew packages and applications.")
+option_keys+=("homebrew")
+options+=("Apply macOS system defaults.")
+option_keys+=("macos")
 options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
 options+=("Set up mise with default runtimes.")
@@ -165,12 +161,6 @@ install_homebrew() {
   fi
 }
 
-install_omarchy_packages() {
-  if ! bash "$PWD/install/omarchy/packages/install-all.sh"; then
-    printf "\n \033[33mWarning: Some Omarchy packages failed to install (see above)\033[0m\n\n"
-  fi
-}
-
 apply_macos_defaults() {
   if [ -f "$PWD/macos/defaults.sh" ]; then
     echo "Applying macOS system defaults"
@@ -197,29 +187,15 @@ backup_config() {
 stow_dotfiles() {
   command -v stow >/dev/null 2>&1 || abort 'GNU Stow required'
 
-  # On Omarchy, back up the default neovim config before stowing ours
-  if is_omarchy; then
-    local nvim_config="$HOME/.config/nvim"
-    local nvim_backup="$HOME/.config/nvim.omarchy-backup"
-    if [[ -d "$nvim_config" && ! -L "$nvim_config" && ! -d "$nvim_backup" ]]; then
-      echo "Backing up Omarchy neovim config to $nvim_backup"
-      mv "$nvim_config" "$nvim_backup"
-    fi
-  fi
-
   backup_config "$HOME/.config/ghostty/config" "$PWD/ghostty/.config/ghostty/config" "ghostty config"
   backup_config "$HOME/.config/git/config" "$PWD/git/.config/git/config" "git config"
   backup_config "$HOME/.config/tmux/tmux.conf" "$PWD/tmux/.config/tmux/tmux.conf" "tmux config"
   backup_config "$HOME/.config/zed/settings.json" "$PWD/zed/.config/zed/settings.json" "zed settings"
   backup_config "$HOME/.config/zed/keymap.json" "$PWD/zed/.config/zed/keymap.json" "zed keymap"
 
-  # Cursor settings backup (path differs by platform)
-  local cursor_user_path
-  if is_macos; then
-    cursor_user_path="$HOME/Library/Application Support/Cursor/User"
-  else
-    cursor_user_path="$HOME/.config/Cursor/User"
-  fi
+  # Cursor uses ~/Library/Application Support/ (not XDG-compliant), so it is
+  # skipped by Stow and linked by hand below.
+  local cursor_user_path="$HOME/Library/Application Support/Cursor/User"
 
   backup_config "$cursor_user_path/settings.json" "$PWD/cursor/.config/Cursor/User/settings.json" "Cursor settings"
   backup_config "$cursor_user_path/keybindings.json" "$PWD/cursor/.config/Cursor/User/keybindings.json" "Cursor keybindings"
@@ -233,27 +209,17 @@ stow_dotfiles() {
 
   echo "Symlinking dotfile packages"
   for pkg in */; do
-    [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "install/" ]] && continue
-    # Skip bash on Omarchy (it manages ~/.bashrc)
-    is_omarchy && [[ "$pkg" == "bash/" ]] && continue
-    # Skip omarchy package on macOS (Hyprland/Omarchy-only overrides)
-    is_macos && [[ "$pkg" == "omarchy/" ]] && continue
-    # Skip cursor on macOS (handled separately below due to non-XDG path)
-    is_macos && [[ "$pkg" == "cursor/" ]] && continue
+    [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "cursor/" ]] && continue
     stow -v -t "$HOME" "${pkg%/}"
   done
 
-  # macOS: Cursor uses ~/Library/Application Support/ (not XDG-compliant)
-  # We manually symlink instead of using stow
-  if is_macos; then
-    echo "Symlinking Cursor settings for macOS"
-    mkdir -p "$cursor_user_path/snippets"
-    ln -sf "$PWD/cursor/.config/Cursor/User/settings.json" "$cursor_user_path/settings.json"
-    ln -sf "$PWD/cursor/.config/Cursor/User/keybindings.json" "$cursor_user_path/keybindings.json"
-    for snippet in "$PWD/cursor/.config/Cursor/User/snippets/"*.json; do
-      [[ -f "$snippet" ]] && ln -sf "$snippet" "$cursor_user_path/snippets/$(basename "$snippet")"
-    done
-  fi
+  echo "Symlinking Cursor settings"
+  mkdir -p "$cursor_user_path/snippets"
+  ln -sf "$PWD/cursor/.config/Cursor/User/settings.json" "$cursor_user_path/settings.json"
+  ln -sf "$PWD/cursor/.config/Cursor/User/keybindings.json" "$cursor_user_path/keybindings.json"
+  for snippet in "$PWD/cursor/.config/Cursor/User/snippets/"*.json; do
+    [[ -f "$snippet" ]] && ln -sf "$snippet" "$cursor_user_path/snippets/$(basename "$snippet")"
+  done
 
   # Depends on the agents package having just been stowed
   link_agent_memory
@@ -390,7 +356,7 @@ setup_npm_globals() {
 
   # @google/gemini-cli is installed from npm rather than Homebrew: the brew
   # formula is deprecated upstream, lags several minor versions, and is disabled
-  # from 2026-12-18. Arch has a current package, so Omarchy uses that instead.
+  # from 2026-12-18.
   local global_packages=(
     @sidwood/timecraft
     @google/gemini-cli
@@ -471,10 +437,6 @@ show_menu
 
 if is_selected "homebrew"; then
   install_homebrew
-fi
-
-if is_selected "omarchy"; then
-  install_omarchy_packages
 fi
 
 if is_selected "macos"; then

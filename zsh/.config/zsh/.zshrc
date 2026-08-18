@@ -5,12 +5,6 @@
 # shell options
 # ------------------------------------------------------------------------------
 
-# initialize omarchy
-if [[ -d "$HOME/.local/share/omarchy" ]]; then
-  export OMARCHY_PATH="$HOME/.local/share/omarchy"
-  export PATH="$OMARCHY_PATH/bin:$PATH"
-fi
-
 # set the zinit directory for plugins
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 
@@ -37,7 +31,6 @@ zinit light romkatv/powerlevel10k
 zinit snippet OMZL::git.zsh
 # zinit snippet OMZP::git
 zinit snippet OMZP::sudo
-zinit snippet OMZP::archlinux
 zinit snippet OMZP::aws
 zinit snippet OMZP::kubectl
 zinit snippet OMZP::kubectx

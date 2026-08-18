@@ -1,4 +1,4 @@
-# Unified shell functions (sourced by both bash and zsh)
+# Unified shell functions (sourced by zsh)
 
 # ------------------------------------------------------------------------------
 # Directory operations
