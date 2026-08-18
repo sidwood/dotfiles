@@ -43,6 +43,7 @@ dotfiles/
 ├── bin/            # Custom executables on PATH via ~/.local/bin
 ├── ghostty/        # Ghostty terminal config
 ├── git/            # Git config and global ignore
+├── herdr/          # Herdr workspace manager (Solarized Dark, tmux-first keys)
 ├── htop/           # htop process viewer config
 ├── iterm2/         # iTerm2 terminal config (macOS)
 ├── misc/           # Miscellaneous dotfiles (.editorconfig, .agignore, etc.)
@@ -58,6 +59,25 @@ dotfiles/
 ├── yazi/           # Yazi file manager config
 └── zsh/            # Zsh config with zinit and powerlevel10k
 ```
+
+### Herdr
+
+The `herdr/` package folds to `~/.config/herdr/config.toml`. It uses Herdr's
+built-in `solarized` theme with canonical Solarized Dark tokens so the chrome
+matches Ghostty. The native sidebar split stays intact: Spaces above, Agents
+below. In-app toasts appear bottom-right; Herdr colors them by kind (blue for
+finished, red for needs-attention, yellow for config warnings). Rounded pane
+borders are not configurable in Herdr 0.8.
+
+Keys follow the tmux config: `Ctrl-A` prefix, `h/j/k/l` pane focus,
+`Ctrl-H`/`Ctrl-L` tab cycling (keep Ctrl held: `A` then `H`/`L`), `,` to rename
+the tab, `|`/`\` and `-`/`_` splits, and `r` to reload.
+Herdr extras stay on unused chords: `g` for the workspace/agent picker, `b` or
+`m` for the sidebar, `d` or `q` to detach, `Shift-R` for resize mode. `prefix+%` and `prefix+"` are extra
+split aliases. `prefix+a` forwards a literal `Ctrl-A` into the focused pane;
+double `Ctrl-A` is Herdr's built-in fallback. Tmux itself is unchanged.
+
+Reload a running server after Stow with `herdr server reload-config`.
 
 ### Unified Shell Config
 
