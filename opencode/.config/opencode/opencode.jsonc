@@ -1,0 +1,39 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "framework": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Framework Desktop",
+      "options": {
+        "baseURL": "http://192.168.4.25:13305/v1",
+        "apiKey": "{env:FRAMEWORK_LEMONADE_API_KEY}"
+      },
+      "models": {
+        "Qwen3-Coder-Next-GGUF-Q5_K_M": {
+          "name": "Qwen3-Coder-Next Q5 (Framework)",
+          "limit": {
+            "context": 65536,
+            "output": 8192
+          }
+        }
+      }
+    },
+    "mlx": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "MLX on M5 Max",
+      "options": {
+        "baseURL": "http://127.0.0.1:13306/v1",
+        "apiKey": "local"
+      },
+      "models": {
+        "default_model": {
+          "name": "Qwen3-Coder-Next 4-bit (M5 Max)",
+          "limit": {
+            "context": 65536,
+            "output": 16384
+          }
+        }
+      }
+    }
+  }
+}

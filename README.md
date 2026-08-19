@@ -51,6 +51,7 @@ dotfiles/
 ├── mutt/           # Mutt email client config
 ├── npm/            # NPM configuration
 ├── nvim/           # Neovim config (Lua with lazy.nvim)
+├── opencode/       # Local and remote coding-agent providers and roles
 ├── profile/        # Shared environment variables (.profile)
 ├── ruby/           # Ruby/Bundler/IRB config
 ├── shell/          # Unified shell config (aliases, functions, init)
@@ -88,7 +89,7 @@ The `shell/` package provides configuration sourced from zsh:
 - `~/.config/shell/functions` - Utility functions
 - `~/.config/shell/init` - Tool integrations (mise, zoxide, fzf)
 
-### MLX
+### MLX coding worker
 
 On Apple silicon, the installer creates an isolated Python 3.13 environment at
 `~/.local/share/venvs/mlx` and installs the pinned MLX and MLX LM versions from
@@ -99,17 +100,27 @@ pins:
 mlx-setup
 ```
 
-Use `mlx_lm` for local language models and `mlx-python` for Python code that
-imports MLX:
+The coding model is pinned in `bin/.local/share/mlx/model.txt`. Download it and
+start its local OpenAI-compatible endpoint with:
 
 ```bash
-mlx_lm generate --prompt "Explain unified memory in one sentence."
-mlx_lm chat
-mlx-python -c 'import mlx.core as mx; print(mx.default_device())'
+mlx-model-download
+mlx-server-start
 ```
 
-Downloaded Hugging Face models remain in the normal user cache and are not
-removed when the rebuildable Python environment is uninstalled.
+`cm` launches interactive OpenCode with the local
+`Qwen3-Coder-Next-4bit` implementation agent and starts the MLX server when
+necessary. Run `frontier-review "<requirements>"` for an explicit review.
+
+For an autonomous fleet job, use `cm run "<task>"` from a clean Git worktree.
+The launcher runs the local worker, asks Codex GPT-5.6 Sol and Claude Opus to
+review its working diff independently in read-only modes, then sends their
+findings back to the worker for one remediation pass. Use `mlx-server-stop` to
+release the model's unified memory.
+
+Use `mlx_lm` for direct model access and `mlx-python` for Python code that
+imports MLX. Downloaded Hugging Face models remain in the normal user cache and
+are not removed when the rebuildable Python environment is uninstalled.
 
 ## Uninstall
 

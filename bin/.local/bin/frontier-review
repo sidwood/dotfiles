@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+command -v codex >/dev/null 2>&1 || {
+  echo "Error: Codex is not installed or not on PATH" >&2
+  exit 1
+}
+command -v claude >/dev/null 2>&1 || {
+  echo "Error: Claude Code is not installed or not on PATH" >&2
+  exit 1
+}
+git rev-parse --show-toplevel >/dev/null 2>&1 || {
+  echo "Error: frontier-review must run inside a Git repository" >&2
+  exit 1
+}
+
+requirements="${*:-Review the current uncommitted implementation against its apparent requirements.}"
+prompt="Review the current uncommitted changes only. Requirements: $requirements
+
+Inspect the diff and relevant surrounding code. Run safe read-only checks when
+useful. Return only corrections required for correctness, security, tests, or
+stated repository conventions, ordered by severity, with exact file and line
+references. Do not mention optional improvements, nits, or questions. If no
+correction is required, output exactly 'No actionable findings.' Do not edit
+files."
+
+review_dir="$(mktemp -d "${TMPDIR:-/tmp}/frontier-review.XXXXXX")"
+trap 'rm -rf "$review_dir"' EXIT
+
+codex_model="${CODEX_REVIEW_MODEL:-gpt-5.6-sol}"
+claude_model="${CLAUDE_REVIEW_MODEL:-opus}"
+
+codex_status=0
+claude_status=0
+
+codex exec \
+  --ephemeral \
+  --color never \
+  --sandbox read-only \
+  --model "$codex_model" \
+  --output-last-message "$review_dir/codex-review.txt" \
+  "$prompt" >"$review_dir/codex.log" 2>&1 &
+codex_pid=$!
+
+env -u ANTHROPIC_API_KEY claude \
+  --print \
+  --model "$claude_model" \
+  --permission-mode plan \
+  --tools "Read,Glob,Grep,Bash" \
+  --no-session-persistence \
+  "$prompt" >"$review_dir/claude-review.txt" 2>"$review_dir/claude.log" &
+claude_pid=$!
+
+wait "$codex_pid" || codex_status=$?
+wait "$claude_pid" || claude_status=$?
+
+printf '%s\n' "Codex review ($codex_model):"
+if [[ "$codex_status" -eq 0 && -s "$review_dir/codex-review.txt" ]]; then
+  sed -n '1,240p' "$review_dir/codex-review.txt"
+else
+  echo "Reviewer failed with status $codex_status"
+  sed -n '1,80p' "$review_dir/codex.log" >&2
+fi
+
+printf '\n%s\n' "Claude review ($claude_model):"
+if [[ "$claude_status" -eq 0 && -s "$review_dir/claude-review.txt" ]]; then
+  sed -n '1,240p' "$review_dir/claude-review.txt"
+else
+  echo "Reviewer failed with status $claude_status"
+  sed -n '1,80p' "$review_dir/claude.log" >&2
+fi
+
+if [[ "$codex_status" -ne 0 && "$claude_status" -ne 0 ]]; then
+  exit 1
+fi

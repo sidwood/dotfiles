@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+opencode_bin="$(command -v opencode || true)"
+
+if [[ -z "$opencode_bin" ]]; then
+  echo "Error: OpenCode is not installed or not on PATH" >&2
+  exit 1
+fi
+
+mlx-server-start
+
+if [[ "${1:-}" == "run" ]]; then
+  shift
+  git rev-parse --show-toplevel >/dev/null 2>&1 || {
+    echo "Error: autonomous MLX runs require a Git repository" >&2
+    exit 1
+  }
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "Error: autonomous MLX runs require a clean worktree" >&2
+    exit 1
+  fi
+
+  task_description="$*"
+  worker_status=0
+  "$opencode_bin" run --agent local-worker "$@" || worker_status=$?
+  if [[ "$worker_status" -ne 0 ]]; then
+    exit "$worker_status"
+  fi
+
+  if [[ -z "$(git status --porcelain)" ]]; then
+    echo "No working-tree changes to review"
+    exit 0
+  fi
+
+  review_status=0
+  review_output="$(frontier-review "$task_description")" || review_status=$?
+  printf '\n%s\n%s\n' "Frontier reviews:" "$review_output"
+  if [[ "$review_status" -ne 0 ]]; then
+    exit "$review_status"
+  fi
+
+  remediation_prompt="The implementation has now received two read-only frontier reviews:
+
+$review_output
+
+Apply only clear, actionable findings that are within the original task. Ignore
+optional, non-blocking, nitpick, question, or out-of-scope observations. If both
+reviews say there are no actionable findings, make no edits. Rerun checks only
+after an edit and report the final result. Do not commit and do not request
+another review."
+  exec "$opencode_bin" run --continue --agent local-worker "$remediation_prompt"
+fi
+
+exec "$opencode_bin" --agent local-worker "$@"
