@@ -23,6 +23,13 @@ if [[ ! -r "$framework_env_file" ]]; then
   exit 1
 fi
 
+if [[ -t 0 && -t 1 && -t 2 ]]; then
+  exec "$framework_op_bin" run \
+    --no-masking \
+    --env-file="$framework_env_file" \
+    -- "$framework_opencode_bin" "$@"
+fi
+
 exec "$framework_op_bin" run \
   --env-file="$framework_env_file" \
   -- "$framework_opencode_bin" "$@"

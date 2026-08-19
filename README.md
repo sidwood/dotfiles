@@ -262,7 +262,8 @@ with their actual values for the duration of that command.
 The `c` alias launches `opencode-framework`. This wrapper uses `op run` to
 resolve the machine-local `~/.config/opencode/framework.env` reference before
 starting OpenCode, so the Framework Desktop API key is never stored in the
-repository.
+repository. Interactive sessions disable `op run` output masking so terminal
+applications retain direct TTY access; automated runs keep masking enabled.
 
 ## Local Shell API Keys (Generated)
 
