@@ -156,6 +156,18 @@ uninstall_dotfiles() {
   done
 }
 
+uninstall_herdr_integrations() {
+  local plugin_path="$HOME/.config/opencode/plugins/herdr-agent-state.js"
+
+  if command -v herdr >/dev/null 2>&1; then
+    echo "Removing Herdr OpenCode integration"
+    herdr integration uninstall opencode
+  elif [[ -f "$plugin_path" ]]; then
+    echo "Removing generated Herdr OpenCode integration"
+    rm -f "$plugin_path"
+  fi
+}
+
 uninstall_vim_plugins() {
   echo "Uninstalling vim-plug"
   rm -rf "$HOME/.config/vim/autoload" 2>/dev/null
@@ -176,6 +188,12 @@ uninstall_mlx() {
 #
 
 show_menu
+
+if is_selected "stow"; then
+  # Remove generated integrations while Herdr is still available; Homebrew
+  # cleanup may uninstall the command in the next step.
+  uninstall_herdr_integrations
+fi
 
 if is_selected "homebrew"; then
   uninstall_homebrew

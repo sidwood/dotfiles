@@ -229,6 +229,10 @@ stow_dotfiles() {
 
   # Depends on the agents package having just been stowed
   link_agent_memory
+
+  # Herdr owns this generated plugin, so install the version bundled with the
+  # Herdr binary on each machine rather than stowing a potentially stale copy.
+  install_herdr_integrations
 }
 
 link_agent_memory() {
@@ -286,6 +290,21 @@ link_agent_memory() {
     ln -sfn "$canonical" "$target"
     echo "  ${cmd} -> ~/${target#"$HOME"/}"
   done
+}
+
+install_herdr_integrations() {
+  if ! command -v herdr >/dev/null 2>&1; then
+    echo "Skipping Herdr integrations (Herdr not installed)"
+    return 0
+  fi
+
+  if ! command -v opencode >/dev/null 2>&1; then
+    echo "Skipping Herdr OpenCode integration (OpenCode not installed)"
+    return 0
+  fi
+
+  echo "Installing Herdr OpenCode integration"
+  herdr integration install opencode
 }
 
 install_vim_plugins() {

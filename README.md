@@ -81,6 +81,14 @@ double `Ctrl-A` is Herdr's built-in fallback. Tmux itself is unchanged.
 
 Reload a running server after Stow with `herdr server reload-config`.
 
+Selecting the Stow installation also runs Herdr's own OpenCode integration
+installer when both commands are available. It generates
+`~/.config/opencode/plugins/herdr-agent-state.js`, which lets OpenCode report
+its lifecycle state and resumable session identity to Herdr. The generated
+file is deliberately not stored here so it stays matched to the installed
+Herdr version. Check it with `herdr integration status`; re-running
+`./install.sh` with Stow selected refreshes it.
+
 ### Unified Shell Config
 
 The `shell/` package provides configuration sourced from zsh:
