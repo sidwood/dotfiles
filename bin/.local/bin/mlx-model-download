@@ -3,18 +3,33 @@
 set -euo pipefail
 
 venv_dir="${XDG_DATA_HOME:-$HOME/.local/share}/venvs/mlx"
-model_file="$(dirname "$0")/../share/mlx/model.txt"
+# shellcheck source-path=SCRIPTDIR source=../share/mlx/profiles.sh
+source "$(dirname "$0")/../share/mlx/profiles.sh"
 
 if [[ ! -x "$venv_dir/bin/hf" ]]; then
   echo "Error: MLX is not installed; run mlx-setup" >&2
   exit 1
 fi
 
-if [[ ! -s "$model_file" ]]; then
-  echo "Error: model configuration not found at $model_file" >&2
-  exit 1
-fi
+profile="${1:-$(mlx_default_profile)}"
 
-model="$(sed -n '1p' "$model_file")"
-echo "Downloading $model"
-"$venv_dir/bin/hf" download "$model"
+download_profile() {
+  local selected="$1" model
+
+  mlx_require_profile "$selected"
+  model="$(mlx_profile_model "$selected")"
+  echo "Downloading $selected: $model"
+  "$venv_dir/bin/hf" download "$model"
+}
+
+if [[ "$profile" == "all" ]]; then
+  while IFS= read -r profile; do
+    download_profile "$profile"
+  done < <(mlx_profile_names)
+else
+  [[ $# -le 1 ]] || {
+    echo "Usage: mlx-model-download [profile|all]" >&2
+    exit 2
+  }
+  download_profile "$profile"
+fi

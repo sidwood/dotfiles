@@ -2,16 +2,58 @@
 
 set -euo pipefail
 
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/mlx"
+# shellcheck source-path=SCRIPTDIR source=../share/mlx/profiles.sh
+source "$(dirname "$0")/../share/mlx/profiles.sh"
+
+profile="${1:-${MLX_PROFILE:-$(mlx_default_profile)}}"
+[[ $# -le 1 ]] || {
+  echo "Usage: mlx-server-start [profile]" >&2
+  exit 2
+}
+mlx_require_profile "$profile"
+
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/mlx"
+state_dir="$state_root/servers/$profile"
 pid_file="$state_dir/server.pid"
 log_file="$state_dir/server.log"
 host="${MLX_HOST:-127.0.0.1}"
-port="${MLX_PORT:-13306}"
+port="${MLX_PORT:-$(mlx_profile_port "$profile")}"
 health_url="http://${host}:${port}/health"
 
 if curl -fsS "$health_url" >/dev/null 2>&1; then
-  echo "MLX server is already running at http://${host}:${port}/v1"
-  exit 0
+  if [[ -f "$pid_file" ]]; then
+    pid="$(sed -n '1p' "$pid_file")"
+    case "$pid" in
+      ''|*[!0-9]*) ;;
+      *)
+        if kill -0 "$pid" 2>/dev/null; then
+          echo "MLX $profile server is already running at http://${host}:${port}/v1"
+          exit 0
+        fi
+        ;;
+    esac
+  fi
+
+  # Migrate the single-server state layout used before named profiles.
+  legacy_pid_file="$state_root/server.pid"
+  if [[ "$profile" == "coder-next" && -f "$legacy_pid_file" ]]; then
+    pid="$(sed -n '1p' "$legacy_pid_file")"
+    case "$pid" in
+      ''|*[!0-9]*) ;;
+      *)
+        if kill -0 "$pid" 2>/dev/null; then
+          mkdir -p "$state_dir"
+          printf '%s\n' "$pid" >"$pid_file"
+          rm -f "$legacy_pid_file"
+          echo "MLX $profile server is already running at http://${host}:${port}/v1"
+          exit 0
+        fi
+        ;;
+    esac
+  fi
+
+  echo "Error: port $port has a healthy server not managed as MLX profile $profile" >&2
+  exit 1
 fi
 
 mkdir -p "$state_dir"
@@ -30,15 +72,15 @@ if [[ -f "$pid_file" ]]; then
   rm -f "$pid_file"
 fi
 
-echo "Starting MLX server; first load can take a minute"
-nohup mlx-server >"$log_file" 2>&1 &
+echo "Starting MLX $profile server; first load can take a minute"
+MLX_PROFILE="$profile" MLX_PORT="$port" nohup mlx-server >"$log_file" 2>&1 &
 pid=$!
 printf '%s\n' "$pid" >"$pid_file"
 
 attempt=0
-while ((attempt < 180)); do
+while ((attempt < 300)); do
   if curl -fsS "$health_url" >/dev/null 2>&1; then
-    echo "MLX server is ready at http://${host}:${port}/v1"
+    echo "MLX $profile server is ready at http://${host}:${port}/v1"
     exit 0
   fi
   if ! kill -0 "$pid" 2>/dev/null; then
@@ -49,5 +91,5 @@ while ((attempt < 180)); do
   ((attempt += 1))
 done
 
-echo "Error: MLX server did not become ready; see $log_file" >&2
+echo "Error: MLX $profile server did not become ready; see $log_file" >&2
 exit 1

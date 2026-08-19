@@ -176,6 +176,11 @@ uninstall_vim_plugins() {
 
 uninstall_mlx() {
   local venv_dir="${XDG_DATA_HOME:-$HOME/.local/share}/venvs/mlx"
+  local stop_script="$PWD/bin/.local/bin/mlx-server-stop"
+
+  if [[ -x "$stop_script" ]]; then
+    "$stop_script" all || echo "Warning: one or more MLX servers could not be stopped"
+  fi
 
   if [[ -d "$venv_dir" ]]; then
     echo "Removing MLX Python environment at $venv_dir"

@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# shellcheck source-path=SCRIPTDIR source=../share/mlx/profiles.sh
+source "$(dirname "$0")/../share/mlx/profiles.sh"
+
 opencode_bin="$(command -v opencode || true)"
 
 if [[ -z "$opencode_bin" ]]; then
@@ -9,7 +12,44 @@ if [[ -z "$opencode_bin" ]]; then
   exit 1
 fi
 
-mlx-server-start
+profile="$(mlx_default_profile)"
+case "${1:-}" in
+  -h|--help)
+    echo "Usage: opencode-mlx [--profile] [profile] [OpenCode arguments]"
+    echo "       opencode-mlx --profiles"
+    exit 0
+    ;;
+  --profiles)
+    mlx_print_profiles
+    exit 0
+    ;;
+  --profile)
+    [[ -n "${2:-}" ]] || {
+      echo "Error: --profile requires a profile name" >&2
+      exit 2
+    }
+    profile="$2"
+    shift 2
+    ;;
+  --profile=*)
+    profile="${1#--profile=}"
+    shift
+    ;;
+  --)
+    shift
+    ;;
+  *)
+    if [[ -n "${1:-}" ]] && mlx_profile_exists "$1"; then
+      profile="$1"
+      shift
+    fi
+    ;;
+esac
+mlx_require_profile "$profile"
+model_ref="$(mlx_profile_opencode_model "$profile")"
+agent="$(mlx_profile_opencode_agent "$profile")"
+
+mlx-server-start "$profile"
 
 if [[ "${1:-}" == "run" ]]; then
   shift
@@ -24,7 +64,7 @@ if [[ "${1:-}" == "run" ]]; then
 
   task_description="$*"
   worker_status=0
-  "$opencode_bin" run --agent local-worker "$@" || worker_status=$?
+  "$opencode_bin" run --agent "$agent" --model "$model_ref" "$@" || worker_status=$?
   if [[ "$worker_status" -ne 0 ]]; then
     exit "$worker_status"
   fi
@@ -50,7 +90,7 @@ optional, non-blocking, nitpick, question, or out-of-scope observations. If both
 reviews say there are no actionable findings, make no edits. Rerun checks only
 after an edit and report the final result. Do not commit and do not request
 another review."
-  exec "$opencode_bin" run --continue --agent local-worker "$remediation_prompt"
+  exec "$opencode_bin" run --continue --agent "$agent" --model "$model_ref" "$remediation_prompt"
 fi
 
-exec "$opencode_bin" --agent local-worker "$@"
+exec "$opencode_bin" --agent "$agent" --model "$model_ref" "$@"

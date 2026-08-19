@@ -2,48 +2,77 @@
 
 set -euo pipefail
 
-state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/mlx"
-pid_file="$state_dir/server.pid"
+# shellcheck source-path=SCRIPTDIR source=../share/mlx/profiles.sh
+source "$(dirname "$0")/../share/mlx/profiles.sh"
 
-if [[ ! -f "$pid_file" ]]; then
-  echo "MLX server is not running"
-  exit 0
-fi
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/mlx"
+selected="${1:-$(mlx_default_profile)}"
+[[ $# -le 1 ]] || {
+  echo "Usage: mlx-server-stop [profile|all]" >&2
+  exit 2
+}
 
-pid="$(sed -n '1p' "$pid_file")"
-case "$pid" in
-  ''|*[!0-9]*)
-    echo "Error: invalid MLX server PID file: $pid_file" >&2
-    exit 1
-    ;;
-esac
+stop_profile() {
+  local profile="$1" state_dir pid_file pid command_line attempt
 
-if ! kill -0 "$pid" 2>/dev/null; then
+  mlx_require_profile "$profile"
+  state_dir="$state_root/servers/$profile"
+  pid_file="$state_dir/server.pid"
+
+  if [[ ! -f "$pid_file" && "$profile" == "coder-next" && -f "$state_root/server.pid" ]]; then
+    pid_file="$state_root/server.pid"
+  fi
+
+  if [[ ! -f "$pid_file" ]]; then
+    echo "MLX $profile server is not running"
+    return 0
+  fi
+
+  pid="$(sed -n '1p' "$pid_file")"
+  case "$pid" in
+    ''|*[!0-9]*)
+      echo "Error: invalid MLX server PID file: $pid_file" >&2
+      return 1
+      ;;
+  esac
+
+  if ! kill -0 "$pid" 2>/dev/null; then
+    rm -f "$pid_file"
+    echo "MLX $profile server is not running"
+    return 0
+  fi
+
+  command_line="$(ps -p "$pid" -o command=)"
+  case "$command_line" in
+    *"/venvs/mlx/bin/mlx_lm server"*) ;;
+    *)
+      echo "Error: refusing to stop unrelated process $pid: $command_line" >&2
+      return 1
+      ;;
+  esac
+
+  kill "$pid"
+  attempt=0
+  while kill -0 "$pid" 2>/dev/null && ((attempt < 10)); do
+    sleep 1
+    ((attempt += 1))
+  done
+
+  if kill -0 "$pid" 2>/dev/null; then
+    echo "Error: MLX $profile server $pid did not stop" >&2
+    return 1
+  fi
+
   rm -f "$pid_file"
-  echo "MLX server is not running"
-  exit 0
+  echo "MLX $profile server stopped"
+}
+
+status=0
+if [[ "$selected" == "all" ]]; then
+  while IFS= read -r profile; do
+    stop_profile "$profile" || status=1
+  done < <(mlx_profile_names)
+else
+  stop_profile "$selected" || status=1
 fi
-
-command_line="$(ps -p "$pid" -o command=)"
-case "$command_line" in
-  *"/venvs/mlx/bin/mlx_lm server"*) ;;
-  *)
-    echo "Error: refusing to stop unrelated process $pid: $command_line" >&2
-    exit 1
-    ;;
-esac
-
-kill "$pid"
-attempt=0
-while kill -0 "$pid" 2>/dev/null && ((attempt < 10)); do
-  sleep 1
-  ((attempt += 1))
-done
-
-if kill -0 "$pid" 2>/dev/null; then
-  echo "Error: MLX server $pid did not stop" >&2
-  exit 1
-fi
-
-rm -f "$pid_file"
-echo "MLX server stopped"
+exit "$status"

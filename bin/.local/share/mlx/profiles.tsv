@@ -1,0 +1,3 @@
+# profile	Hugging Face model	OpenCode model	port	top-k	OpenCode agent
+coder-next	mlx-community/Qwen3-Coder-Next-4bit	mlx/default_model	13306	40	local-worker
+qwen36	mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit	mlx-qwen36/default_model	13307	20	local-worker-qwen36

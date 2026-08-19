@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+#
+# Run the same implementation task through both local MLX coding profiles.
+#
+# Usage:
+#   mlx-ab "<implementation task>"
+#
+# The source repository must be clean. Each model works in its own disposable
+# branch clone, so neither implementation touches the source checkout. Output,
+# timing, Git status and a complete patch for each run are retained under
+# ~/.local/state/mlx/ab/<timestamp>/.
+
+set -euo pipefail
+
+# shellcheck source-path=SCRIPTDIR source=../share/mlx/profiles.sh
+source "$(dirname "$0")/../share/mlx/profiles.sh"
+
+case "${1:-}" in
+  -h|--help|"")
+    sed -n '2,/^$/s/^#\{0,1\} \{0,1\}//p' "$0"
+    [[ -n "${1:-}" ]] && exit 0
+    exit 2
+    ;;
+esac
+
+command -v opencode >/dev/null 2>&1 || {
+  echo "Error: OpenCode is not installed or not on PATH" >&2
+  exit 1
+}
+command -v mlx-server-start >/dev/null 2>&1 || {
+  echo "Error: mlx-server-start is not installed or not on PATH" >&2
+  exit 1
+}
+command -v mlx-server-stop >/dev/null 2>&1 || {
+  echo "Error: mlx-server-stop is not installed or not on PATH" >&2
+  exit 1
+}
+git bc-add -h >/dev/null 2>&1 || {
+  echo "Error: git bc-add is not installed" >&2
+  exit 1
+}
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+  echo "Error: mlx-ab must run inside a Git repository" >&2
+  exit 1
+}
+if [[ -n "$(git -C "$repo_root" status --porcelain)" ]]; then
+  echo "Error: mlx-ab requires a clean source checkout" >&2
+  exit 1
+fi
+
+task="$*"
+base_commit="$(git -C "$repo_root" rev-parse HEAD)"
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+state_root="${XDG_STATE_HOME:-$HOME/.local/state}/mlx"
+result_dir="$state_root/ab/$stamp"
+run_root="$(mktemp -d "${TMPDIR:-/tmp}/mlx-ab.XXXXXX")"
+coder_clone="$run_root/coder-next"
+qwen_clone="$run_root/qwen36"
+
+# Invoked indirectly by the EXIT trap below.
+# shellcheck disable=SC2329
+cleanup() {
+  local clone
+  for clone in "$coder_clone" "$qwen_clone"; do
+    if [[ -d "$clone/.git" ]]; then
+      git bc-rm "$clone" --force --yes >/dev/null 2>&1 || true
+    fi
+  done
+  rmdir "$run_root" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+[[ ! -e "$result_dir" ]] || {
+  echo "Error: result directory already exists: $result_dir" >&2
+  exit 1
+}
+mkdir -p "$result_dir"
+printf '%s\n' "$task" >"$result_dir/task.txt"
+printf '%s\n' "$base_commit" >"$result_dir/base-commit.txt"
+
+echo "Preparing disposable branch clones"
+git bc-add --offline "$repo_root" "mlx-ab/$stamp-coder-next-$$" "$coder_clone" \
+  >"$result_dir/coder-next-setup.log" 2>&1
+git bc-add --offline "$repo_root" "mlx-ab/$stamp-qwen36-$$" "$qwen_clone" \
+  >"$result_dir/qwen36-setup.log" 2>&1
+
+controlled_task="$task
+
+This is an A/B implementation run. Work through the task completely and run
+the relevant checks. Do not commit, push, publish, deploy, or request an
+external review."
+
+run_profile() {
+  local profile="$1" clone="$2" profile_dir model model_ref agent port
+  local server_started=false start_time end_time run_status=0
+
+  profile_dir="$result_dir/$profile"
+  model="$(mlx_profile_model "$profile")"
+  model_ref="$(mlx_profile_opencode_model "$profile")"
+  agent="$(mlx_profile_opencode_agent "$profile")"
+  port="$(mlx_profile_port "$profile")"
+  mkdir -p "$profile_dir"
+
+  if ! curl -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1; then
+    server_started=true
+    if ! mlx-server-start "$profile" >"$profile_dir/server.log" 2>&1; then
+      printf 'profile=%s\nmodel=%s\nmodel_ref=%s\nagent=%s\nexit_status=125\nduration_seconds=0\n' \
+        "$profile" "$model" "$model_ref" "$agent" >"$profile_dir/metadata.txt"
+      return 1
+    fi
+  fi
+
+  echo "Running $profile"
+  start_time="$(date +%s)"
+  (
+    cd "$clone"
+    opencode run --agent "$agent" --model "$model_ref" "$controlled_task"
+  ) >"$profile_dir/opencode.log" 2>&1 || run_status=$?
+  end_time="$(date +%s)"
+
+  git -C "$clone" add -N -- . >/dev/null 2>&1 || true
+  git -C "$clone" diff --binary "$base_commit" >"$profile_dir/implementation.patch"
+  git -C "$clone" diff --stat "$base_commit" >"$profile_dir/diff-stat.txt"
+  git -C "$clone" status --short >"$profile_dir/git-status.txt"
+  git -C "$clone" log --oneline "$base_commit..HEAD" >"$profile_dir/commits.txt"
+  printf 'profile=%s\nmodel=%s\nmodel_ref=%s\nagent=%s\nexit_status=%s\nduration_seconds=%s\n' \
+    "$profile" "$model" "$model_ref" "$agent" "$run_status" "$(( end_time - start_time ))" \
+    >"$profile_dir/metadata.txt"
+
+  if [[ "$server_started" == true ]]; then
+    mlx-server-stop "$profile" >>"$profile_dir/server.log" 2>&1 || true
+  fi
+
+  [[ "$run_status" -eq 0 ]]
+}
+
+overall_status=0
+run_profile coder-next "$coder_clone" || overall_status=1
+run_profile qwen36 "$qwen_clone" || overall_status=1
+
+{
+  printf '# MLX coding-agent A/B\n\n'
+  printf -- "- Base commit: \`%s\`\n" "$base_commit"
+  printf -- '- Task: %s\n\n' "$task"
+  for profile in coder-next qwen36; do
+    printf '## %s\n\n' "$profile"
+    if [[ -s "$result_dir/$profile/metadata.txt" ]]; then
+      sed 's/^/- /' "$result_dir/$profile/metadata.txt"
+    else
+      printf -- '- run did not produce metadata\n'
+    fi
+    printf '\n'
+  done
+} >"$result_dir/summary.md"
+
+printf '\nA/B results: %s\n' "$result_dir"
+printf 'Summary: %s\n' "$result_dir/summary.md"
+exit "$overall_status"

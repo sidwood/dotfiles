@@ -108,23 +108,35 @@ pins:
 mlx-setup
 ```
 
-The coding model is pinned in `bin/.local/share/mlx/model.txt`. Download it and
+The named coding models are pinned in `bin/.local/share/mlx/profiles.tsv`, with
+the default selected by `default-profile.txt`. Download one profile or both and
 start its local OpenAI-compatible endpoint with:
 
 ```bash
-mlx-model-download
-mlx-server-start
+mlx-model-download qwen36
+mlx-model-download all
+mlx-server-start qwen36
 ```
 
-`cm` launches interactive OpenCode with the local
-`Qwen3-Coder-Next-4bit` implementation agent and starts the MLX server when
-necessary. Run `frontier-review "<requirements>"` for an explicit review.
+`cm` retains `Qwen3-Coder-Next-4bit` as the default interactive OpenCode
+worker. `cmq` launches `Qwen3.6-35B-A3B-OptiQ-4bit`; the equivalent explicit
+form is `cm qwen36`. Each command starts its own server when necessary, and the
+two servers can coexist on the 128 GB M5 Max. Use `opencode-mlx --profiles` to
+list their names and ports. Run `frontier-review "<requirements>"` for an
+explicit review.
 
 For an autonomous fleet job, use `cm run "<task>"` from a clean Git worktree.
 The launcher runs the local worker, asks Codex GPT-5.6 Sol and Claude Opus to
 review its working diff independently in read-only modes, then sends their
 findings back to the worker for one remediation pass. Use `mlx-server-stop` to
 release the model's unified memory.
+
+Run `cmab "<implementation task>"` from a clean repository to compare both
+models. It creates two disposable branch clones, gives each worker the same
+task, and saves their logs, timings, Git status and complete patches under
+`~/.local/state/mlx/ab/<timestamp>/` without changing the source checkout or
+spending frontier-model credits. Stop one named server with
+`mlx-server-stop qwen36`, or stop both with `mlx-server-stop all`.
 
 Use `mlx_lm` for direct model access and `mlx-python` for Python code that
 imports MLX. Downloaded Hugging Face models remain in the normal user cache and

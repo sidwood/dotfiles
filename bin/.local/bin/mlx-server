@@ -3,21 +3,20 @@
 set -euo pipefail
 
 venv_dir="${XDG_DATA_HOME:-$HOME/.local/share}/venvs/mlx"
-model_file="$(dirname "$0")/../share/mlx/model.txt"
+# shellcheck source-path=SCRIPTDIR source=../share/mlx/profiles.sh
+source "$(dirname "$0")/../share/mlx/profiles.sh"
 
 if [[ ! -x "$venv_dir/bin/mlx_lm" ]]; then
   echo "Error: MLX LM is not installed; run mlx-setup" >&2
   exit 1
 fi
 
-if [[ ! -s "$model_file" ]]; then
-  echo "Error: model configuration not found at $model_file" >&2
-  exit 1
-fi
-
-model="${MLX_MODEL:-$(sed -n '1p' "$model_file")}"
+profile="${MLX_PROFILE:-$(mlx_default_profile)}"
+mlx_require_profile "$profile"
+model="${MLX_MODEL:-$(mlx_profile_model "$profile")}"
 host="${MLX_HOST:-127.0.0.1}"
-port="${MLX_PORT:-13306}"
+port="${MLX_PORT:-$(mlx_profile_port "$profile")}"
+top_k="${MLX_TOP_K:-$(mlx_profile_top_k "$profile")}"
 
 exec "$venv_dir/bin/mlx_lm" server \
   --model "$model" \
@@ -25,7 +24,7 @@ exec "$venv_dir/bin/mlx_lm" server \
   --port "$port" \
   --temp 1.0 \
   --top-p 0.95 \
-  --top-k 40 \
+  --top-k "$top_k" \
   --max-tokens 16384 \
   --prompt-cache-size 2 \
   --prompt-cache-bytes 17179869184 \

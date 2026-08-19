@@ -34,6 +34,23 @@
           }
         }
       }
+    },
+    "mlx-qwen36": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "MLX Qwen3.6 on M5 Max",
+      "options": {
+        "baseURL": "http://127.0.0.1:13307/v1",
+        "apiKey": "local"
+      },
+      "models": {
+        "default_model": {
+          "name": "Qwen3.6 35B-A3B OptiQ 4-bit (M5 Max)",
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          }
+        }
+      }
     }
   }
 }

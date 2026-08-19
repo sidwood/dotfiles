@@ -3,8 +3,10 @@
 # git-bc-add — create a branch clone seeded from an existing local clone.
 #
 # Usage:
-#   git bc-add <source> <branch> [target]
+#   git bc-add [--offline] <source> <branch> [target]
 #
+#   --offline  Clone the seed without fetching the real remote. Useful for
+#              disposable comparisons that must reproduce the current HEAD.
 #   <source>  Existing clone to seed from. Git hardlinks the object files when
 #             the target lands on the same filesystem, so this costs no network
 #             transfer and almost no disk.
@@ -32,8 +34,13 @@ bc_prog="${0##*/}"
 # shellcheck source-path=SCRIPTDIR source=../share/git-bc/common.sh
 source "$(dirname "$0")/../share/git-bc/common.sh"
 
+bc_offline=false
 case "${1:-}" in
   -h|--help|"") bc_usage 0 ;;
+  --offline)
+    bc_offline=true
+    shift
+    ;;
 esac
 
 [[ $# -ge 2 && $# -le 3 ]] || bc_usage 2
@@ -105,7 +112,11 @@ restore_seed
 # Repoint origin at the server so fetches and pushes bypass the seed, then pick
 # up anything that landed after the seed was last fetched.
 git -C "$target" remote set-url origin "$remote_url"
-git -C "$target" fetch origin --prune
+if [[ "$bc_offline" == true ]]; then
+  bc_info "offline mode — skipping remote fetch"
+else
+  git -C "$target" fetch origin --prune
+fi
 
 # The clone already sits on the branch when the seed had one. Otherwise track
 # the server's copy, else start a new branch off HEAD.

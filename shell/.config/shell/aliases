@@ -43,6 +43,8 @@ alias gbcs='git bc-sync-extras'
 
 alias c='opencode-framework'
 alias cm='opencode-mlx'
+alias cmq='opencode-mlx qwen36'
+alias cmab='mlx-ab'
 alias claude-danger='claude --dangerously-skip-permissions'
 alias d='docker'
 alias r='rails'
