@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+venv_dir="${XDG_DATA_HOME:-$HOME/.local/share}/venvs/mlx"
+
+if [[ ! -x "$venv_dir/bin/python" ]]; then
+  echo "Error: MLX is not installed; run mlx-setup" >&2
+  exit 1
+fi
+
+exec "$venv_dir/bin/python" "$@"

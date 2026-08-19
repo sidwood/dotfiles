@@ -37,6 +37,10 @@ options+=("Reset macOS system defaults.")
 option_keys+=("macos")
 options+=("Remove dotfile package symlinks with GNU Stow.")
 option_keys+=("stow")
+if [[ "$(uname -m)" == "arm64" ]]; then
+  options+=("Remove the MLX Python environment.")
+  option_keys+=("mlx")
+fi
 options+=("Uninstall vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -158,6 +162,15 @@ uninstall_vim_plugins() {
   rm -rf "$HOME/.config/vim/plugged" 2>/dev/null
 }
 
+uninstall_mlx() {
+  local venv_dir="${XDG_DATA_HOME:-$HOME/.local/share}/venvs/mlx"
+
+  if [[ -d "$venv_dir" ]]; then
+    echo "Removing MLX Python environment at $venv_dir"
+    rm -rf "$venv_dir"
+  fi
+}
+
 #
 # Main
 #
@@ -174,6 +187,10 @@ fi
 
 if is_selected "stow"; then
   uninstall_dotfiles
+fi
+
+if is_selected "mlx"; then
+  uninstall_mlx
 fi
 
 if is_selected "vim"; then

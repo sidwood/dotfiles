@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+python_version="3.13"
+data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+venv_dir="$data_home/venvs/mlx"
+requirements_file="$(dirname "$0")/../share/mlx/requirements.txt"
+
+command -v mise >/dev/null 2>&1 || {
+  echo "Error: mise is required" >&2
+  exit 1
+}
+
+if [[ "$(uname -m)" != "arm64" ]]; then
+  echo "Error: MLX requires Apple silicon" >&2
+  exit 1
+fi
+
+if [[ ! -f "$requirements_file" ]]; then
+  echo "Error: requirements not found at $requirements_file" >&2
+  exit 1
+fi
+
+echo "Installing Python $python_version for MLX"
+mise install "python@$python_version"
+python="$(mise where "python@$python_version")/bin/python3"
+
+if [[ -x "$venv_dir/bin/python" ]]; then
+  installed_version="$("$venv_dir/bin/python" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+  if [[ "$installed_version" != "$python_version" ]]; then
+    echo "Error: $venv_dir uses Python $installed_version; expected $python_version" >&2
+    exit 1
+  fi
+else
+  echo "Creating MLX environment at $venv_dir"
+  "$python" -m venv "$venv_dir"
+fi
+
+echo "Installing MLX"
+"$venv_dir/bin/python" -m pip install --upgrade pip
+"$venv_dir/bin/python" -m pip install --upgrade -r "$requirements_file"
+"$venv_dir/bin/python" -m pip check
+
+"$venv_dir/bin/python" - <<'PY'
+import mlx.core as mx
+
+x = mx.arange(6).reshape((2, 3))
+y = mx.sum(x * x)
+mx.eval(y)
+assert y.item() == 55
+print(f"MLX ready: {mx.__version__} on {mx.default_device()}")
+PY
+
+echo "Run 'mlx_lm --help' or 'mlx-python' to get started"

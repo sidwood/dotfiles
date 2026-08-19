@@ -50,6 +50,10 @@ options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
 options+=("Set up mise with default runtimes.")
 option_keys+=("mise")
+if [[ "$(uname -m)" == "arm64" ]]; then
+  options+=("Set up MLX for Apple silicon.")
+  option_keys+=("mlx")
+fi
 options+=("Install global pnpm packages.")
 option_keys+=("pnpm_globals")
 options+=("Install vim plugins.")
@@ -325,6 +329,13 @@ setup_mise() {
   mise list
 }
 
+setup_mlx() {
+  local setup_script="$PWD/bin/.local/bin/mlx-setup"
+
+  [[ -x "$setup_script" ]] || abort "MLX setup script missing or not executable: $setup_script"
+  "$setup_script"
+}
+
 setup_pnpm_globals() {
   command -v op >/dev/null 2>&1 || abort '1Password CLI required (install Homebrew packages first)'
 
@@ -454,6 +465,10 @@ setup_repo_hooks
 
 if is_selected "mise"; then
   setup_mise
+fi
+
+if is_selected "mlx"; then
+  setup_mlx
 fi
 
 if is_selected "pnpm_globals"; then

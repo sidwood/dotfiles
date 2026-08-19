@@ -25,6 +25,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
   [x] Set up mise with default runtimes.
+  [x] Set up MLX for Apple silicon.
   [x] Install global pnpm packages.
   [x] Install vim plugins.
 ```
@@ -86,6 +87,29 @@ The `shell/` package provides configuration sourced from zsh:
 - `~/.config/shell/aliases` - Common aliases
 - `~/.config/shell/functions` - Utility functions
 - `~/.config/shell/init` - Tool integrations (mise, zoxide, fzf)
+
+### MLX
+
+On Apple silicon, the installer creates an isolated Python 3.13 environment at
+`~/.local/share/venvs/mlx` and installs the pinned MLX and MLX LM versions from
+`bin/.local/share/mlx/requirements.txt`. Re-run the setup after changing those
+pins:
+
+```bash
+mlx-setup
+```
+
+Use `mlx_lm` for local language models and `mlx-python` for Python code that
+imports MLX:
+
+```bash
+mlx_lm generate --prompt "Explain unified memory in one sentence."
+mlx_lm chat
+mlx-python -c 'import mlx.core as mx; print(mx.default_device())'
+```
+
+Downloaded Hugging Face models remain in the normal user cache and are not
+removed when the rebuildable Python environment is uninstalled.
 
 ## Uninstall
 

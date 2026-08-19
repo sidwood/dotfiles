@@ -1,0 +1,4 @@
+# Pin the top-level Apple packages; their dependency constraints select the
+# compatible supporting libraries for the managed Python version.
+mlx==0.32.1
+mlx-lm==0.31.3
