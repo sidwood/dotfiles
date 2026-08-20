@@ -1,0 +1,232 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+model_repo="mlx-community/GLM-4.7-Flash-4bit"
+model_id="mlx-community--GLM-4.7-Flash-4bit"
+model_alias="glm-4.7-flash-4bit"
+port="${OMLX_PORT:-13308}"
+base_url="http://127.0.0.1:${port}"
+cache_dir="${OMLX_CACHE_DIR:-$HOME/.omlx/cache/paged}"
+server_pid=""
+tmp_dir=""
+
+abort() {
+  printf 'Error: %s\n' "$*" >&2
+  exit 1
+}
+
+cleanup() {
+  if [[ -n "$server_pid" ]]; then
+    kill -INT "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
+  fi
+  if [[ -n "$tmp_dir" && -d "$tmp_dir" ]]; then
+    rm -rf "$tmp_dir"
+  fi
+}
+
+trap cleanup EXIT HUP INT TERM
+
+[[ "$(uname -s)" == "Darwin" ]] || abort 'oMLX GLM setup requires macOS'
+[[ "$(uname -m)" == "arm64" ]] || abort 'oMLX GLM setup requires Apple silicon'
+
+for command_name in brew curl hermes omlx python3; do
+  command -v "$command_name" >/dev/null 2>&1 || abort "$command_name is required"
+done
+
+omlx_prefix="$(brew --prefix jundot/omlx/omlx 2>/dev/null)" || \
+  abort 'oMLX is not installed; install the Brewfile first'
+hf_cli="$omlx_prefix/libexec/bin/hf"
+[[ -x "$hf_cli" ]] || abort "Hugging Face CLI not found at $hf_cli"
+
+printf 'Downloading %s into the shared Hugging Face cache\n' "$model_repo"
+"$hf_cli" download "$model_repo"
+
+printf 'Configuring oMLX on %s\n' "$base_url"
+omlx stop >/dev/null 2>&1 || true
+
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  if ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+  abort "port $port is already in use by an unmanaged process"
+fi
+
+tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/omlx-glm-setup.XXXXXX")"
+omlx serve \
+  --host 127.0.0.1 \
+  --port "$port" \
+  --max-concurrent-requests 2 \
+  --memory-guard safe \
+  --paged-ssd-cache-dir "$cache_dir" \
+  --paged-ssd-cache-max-size 50GB \
+  --hot-cache-max-size 8GB \
+  --initial-cache-blocks 256 \
+  --log-level info >"$tmp_dir/server.log" 2>&1 &
+server_pid=$!
+
+ready=false
+attempt=0
+while (( attempt < 60 )); do
+  attempt=$((attempt + 1))
+  if curl -fsS "$base_url/health" >/dev/null 2>&1; then
+    ready=true
+    break
+  fi
+  if ! kill -0 "$server_pid" 2>/dev/null; then
+    tail -50 "$tmp_dir/server.log" >&2
+    abort 'temporary oMLX server exited during setup'
+  fi
+  sleep 1
+done
+[[ "$ready" == "true" ]] || abort 'temporary oMLX server did not become ready'
+
+OMLX_SETUP_BASE_URL="$base_url" \
+OMLX_SETUP_MODEL_ID="$model_id" \
+OMLX_SETUP_MODEL_ALIAS="$model_alias" \
+python3 - <<'PY'
+import http.cookiejar
+import json
+import os
+import secrets
+import subprocess
+import time
+import urllib.request
+from pathlib import Path
+
+base_url = os.environ["OMLX_SETUP_BASE_URL"]
+model_id = os.environ["OMLX_SETUP_MODEL_ID"]
+model_alias = os.environ["OMLX_SETUP_MODEL_ALIAS"]
+settings_path = Path.home() / ".omlx" / "settings.json"
+settings = json.loads(settings_path.read_text())
+api_key = settings.get("auth", {}).get("api_key") or secrets.token_urlsafe(32)
+
+cookies = http.cookiejar.CookieJar()
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
+
+
+def request(path, payload=None, method="POST", timeout=180):
+    data = None if payload is None else json.dumps(payload).encode()
+    req = urllib.request.Request(
+        base_url + path,
+        data=data,
+        method=method,
+        headers={"Content-Type": "application/json"},
+    )
+    with opener.open(req, timeout=timeout) as response:
+        return json.load(response)
+
+
+if settings.get("auth", {}).get("api_key"):
+    request("/admin/api/login", {"api_key": api_key, "remember": False})
+else:
+    request(
+        "/admin/api/setup-api-key",
+        {"api_key": api_key, "api_key_confirm": api_key},
+    )
+
+request(
+    f"/admin/api/models/{model_id}/settings",
+    {
+        "model_alias": model_alias,
+        "max_context_window": 65536,
+        "max_tokens": 16384,
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "force_sampling": False,
+        "enable_thinking": False,
+        "thinking_budget_enabled": False,
+        "thinking_budget_tokens": None,
+        "chat_template_kwargs": {"clear_thinking": True},
+        "forced_ct_kwargs": ["enable_thinking", "clear_thinking"],
+        "guided_grammar_enabled": False,
+        "dflash_enabled": False,
+        "dflash_draft_model": None,
+        "dflash_draft_quant_enabled": None,
+        "dflash_max_ctx": None,
+        "dflash_ssd_cache": False,
+        "is_pinned": True,
+        "is_default": True,
+        "is_favorite": True,
+    },
+    method="PUT",
+)
+request(
+    "/admin/api/global-settings",
+    {"integrations_hermes_model": model_alias},
+)
+
+previous = subprocess.run(
+    ["hermes", "config", "get", "model.default"],
+    check=False,
+    capture_output=True,
+    text=True,
+).stdout.strip()
+if previous != model_alias:
+    subprocess.run(
+        ["hermes", "backup", "--quick", "--label", "pre-glm-primary"],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+
+values = {
+    "model.default": model_alias,
+    "model.provider": "custom",
+    "model.base_url": base_url + "/v1",
+    "model.api_key": api_key,
+    "model.context_length": "65536",
+    "agent.reasoning_effort": "none",
+}
+for key, value in values.items():
+    command = ["hermes", "config", "set"]
+    if key == "agent.reasoning_effort":
+        command.append("--force")
+    command.extend([key, value])
+    subprocess.run(
+        command,
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+headers = {"Authorization": "Bearer " + api_key}
+for _ in range(180):
+    req = urllib.request.Request(base_url + "/v1/models/status", headers=headers)
+    with urllib.request.urlopen(req, timeout=10) as response:
+        status = json.load(response)
+    model = next(item for item in status["models"] if item["id"] == model_id)
+    if model["loaded"]:
+        break
+    time.sleep(1)
+else:
+    raise SystemExit("GLM did not finish loading during setup")
+PY
+
+kill -INT "$server_pid" 2>/dev/null || true
+wait "$server_pid" 2>/dev/null || true
+server_pid=""
+
+printf 'Starting oMLX as a managed login service\n'
+omlx start >/dev/null
+
+ready=false
+attempt=0
+while (( attempt < 180 )); do
+  attempt=$((attempt + 1))
+  health="$(curl -fsS "$base_url/health" 2>/dev/null || true)"
+  if printf '%s' "$health" | \
+      grep -q "\"default_model\":\"$model_id\"" && \
+      printf '%s' "$health" | grep -q '"loaded_count":[1-9]'; then
+    ready=true
+    break
+  fi
+  sleep 1
+done
+[[ "$ready" == "true" ]] || abort 'managed oMLX service did not preload GLM'
+
+printf 'GLM is pinned at %s and is now the primary Hermes model\n' "$base_url"

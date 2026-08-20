@@ -2,6 +2,7 @@ tap "1password/tap"
 tap "ampcode/tap"
 tap "jesseduffield/lazydocker"
 tap "jesseduffield/lazygit"
+tap "jundot/omlx", "https://github.com/jundot/omlx"
 tap "mongodb/brew"
 
 # cli tools
@@ -41,6 +42,7 @@ brew "mise"
 brew "mongodb-database-tools"
 brew "neovim"
 brew "ollama"
+brew "jundot/omlx/omlx", restart_service: :changed
 brew "opencode"
 brew "openssh"
 brew "openssl"
