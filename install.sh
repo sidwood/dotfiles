@@ -392,6 +392,7 @@ setup_pnpm_globals() {
   local global_packages=(
     @sidwood/timecraft
     @google/gemini-cli
+    defuddle
     firecrawl-cli
   )
 
@@ -404,7 +405,7 @@ setup_pnpm_globals() {
 
   # Binaries the packages above expose
   local cmd
-  for cmd in tc gemini firecrawl; do
+  for cmd in tc gemini defuddle firecrawl; do
     if command -v "$cmd" >/dev/null 2>&1; then
       echo "Installed $cmd -> $(command -v "$cmd")"
     else
