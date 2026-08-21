@@ -88,10 +88,8 @@ Source: `~/code/dotfiles/bin/`.
 
 ### Land finished clones onto the seed, then push the seed
 
-When a branch clone's work is done, rebase its commits onto the **seed**
-checkout. That seed is the staging area. Push **from the seed** to origin so
-pre-push hooks run here and can be fixed (rewrite the message, do not
-`--no-verify`). Never push from the clone.
+A finished clone's commits are rebased onto the **seed**, which is the staging
+area, and pushed from there so pre-push hooks run somewhere they can be fixed.
 
 For Surface the seed is `/Users/sidwood/code/smokefree/surface`. For any other
 repo it is the clone that `bc.source` points at (or the directory `git bc-add`
@@ -120,47 +118,9 @@ git -C "$seed" merge --ff-only FETCH_HEAD
 git -C "$seed" push origin HEAD
 ```
 
-### Seed `node_modules` is Sid's — never `pnpm install` there
+## Surface prompts must carry the repo's own rules
 
-Cursor's sandbox sets `PNPM_STORE_PATH` to an empty temp store. `CI=true pnpm
-install` (or `pnpm exec` auto-install) then sees a store mismatch, purges
-`node_modules`, and fails offline. A later `pnpm install --offline` prints
-"Already up to date" because pnpm 11 trusts workspace-state mtimes, not a
-present `.pnpm/tsx@…` tree. That is what kept breaking Sid's `tsx`.
-
-- Work in `git bc-add` clones. Each clone owns its own `node_modules`.
-- On the Surface seed: `git config bc.postadd 'pnpm install'`.
-- Never `pnpm install`, `pnpm exec`, or `rm -rf node_modules` in the seed.
-- Never `CI=true pnpm install` in the sandbox.
-- Never honor sandbox `PNPM_STORE_PATH` for a seed install. Host store is
-  `/Users/sidwood/.local/share/pnpm/store/v11`.
-- Never copy or hardlink `node_modules` via `bc.extras`.
-
-## Lint before every Surface commit
-
-Implementers run `pnpm lint` **before** `git commit`, not after. That is
-Biome (format and lint) and cspell. If lint rewrites files, stage those
-paths into the same commit. Never a follow-up format or cspell commit.
-Never interactive-rebase published `origin/main` to make old commits
-lint-clean.
-
-Every Surface **implementer** prompt must include this. `AGENTS.md` and
-the kanban `BASE_AGENT_PROMPT` already say it; repeating it in the Task
-prompt still matters.
-
-## Surface engineering wiki is house style
-
-Surface (`/Users/sidwood/code/smokefree/surface`) is bound by the engineering
-corpus under `wiki/engineering/`. TypeScript, NestJS, testing, HTTP,
-persistence, Node.js, configuration, and readability notes all apply to this
-repository.
-
-Every Surface **implementer** prompt and every **Kimi K3** review prompt must
-tell the agent to read `wiki/engineering/index.md` plus the TypeScript, NestJS,
-testing, and HTTP indexes, then the notes that cover the files in the change.
-Review against those Memories, not generic Nest/TS taste. Flutter notes under
-`wiki/engineering/flutter/` apply to Flutter codebases only, not Surface API or
-web.
-
-This is already in Surface `AGENTS.md`. Repeating it in the Task prompt still
-matters: clones and reviewers follow the prompt they were given.
+Surface `AGENTS.md` is authoritative for its lint gate and for the
+`wiki/engineering/` house style. Implementer and Kimi K3 review prompts must
+still name both explicitly — clones and reviewers follow the prompt they were
+given, and Kimi reads working-directory `AGENTS.md` only.
