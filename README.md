@@ -168,6 +168,27 @@ Use `omlx stop`, `omlx start`, and `omlx restart` to control the managed
 service. The model remains in the shared Hugging Face cache if oMLX is
 uninstalled.
 
+### Flutter iOS toolchain
+
+The Brewfile installs Flutter and CocoaPods, and Xcode from the Mac App
+Store. Building or simulating an iOS app also needs a one-time ritual that
+the Brewfile cannot express, because it takes root and a licence agreement.
+Run the idempotent setup once Xcode is installed:
+
+```bash
+flutter-ios-setup
+```
+
+The command points the active developer directory at full Xcode, accepts the
+Xcode licence, downloads the iOS platform and simulator runtime, precaches
+Flutter's iOS engine artifacts, and finishes with `flutter doctor`. Each step
+detects work already done and skips it, so re-running after an Xcode upgrade
+only fetches what is missing. The two steps that take root announce
+themselves before prompting.
+
+Note that `mas install` needs root in mas 7, so Xcode itself is
+`sudo mas install 497799835` rather than part of `brew bundle`.
+
 ## Uninstall
 
 ```bash

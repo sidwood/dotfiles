@@ -15,6 +15,7 @@ brew "biome"
 brew "btop"
 brew "cmake"
 brew "cmatrix"
+brew "cocoapods"
 brew "curl"
 brew "difftastic"
 brew "direnv"
@@ -68,6 +69,7 @@ brew "zoxide"
 # cli applications
 cask "1password-cli"
 cask "claude-code"
+cask "flutter"
 cask "gcloud-cli"
 cask "grok-build"
 
@@ -120,3 +122,4 @@ mas "Magnet", id: 441258766
 mas "Numbers", id: 409203825
 mas "Pages", id: 409201541
 mas "Sound Studio", id: 405537804
+mas "Xcode", id: 497799835

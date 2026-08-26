@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+developer_dir="/Applications/Xcode.app/Contents/Developer"
+
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  echo "Error: the iOS toolchain is macOS only" >&2
+  exit 1
+fi
+
+if [[ ! -d "/Applications/Xcode.app" ]]; then
+  echo "Error: Xcode not found at /Applications/Xcode.app" >&2
+  echo "Install it first: sudo mas install 497799835" >&2
+  exit 1
+fi
+
+command -v flutter >/dev/null 2>&1 || {
+  echo "Error: flutter is required" >&2
+  echo "Install it first: brew install --cask flutter" >&2
+  exit 1
+}
+
+# The Command Line Tools package cannot build for iOS, so the active
+# developer directory has to point at full Xcode.
+if [[ "$(xcode-select -p 2>/dev/null)" == "$developer_dir" ]]; then
+  echo "Active developer directory is already $developer_dir"
+else
+  echo "Selecting $developer_dir as the active developer directory"
+  echo "This needs sudo and will ask for your password"
+  sudo xcode-select -s "$developer_dir"
+fi
+
+# xcodebuild refuses every invocation until the licence is agreed, so a
+# successful -version is the licence check.
+if xcodebuild -version >/dev/null 2>&1; then
+  echo "Xcode licence is already accepted"
+else
+  echo "Accepting the Xcode licence"
+  echo "This needs sudo and will ask for your password"
+  sudo xcodebuild -license accept
+  xcodebuild -version >/dev/null || {
+    echo "Error: xcodebuild is still unusable after accepting the licence" >&2
+    exit 1
+  }
+fi
+
+# Xcode ships without the iOS platform; the SDK and the simulator runtime
+# are a separate multi-gigabyte download.
+if xcodebuild -showsdks 2>/dev/null | grep -q iphonesimulator; then
+  echo "iOS platform is already downloaded"
+else
+  echo "Downloading the iOS platform and simulator runtime (several GB)"
+  xcodebuild -downloadPlatform iOS
+fi
+
+# Flutter omits the iOS engine artifacts from a default install; precache
+# fetches only what is missing.
+echo "Precaching Flutter iOS artifacts"
+flutter precache --ios
+
+echo "Verifying the toolchain"
+flutter doctor
