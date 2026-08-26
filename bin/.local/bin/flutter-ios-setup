@@ -54,6 +54,16 @@ else
   xcodebuild -downloadPlatform iOS
 fi
 
+# A fresh Xcode defers some build components to its first launch, which
+# flutter doctor asks for by name.
+if xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1; then
+  echo "Xcode first-launch components are already installed"
+else
+  echo "Installing the Xcode first-launch components"
+  echo "This needs sudo and will ask for your password"
+  sudo xcodebuild -runFirstLaunch
+fi
+
 # Flutter omits the iOS engine artifacts from a default install; precache
 # fetches only what is missing.
 echo "Precaching Flutter iOS artifacts"
