@@ -45,10 +45,12 @@ else
   }
 fi
 
-# Xcode ships without the iOS platform; the SDK and the simulator runtime
-# are a separate multi-gigabyte download.
-if xcodebuild -showsdks 2>/dev/null | grep -q iphonesimulator; then
-  echo "iOS platform is already downloaded"
+# Xcode bundles the iOS SDK but not the simulator runtime, which is a
+# separate multi-gigabyte download. Gate on the runtime: with the SDK alone
+# simctl lists nothing and flutter doctor fails.
+if xcrun simctl list runtimes 2>/dev/null |
+  grep -qF 'com.apple.CoreSimulator.SimRuntime.iOS'; then
+  echo "iOS simulator runtime is already installed"
 else
   echo "Downloading the iOS platform and simulator runtime (several GB)"
   xcodebuild -downloadPlatform iOS
