@@ -29,6 +29,7 @@ alias ggf='git log --graph --all --pretty=fuller --decorate'
 alias gl='git pull'
 alias gp='git push'
 alias gs='git status'
+alias lg='lazygit'
 
 # Branch clones (see bin/.local/bin/git-bc-*); gbcd lives in shell/functions
 alias gbc='git bc-list'
