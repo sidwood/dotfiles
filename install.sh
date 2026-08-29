@@ -389,6 +389,7 @@ setup_pnpm_globals() {
   local global_packages=(
     @sidwood/timecraft
     @google/gemini-cli
+    browser-use-sdk
     defuddle
     firecrawl-cli
   )
