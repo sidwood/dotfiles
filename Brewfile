@@ -68,6 +68,7 @@ brew "zoxide"
 
 # cli applications
 cask "1password-cli"
+cask "antigravity-cli"
 cask "claude-code"
 cask "flutter"
 cask "gcloud-cli"
@@ -76,6 +77,8 @@ cask "grok-build"
 # gui applications
 cask "1password"
 cask "alfred"
+cask "antigravity"
+cask "antigravity-ide"
 cask "balenaetcher"
 cask "chatgpt"
 cask "claude"
