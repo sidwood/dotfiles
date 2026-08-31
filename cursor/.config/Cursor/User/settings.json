@@ -215,9 +215,23 @@
     "generic-slots-in-functions",
     "tuple-type",
     "as-const-on-object",
-    "type-predicate"
+    "type-predicate",
+    "extract-utility-type",
+    "conditional-type",
+    "never-keyword",
+    "readonly-object-property",
+    "nonnullable-utility-type"
   ],
   "docker.extension.enableComposeLanguageServer": false,
   "workbench.colorTheme": "Solarized Dark",
-  "window.autoDetectColorScheme": false
+  "window.autoDetectColorScheme": false,
+  "claudeCode.useTerminal": true,
+  "yaml.disableSchemaDetection": [
+    "**/.github/workflows/*.yml",
+    "**/.github/workflows/*.yaml",
+    "**/.gitea/workflows/*.yml",
+    "**/.gitea/workflows/*.yaml",
+    "**/.forgejo/workflows/*.yml",
+    "**/.forgejo/workflows/*.yaml"
+  ]
 }
