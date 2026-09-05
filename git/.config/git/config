@@ -69,3 +69,5 @@
 	insteadOf = "gist:"
 [url "git@heroku.com:"]
 	insteadOf = "heroku:"
+[credential "https://git.heroku.com"]
+	helper = !heroku git:credentials
