@@ -45,6 +45,8 @@ focus_pane_up = "prefix+k"
 focus_pane_right = "prefix+l"
 split_vertical = ["prefix+|", "prefix+backslash", "prefix+percent"]
 split_horizontal = ["prefix+minus", "prefix+_", "prefix+double_quote"]
+workspace_picker = "prefix+s"
+settings = "prefix+shift+s"
 
 # Ctrl-A A sends a literal Ctrl-A into the focused pane (tmux send-prefix).
 # Double Ctrl-A remains Herdr's built-in fallback.
