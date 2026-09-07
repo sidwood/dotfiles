@@ -94,3 +94,4 @@ if command -v heroku &> /dev/null; then
   fi
   eval "$(heroku autocomplete:script zsh)" 2>/dev/null || true
 fi
+export PATH=$PATH:$HOME/.maestro/bin
