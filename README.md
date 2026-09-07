@@ -128,6 +128,10 @@ limits and the allowed-model list live in
 the context actually loaded in LM Studio. Listing a model does not mean it is
 loaded. Local API authentication is currently disabled.
 
+Control Gemma’s thinking toggle in LM Studio. OpenCode’s generated
+`low`/`medium`/`high` effort presets are disabled for this model because it
+does not support those levels.
+
 The global config has no `small_model` override: for these custom providers,
 OpenCode's title helper falls back to the selected model. The optional
 `--agent local-worker` role also inherits the selected model. Launchers never

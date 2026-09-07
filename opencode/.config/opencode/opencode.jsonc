@@ -25,6 +25,17 @@
           "limit": {
             "context": 262144,
             "output": 16384
+          },
+          "variants": {
+            "low": {
+              "disabled": true
+            },
+            "medium": {
+              "disabled": true
+            },
+            "high": {
+              "disabled": true
+            }
           }
         }
       },
