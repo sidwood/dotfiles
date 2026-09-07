@@ -100,8 +100,8 @@ The `shell/` package provides configuration sourced from zsh:
 
 ### OpenCode: local and Framework models
 
-`c` launches OpenCode against LM Studio on this Mac. `cf` selects the Framework
-Desktop server. `cm` is a compatibility alias for `c`. Start a new shell after
+`c` and `cm` are plain aliases for `opencode`. `cf` selects the Framework
+Desktop server. The enabled configuration selects the local or cloud model. Start a new shell after
 updating to pick up the changed aliases.
 
 ```sh
@@ -121,8 +121,8 @@ The Homebrew installation option includes the `lm-studio` cask; no standalone
 MLX Python environment is installed.
 
 LM Studio manages its own MLX and llama.cpp runtimes and model loading. The
-local launcher checks the API on `127.0.0.1:1234`; it does not start a separate
-Python server. Gemma is the configured local default. Model IDs and context
+local endpoint is `127.0.0.1:1234`; start it in LM Studio or with `lms` before
+selecting a local model. Gemma is the configured local default. Model IDs and context
 limits and the allowed-model list live in
 `opencode/.config/opencode/opencode.jsonc`; match those limits to
 the context actually loaded in LM Studio. Listing a model does not mean it is
@@ -183,9 +183,8 @@ with `./` when it matches a profile or `models`.
 
 An explicit `OPENCODE_CONFIG` replaces the launcher's choice of overlay, not
 OpenCode's global configuration. Project settings can override that overlay.
-The custom file must define any remote models it needs. For custom config or
-inline config, `c` delegates endpoint checks to that configuration. Use
-`opencode` directly for other providers or remote OpenCode server attachment.
+The custom file must define any remote models it needs. All `opencode`
+arguments pass through `c` and `cm` unchanged.
 
 #### Migration from the direct MLX launchers
 
