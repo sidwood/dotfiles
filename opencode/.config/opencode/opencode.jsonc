@@ -59,6 +59,34 @@
           }
         }
       }
+    },
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:1234/v1",
+        "apiKey": "local"
+      },
+      "models": {
+        "qwen/qwen3.8-27b": {
+          "name": "Qwen3.8 27B (LM Studio)",
+          "tool_call": true,
+          "limit": {
+            "context": 262144,
+            "output": 16384
+          }
+        },
+        "google/gemma-4-26b-a4b-qat": {
+          "name": "Gemma 4 26B A4B QAT (LM Studio)",
+          "reasoning": true,
+          "tool_call": true,
+          "attachment": true,
+          "limit": {
+            "context": 262144,
+            "output": 16384
+          }
+        }
+      }
     }
   }
 }

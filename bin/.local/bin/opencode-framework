@@ -2,10 +2,79 @@
 
 set -euo pipefail
 
+framework_list_models() {
+  printf '%s\n' \
+    'Supported Framework model profiles:' \
+    '  27b-64k    Qwen3.8-27B Q5    65,536 tokens (default)' \
+    '  27b-128k   Qwen3.8-27B Q5   131,072 tokens (experimental)' \
+    '  122b       Qwen3.5-122B Q4  262,144 tokens'
+}
+
+framework_model='framework/Qwen3.8-27B-GGUF-UD-Q5_K_XL'
+framework_selected=false
+case "${1:-}" in
+  27b-64k|27b)
+    framework_model='framework/Qwen3.8-27B-GGUF-UD-Q5_K_XL'
+    framework_selected=true
+    shift
+    ;;
+  27b-128k)
+    framework_model='framework/Qwen3.8-27B-GGUF-UD-Q5_K_XL-128K'
+    framework_selected=true
+    shift
+    ;;
+  122b)
+    framework_model='framework/Qwen3.5-122B-A10B-GGUF'
+    framework_selected=true
+    shift
+    ;;
+  models)
+    if [[ "$#" -ne 1 ]]; then
+      printf 'opencode-framework: models takes no arguments; use opencode models for its full catalogue\n' >&2
+      exit 2
+    fi
+    framework_list_models
+    exit 0
+    ;;
+  --help|-h|--framework-help)
+    printf '%s\n' \
+      'Usage: opencode-framework [27b-64k|27b-128k|122b] [OpenCode arguments...]' \
+      '       opencode-framework models' \
+      '       opencode-framework --help' \
+      ''
+    framework_list_models
+    printf '%s\n' \
+      '' \
+      'Default: 27b-64k. The old 27b shortcut still selects 64K.' \
+      'Examples: c; c 27b-128k; c 122b; c 27b-64k run "Explain this project"' \
+      'Help and models are local listings; they do not load a model or access 1Password.' \
+      'Use ./NAME for a project named like a selector or models.' \
+      'For OpenCode help, use opencode --help or c 27b-64k --help.' \
+      'Without a selector, an explicit --model/-m overrides the default.'
+    exit 0
+    ;;
+esac
+
+framework_explicit_model=false
+for framework_arg in "$@"; do
+  case "$framework_arg" in
+    --) break ;;
+    --model|-m|--model=*|-m?*) framework_explicit_model=true ;;
+  esac
+done
+if "$framework_explicit_model" && "$framework_selected"; then
+  printf 'opencode-framework: use either a profile selector or --model/-m, not both\n' >&2
+  exit 2
+fi
+if ! "$framework_explicit_model"; then
+  set -- --model "$framework_model" "$@"
+fi
+
 framework_op_bin="$(command -v op || true)"
 framework_opencode_bin="$(command -v opencode || true)"
 framework_config_root="${XDG_CONFIG_HOME:-${HOME}/.config}"
 framework_env_file="${framework_config_root}/opencode/framework.env"
+framework_profile="${framework_config_root}/opencode/framework.json"
 
 if [[ -z "$framework_op_bin" ]]; then
   printf 'opencode-framework: 1Password CLI is not installed or not on PATH\n' >&2
@@ -21,6 +90,14 @@ if [[ ! -r "$framework_env_file" ]]; then
   printf 'opencode-framework: missing environment reference: %s\n' \
     "$framework_env_file" >&2
   exit 1
+fi
+
+if [[ -z "${OPENCODE_CONFIG:-}" ]]; then
+  if [[ ! -r "$framework_profile" ]]; then
+    printf 'opencode-framework: missing launch profile: %s\n' "$framework_profile" >&2
+    exit 1
+  fi
+  export OPENCODE_CONFIG="$framework_profile"
 fi
 
 if [[ -t 0 && -t 1 && -t 2 ]]; then

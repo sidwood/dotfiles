@@ -369,6 +369,51 @@ starting OpenCode, so the Framework Desktop API key is never stored in the
 repository. Interactive sessions disable `op run` output masking so terminal
 applications retain direct TTY access; automated runs keep masking enabled.
 
+Choose the Framework model when starting a fresh session:
+
+```sh
+c --help              # wrapper usage and the three supported profiles
+c models              # list the three supported profiles
+c                     # defaults to 27b-64k
+c 27b-64k             # Qwen3.8-27B Q5, 65,536-token context
+c 27b-128k            # Qwen3.8-27B Q5, 131,072 tokens; experimental
+c 122b                # Qwen3.5-122B Q4, 262,144-token context
+c 27b-64k run "Explain this project"
+```
+
+Help and model listings run locally without OpenCode, 1Password or a server
+request. `27b` remains a compatibility shortcut for `27b-64k`; the listing
+shows only the three canonical profile names. `-h` and `--framework-help`
+also display wrapper help. Use `opencode --help` for OpenCode's own help.
+
+The 128K profile completed a 121,990-token cold request in 14m 11s, but retrieved
+only three of six test values correctly, so it remains experimental. A cached
+follow-up took 1.8s. This is not an accuracy comparison against 64K, whose earlier
+capacity test was simpler. The saved 64K and 122B profiles are unchanged; 128K
+shares the existing 27B weight files without another download.
+
+Both downloads and saved server profiles are retained. Lemonade loads the
+requested model on demand, evicting the other if necessary; keep requests
+sequential and close an old client before switching. The explicit `--model`
+or `-m` option is still supported without a profile selector. Other OpenCode
+arguments pass through; prefix a project path with `./` if it matches a selector
+or `models`. `c models` accepts no further arguments; use `opencode models` for
+OpenCode's full catalogue.
+
+The wrapper loads `~/.config/opencode/framework.json` alongside the existing
+global configuration. This adds 27B without replacing the 122B definition,
+disables automatic titles for wrapper-launched sessions, and allows up to an
+hour for cold long-context requests (the historical 122B near-ceiling test
+took 37 minutes). Titles otherwise target an offline Mac-local MLX server;
+sending them to Framework would introduce untested concurrent inference.
+Tool permissions are unchanged. An explicit `OPENCODE_CONFIG` is honoured
+instead of the wrapper profile; that custom file must declare any extra models
+it needs. Repository configuration can also override profile settings.
+The 128K client requests one-second streaming keepalives to survive long prompt
+processing. Lemonade's global timeout is unchanged; non-streaming requests may
+still fail after ten minutes even when the worker is healthy.
+Run `opencode-framework --help` for launcher-specific usage.
+
 ## Local Shell API Keys (Generated)
 
 This repo includes a template at `shell/.config/shell/local.env.tpl` for

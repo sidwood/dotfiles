@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "title": { "disable": true }
+  },
+  "provider": {
+    "framework": {
+      "options": {
+        "timeout": 3600000,
+        "headerTimeout": 3600000,
+        "chunkTimeout": 3600000
+      },
+      "models": {
+        "Qwen3.8-27B-GGUF-UD-Q5_K_XL-128K": {
+          "name": "Qwen3.8-27B Q5 128K (experimental)",
+          "reasoning": false,
+          "tool_call": true,
+          "limit": { "context": 131072, "output": 8192 },
+          "options": {
+            "sse_ping_interval": 1,
+            "chat_template_kwargs": { "enable_thinking": false }
+          }
+        },
+        "Qwen3.8-27B-GGUF-UD-Q5_K_XL": {
+          "name": "Qwen3.8-27B Q5 64K (Framework)",
+          "reasoning": false,
+          "tool_call": true,
+          "limit": { "context": 65536, "output": 8192 },
+          "options": {
+            "chat_template_kwargs": { "enable_thinking": false }
+          }
+        }
+      }
+    }
+  }
+}
