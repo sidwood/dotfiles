@@ -37,6 +37,8 @@ options+=("Reset macOS system defaults.")
 option_keys+=("macos")
 options+=("Remove dotfile package symlinks with GNU Stow.")
 option_keys+=("stow")
+options+=("Uninstall DeepSeek Harness (keep settings and sessions).")
+option_keys+=("deepseek_harness")
 options+=("Uninstall vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -168,6 +170,25 @@ uninstall_herdr_integrations() {
   fi
 }
 
+uninstall_deepseek_harness() {
+  local runtime="${XDG_DATA_HOME:-$HOME/.local/share}/deepseek-harness"
+  local launcher="$HOME/.local/bin/dsh"
+  local memory="${DSH_HOME:-$HOME/.dsh}/AGENTS.md"
+
+  if [[ -e "$runtime" || -L "$runtime" ]]; then
+    [[ ! -L "$runtime" && -f "$runtime/package.json" ]] &&
+      grep -Fqx '  "name": "dotfiles-deepseek-harness-runtime",' "$runtime/package.json" || abort "Preserving unrecognised runtime at $runtime"
+    rm -rf "$runtime" || abort 'Could not remove DeepSeek Harness runtime'
+  fi
+  if [[ -L "$launcher" && "$(readlink "$launcher")" == "$runtime/node_modules/.bin/dsh" ]]; then
+    rm "$launcher" || abort 'Could not remove dsh link'
+  fi
+  if [[ -L "$memory" && "$(readlink "$memory")" == "$HOME/.config/agents/AGENTS.md" ]]; then
+    rm "$memory" || abort 'Could not remove DeepSeek Harness memory link'
+  fi
+  echo "DeepSeek Harness removed; settings, credentials and sessions remain in ${DSH_HOME:-$HOME/.dsh}"
+}
+
 uninstall_vim_plugins() {
   echo "Uninstalling vim-plug"
   rm -rf "$HOME/.config/vim/autoload" 2>/dev/null
@@ -179,6 +200,10 @@ uninstall_vim_plugins() {
 #
 
 show_menu
+
+if is_selected "deepseek_harness"; then
+  uninstall_deepseek_harness
+fi
 
 if is_selected "stow"; then
   # Remove generated integrations while Herdr is still available; Homebrew

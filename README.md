@@ -26,6 +26,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Symlink dotfile packages with GNU Stow.
   [ ] Enable LM Studio models in OpenCode on this Mac.
   [x] Set up mise with default runtimes.
+  [x] Install DeepSeek Harness with portable defaults.
   [x] Install global pnpm packages.
   [x] Install vim plugins.
 ```
@@ -42,6 +43,7 @@ packages. Each top-level directory is a package that gets symlinked to `$HOME`.
 dotfiles/
 ├── agents/         # Global agent memory shared by every AI harness
 ├── bin/            # Custom executables on PATH via ~/.local/bin
+├── dsh/            # DeepSeek Harness install manifest and starter settings
 ├── ghostty/        # Ghostty terminal config
 ├── git/            # Git config and global ignore
 ├── herdr/          # Herdr workspace manager (Solarized Dark, tmux-first keys)
@@ -90,6 +92,79 @@ its lifecycle state and resumable session identity to Herdr. The generated
 file is deliberately not stored here so it stays matched to the installed
 Herdr version. Check it with `herdr integration status`; re-running
 `./install.sh` with Stow selected refreshes it.
+
+### DeepSeek Harness
+
+Select **Set up mise with default runtimes**, **Install DeepSeek Harness with
+portable defaults**, and **Symlink dotfile packages with GNU Stow** in
+`./install.sh` on each Mac. Existing compatible Node installations can skip
+mise. Harness requires Node.js 22.19+ on the 22.x line, or Node.js 24+;
+Homebrew already supplies mise, so no additional Brewfile entry is needed.
+
+The installer uses npm with the committed dependency lockfile in
+`dsh/.config/dsh/runtime/`. It installs CLI version `0.1.5-rc.1` into
+`${XDG_DATA_HOME:-~/.local/share}/deepseek-harness` and links its executable
+as `~/.local/bin/dsh`. That directory is already on PATH. This separate npm
+runtime avoids the plugin-resolution failure observed with pnpm 11's isolated
+global layout. There is no launcher wrapper, Python environment, model download,
+or background service.
+
+```bash
+cd ~/code/your-project
+dsh web
+```
+
+The browser UI listens on `127.0.0.1:3080` by default. Use `dsh web --no-open`
+to suppress opening the browser; stop the server with Ctrl-C. Add a workspace
+and configure a provider in **Settings → Models**. DeepSeek uses a DeepSeek
+API key; other built-in providers need their own API credentials. The current
+Harness UI does not support Codex OAuth/subscription sign-in.
+
+For LM Studio on a capable Mac, add a custom provider with protocol
+`openai-completions`, base URL `http://127.0.0.1:1234/v1`, and the server's API
+key (`local` for this Mac's unauthenticated server), then fetch its models.
+Leave it unconfigured on a cloud-only laptop. Provider choices and credentials
+are local to each Mac; installing Harness does not enable a local-model default.
+
+Configuration has three parts:
+
+- `dsh/.config/dsh/settings.yaml` is the portable starter, currently `{}` to
+  retain upstream defaults. Installation copies it to `~/.dsh/settings.yaml`
+  only when absent, leaving existing settings untouched on later runs.
+- `dsh/.config/dsh/defaults.web.cordis.yml` records the installed release's
+  composed Web profile, captured with `dsh web --dump-default-config`. It is
+  a reference snapshot, not an active override; plugin schema defaults are
+  documented in the upstream configuration catalog.
+- `~/.dsh/` remains a real, machine-local directory for editable settings,
+  credentials, profiles, sessions, and workspace state. Harness replaces its
+  settings document atomically, so it must not be symlinked into the repo.
+
+`DSH_HOME` overrides `~/.dsh` for installation, running, and removal; use the
+same value for all three. Global instructions link to the canonical agent
+memory at `$DSH_HOME/AGENTS.md`. Harness discovers `~/.agents/skills` itself.
+
+To share a later preference, copy only its relevant, non-secret settings into
+the tracked starter after reviewing the diff. Existing machines need those
+changes merged into their local settings; reinstallation deliberately does not
+reset them. Never copy `.credentials.yaml`, `.env`, conversations, or the
+entire Harness home into dotfiles.
+
+For an upgrade, copy the runtime manifests to a temporary directory, run
+`npm install --save-exact @deepseek-ai/dsh@<version>` there, review the manifest
+and lockfile changes, then copy them back and rerun the Harness installer.
+Refresh the default-profile snapshot from the installed version and verify
+`dsh web` before committing. This keeps preview upgrades deliberate and gives
+fresh installations the same resolved dependency versions on both Macs.
+
+`./uninstall.sh` has a separate Harness option that removes only its managed
+runtime, executable link, and shared-memory link. It preserves `~/.dsh` settings,
+credentials, and sessions. The Stow removal option removes the starter links.
+Stop running Harness processes before uninstalling or upgrading.
+
+References: [official quick start](https://github.com/deepseek-ai/deepseek-harness#run),
+[model configuration](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/providers.md),
+[CLI reference](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/cli/reference/README.md),
+and [plugin configuration catalog](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/config-catalog.md).
 
 ### Unified Shell Config
 
@@ -262,6 +337,7 @@ Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 > [x] Uninstall Homebrew packages and applications.
   [x] Reset macOS system defaults.
   [x] Remove dotfile package symlinks with GNU Stow.
+  [x] Uninstall DeepSeek Harness (keep settings and sessions).
   [x] Uninstall vim plugins.
 ```
 
@@ -356,6 +432,7 @@ file:
 ├── ~/.config/opencode/AGENTS.md             # OpenCode
 ├── ~/.cursor/rules/global-agent-memory.mdc  # Cursor
 ├── ~/.gemini/GEMINI.md                      # Gemini CLI
+├── ~/.dsh/AGENTS.md                         # DeepSeek Harness
 └── ~/.pi/agent/AGENTS.md                    # Pi
 ```
 
