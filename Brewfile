@@ -1,9 +1,9 @@
-tap "1password/tap"
-tap "ampcode/tap"
-tap "jesseduffield/lazydocker"
-tap "jesseduffield/lazygit"
-tap "jundot/omlx", "https://github.com/jundot/omlx"
-tap "mongodb/brew"
+tap "1password/tap", trusted: true
+tap "ampcode/tap", trusted: true
+tap "jesseduffield/lazydocker", trusted: true
+tap "jesseduffield/lazygit", trusted: true
+tap "jundot/omlx", "https://github.com/jundot/omlx", trusted: { formula: "omlx" }
+tap "mongodb/brew", trusted: true
 
 # cli tools
 brew "ampcode"
