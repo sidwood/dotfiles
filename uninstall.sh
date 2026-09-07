@@ -152,7 +152,7 @@ uninstall_dotfiles() {
   echo "Removing dotfile package symlinks"
   for pkg in */; do
     [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "cursor/" ]] && continue
-    stow -Dv "${pkg%/}"
+    stow -Dv -t "$HOME" "${pkg%/}"
   done
 }
 
