@@ -99,50 +99,94 @@ The `shell/` package provides configuration sourced from zsh:
 - `~/.config/shell/functions` - Utility functions
 - `~/.config/shell/init` - Tool integrations (mise, zoxide, fzf)
 
-### MLX coding worker
+### OpenCode: local and Framework models
 
-On Apple silicon, the installer creates an isolated Python 3.13 environment at
-`~/.local/share/venvs/mlx` and installs the pinned MLX and MLX LM versions from
-`bin/.local/share/mlx/requirements.txt`. Re-run the setup after changing those
-pins:
+`c` launches OpenCode against LM Studio on this Mac. `cf` selects the Framework
+Desktop server. `cm` is a compatibility alias for `c`.
 
-```bash
-mlx-setup
+```sh
+lms server start --port 1234
+c
+c run "Explain this project"
+c --model lmstudio/qwen/qwen3.8-27b
+c models lmstudio
+cf models
+cf                         # 27b-64k default
+cf 27b-128k                # experimental long-context profile
+cf 122b
+cf 27b-64k run "Explain this project"
 ```
 
-The named coding models are pinned in `bin/.local/share/mlx/profiles.tsv`, with
-the default selected by `default-profile.txt`. Download one profile or both and
-start its local OpenAI-compatible endpoint with:
+LM Studio manages its own MLX and llama.cpp runtimes and model loading. The
+local launcher checks the API on `127.0.0.1:1234`; it does not start a separate
+Python server. Gemma is the configured local default. Model IDs and context
+limits live in `opencode/.config/opencode/opencode.jsonc`; match those limits to
+the context actually loaded in LM Studio. Listing a model does not mean it is
+loaded. Local API authentication is currently disabled.
 
-```bash
-mlx-model-download qwen36
-mlx-model-download all
-mlx-server-start qwen36
+The global config has no `small_model` override: for these custom providers,
+OpenCode's title helper falls back to the selected model. The optional
+`--agent local-worker` role also inherits the selected model. Launchers never
+request cloud reviews or run remediation; orchestration belongs to the harness
+or a future Atomic workflow. The standalone `frontier-review` utility remains
+available for deliberate use.
+
+#### Framework configuration
+
+All Framework model definitions and Lemonade request settings live in
+`opencode/.config/opencode/framework.json`. The adjacent
+`framework-profiles.tsv` maps command shortcuts to model IDs; its first row is
+the default. `27b` remains an alias for `27b-64k`.
+
+Create a machine-local credential reference once:
+
+```sh
+cp ~/.config/opencode/framework.env.example ~/.config/opencode/framework.env
+chmod 600 ~/.config/opencode/framework.env
 ```
 
-`cm` retains `Qwen3-Coder-Next-4bit` as the default interactive OpenCode
-worker. `cmq` launches `Qwen3.6-35B-A3B-OptiQ-4bit`; the equivalent explicit
-form is `cm qwen36`. Each command starts its own server when necessary, and the
-two servers can coexist on the 128 GB M5 Max. Use `opencode-mlx --profiles` to
-list their names and ports. Run `frontier-review "<requirements>"` for an
-explicit review.
+Edit that file to set `FRAMEWORK_BASE_URL` and replace the example
+`FRAMEWORK_API_KEY` locator with your 1Password reference. Keep resolved secrets
+out of the repository. The launcher defaults to `FRAMEWORK_AUTH=1password`,
+using `op run` to resolve this file for the child process. Interactive launches
+preserve direct TTY access with `--no-masking`; automated launches keep masking.
 
-For an autonomous fleet job, use `cm run "<task>"` from a clean Git worktree.
-The launcher runs the local worker, asks Codex GPT-5.6 Sol and Claude Opus to
-review its working diff independently in read-only modes, then sends their
-findings back to the worker for one remediation pass. Use `mlx-server-stop` to
-release the model's unified memory.
+For a server without authentication, set `FRAMEWORK_AUTH=none` and
+`FRAMEWORK_BASE_URL` in the launch environment; no 1Password call is made. For an
+already-resolved credential, use `FRAMEWORK_AUTH=env` with both
+`FRAMEWORK_BASE_URL` and `FRAMEWORK_API_KEY` exported. These two modes do not read
+`framework.env`.
 
-Run `cmab "<implementation task>"` from a clean repository to compare both
-models. It creates two disposable branch clones, gives each worker the same
-task, and saves their logs, timings, Git status and complete patches under
-`~/.local/state/mlx/ab/<timestamp>/` without changing the source checkout or
-spending frontier-model credits. Stop one named server with
-`mlx-server-stop qwen36`, or stop both with `mlx-server-stop all`.
+The `framework` provider name and `cf` command can survive a future move to
+LM Studio on the desktop. Update the endpoint, credential mode, model IDs,
+loaded context limits, and server-specific request settings together. The
+macOS dotfiles installer does not manage the desktop's operating system.
 
-Use `mlx_lm` for direct model access and `mlx-python` for Python code that
-imports MLX. Downloaded Hugging Face models remain in the normal user cache and
-are not removed when the rebuildable Python environment is uninstalled.
+Framework titles remain disabled to avoid untested concurrent inference.
+Cold long-context requests allow up to an hour; the 128K profile requests
+streaming keepalives. Its previous 121,990-token cold test took 14m 11s and
+retrieved three of six test values, so it remains experimental. A cached
+follow-up took 1.8s. This was not an accuracy comparison against the simpler
+64K test. Lemonade's non-streaming global timeout remains unchanged.
+
+`cf --help` and `cf models` need neither 1Password nor a running server.
+Use either a profile selector or `--model`/`-m`, not both. Prefix a project path
+with `./` when it matches a profile or `models`.
+
+An explicit `OPENCODE_CONFIG` replaces the launcher's choice of overlay, not
+OpenCode's global configuration. Project settings can override that overlay.
+The custom file must define any remote models it needs. For custom config or
+inline config, `c` delegates endpoint checks to that configuration. Use
+`opencode` directly for other providers or remote OpenCode server attachment.
+
+#### Migration from the direct MLX launchers
+
+`c` previously meant Framework; use `cf` for that destination now. `cmq` and
+`cmab` are retired. Local model selection no longer implies automatic cloud
+reviews. The former Python environment at `~/.local/share/venvs/mlx` is not a
+runtime dependency of LM Studio. Downloaded Hugging Face models may also be
+used by other tools and should not be deleted as part of this migration.
+The separate oMLX/Hermes service below is independent of this change.
 
 ### Always-on GLM Hermes worker
 
@@ -362,57 +406,6 @@ op run -- npm install
 
 This replaces secret references (e.g., `op://Personal/GitHub Registry Token/token`)
 with their actual values for the duration of that command.
-
-The `c` alias launches `opencode-framework`. This wrapper uses `op run` to
-resolve the machine-local `~/.config/opencode/framework.env` reference before
-starting OpenCode, so the Framework Desktop API key is never stored in the
-repository. Interactive sessions disable `op run` output masking so terminal
-applications retain direct TTY access; automated runs keep masking enabled.
-
-Choose the Framework model when starting a fresh session:
-
-```sh
-c --help              # wrapper usage and the three supported profiles
-c models              # list the three supported profiles
-c                     # defaults to 27b-64k
-c 27b-64k             # Qwen3.8-27B Q5, 65,536-token context
-c 27b-128k            # Qwen3.8-27B Q5, 131,072 tokens; experimental
-c 122b                # Qwen3.5-122B Q4, 262,144-token context
-c 27b-64k run "Explain this project"
-```
-
-Help and model listings run locally without OpenCode, 1Password or a server
-request. `27b` remains a compatibility shortcut for `27b-64k`; the listing
-shows only the three canonical profile names. `-h` and `--framework-help`
-also display wrapper help. Use `opencode --help` for OpenCode's own help.
-
-The 128K profile completed a 121,990-token cold request in 14m 11s, but retrieved
-only three of six test values correctly, so it remains experimental. A cached
-follow-up took 1.8s. This is not an accuracy comparison against 64K, whose earlier
-capacity test was simpler. The saved 64K and 122B profiles are unchanged; 128K
-shares the existing 27B weight files without another download.
-
-Both downloads and saved server profiles are retained. Lemonade loads the
-requested model on demand, evicting the other if necessary; keep requests
-sequential and close an old client before switching. The explicit `--model`
-or `-m` option is still supported without a profile selector. Other OpenCode
-arguments pass through; prefix a project path with `./` if it matches a selector
-or `models`. `c models` accepts no further arguments; use `opencode models` for
-OpenCode's full catalogue.
-
-The wrapper loads `~/.config/opencode/framework.json` alongside the existing
-global configuration. This adds 27B without replacing the 122B definition,
-disables automatic titles for wrapper-launched sessions, and allows up to an
-hour for cold long-context requests (the historical 122B near-ceiling test
-took 37 minutes). Titles otherwise target an offline Mac-local MLX server;
-sending them to Framework would introduce untested concurrent inference.
-Tool permissions are unchanged. An explicit `OPENCODE_CONFIG` is honoured
-instead of the wrapper profile; that custom file must declare any extra models
-it needs. Repository configuration can also override profile settings.
-The 128K client requests one-second streaming keepalives to survive long prompt
-processing. Lemonade's global timeout is unchanged; non-streaming requests may
-still fail after ten minutes even when the worker is healthy.
-Run `opencode-framework --help` for launcher-specific usage.
 
 ## Local Shell API Keys (Generated)
 

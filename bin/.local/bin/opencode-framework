@@ -2,35 +2,24 @@
 
 set -euo pipefail
 
+framework_config_root="${XDG_CONFIG_HOME:-${HOME}/.config}/opencode"
+framework_profiles="$framework_config_root/framework-profiles.tsv"
+if [[ ! -r "$framework_profiles" ]]; then
+  printf 'opencode-framework: missing profiles: %s\n' "$framework_profiles" >&2
+  exit 1
+fi
+
 framework_list_models() {
-  printf '%s\n' \
-    'Supported Framework model profiles:' \
-    '  27b-64k    Qwen3.8-27B Q5    65,536 tokens (default)' \
-    '  27b-128k   Qwen3.8-27B Q5   131,072 tokens (experimental)' \
-    '  122b       Qwen3.5-122B Q4  262,144 tokens'
+  printf '%-12s %s\n' PROFILE MODEL
+  awk -F '\t' '{ printf "%-12s %s%s\n", $1, $2, (NR == 1 ? " (default)" : "") }' "$framework_profiles"
 }
 
-framework_model='framework/Qwen3.8-27B-GGUF-UD-Q5_K_XL'
+framework_model="$(awk -F '\t' 'NR == 1 { print $2 }' "$framework_profiles")"
 framework_selected=false
 case "${1:-}" in
-  27b-64k|27b)
-    framework_model='framework/Qwen3.8-27B-GGUF-UD-Q5_K_XL'
-    framework_selected=true
-    shift
-    ;;
-  27b-128k)
-    framework_model='framework/Qwen3.8-27B-GGUF-UD-Q5_K_XL-128K'
-    framework_selected=true
-    shift
-    ;;
-  122b)
-    framework_model='framework/Qwen3.5-122B-A10B-GGUF'
-    framework_selected=true
-    shift
-    ;;
   models)
     if [[ "$#" -ne 1 ]]; then
-      printf 'opencode-framework: models takes no arguments; use opencode models for its full catalogue\n' >&2
+      echo 'opencode-framework: models takes no arguments; use opencode models for its full catalogue' >&2
       exit 2
     fi
     framework_list_models
@@ -38,20 +27,29 @@ case "${1:-}" in
     ;;
   --help|-h|--framework-help)
     printf '%s\n' \
-      'Usage: opencode-framework [27b-64k|27b-128k|122b] [OpenCode arguments...]' \
+      'Usage: opencode-framework [profile] [OpenCode arguments...]' \
       '       opencode-framework models' \
-      '       opencode-framework --help' \
       ''
     framework_list_models
     printf '%s\n' \
       '' \
-      'Default: 27b-64k. The old 27b shortcut still selects 64K.' \
-      'Examples: c; c 27b-128k; c 122b; c 27b-64k run "Explain this project"' \
-      'Help and models are local listings; they do not load a model or access 1Password.' \
-      'Use ./NAME for a project named like a selector or models.' \
-      'For OpenCode help, use opencode --help or c 27b-64k --help.' \
-      'Without a selector, an explicit --model/-m overrides the default.'
+      '27b is an alias for 27b-64k; 27b-128k remains experimental.' \
+      'Examples: cf; cf 27b-128k; cf 122b; cf 27b-64k run "Explain this project"' \
+      'Use ./NAME for a project named like a profile or models.' \
+      'For OpenCode help, use opencode --help.' \
+      'Use either a profile or --model/-m, not both.' \
+      'FRAMEWORK_AUTH: 1password (default), env, or none.'
     exit 0
+    ;;
+  *)
+    framework_selector="${1:-}"
+    [[ "$framework_selector" != 27b ]] || framework_selector=27b-64k
+    framework_match="$(awk -F '\t' -v selector="$framework_selector" '$1 == selector { print $2 }' "$framework_profiles")"
+    if [[ -n "$framework_match" ]]; then
+      framework_model="$framework_match"
+      framework_selected=true
+      shift
+    fi
     ;;
 esac
 
@@ -66,47 +64,69 @@ if "$framework_explicit_model" && "$framework_selected"; then
   printf 'opencode-framework: use either a profile selector or --model/-m, not both\n' >&2
   exit 2
 fi
-if ! "$framework_explicit_model"; then
+framework_needs_model=true
+case "${1:-}" in
+  debug|auth|session|export|import|upgrade|uninstall|completion)
+    framework_needs_model=false
+    ;;
+esac
+if "$framework_needs_model" && ! "$framework_explicit_model"; then
   set -- --model "$framework_model" "$@"
 fi
 
-framework_op_bin="$(command -v op || true)"
 framework_opencode_bin="$(command -v opencode || true)"
-framework_config_root="${XDG_CONFIG_HOME:-${HOME}/.config}"
-framework_env_file="${framework_config_root}/opencode/framework.env"
-framework_profile="${framework_config_root}/opencode/framework.json"
-
-if [[ -z "$framework_op_bin" ]]; then
-  printf 'opencode-framework: 1Password CLI is not installed or not on PATH\n' >&2
-  exit 1
-fi
-
 if [[ -z "$framework_opencode_bin" ]]; then
-  printf 'opencode-framework: OpenCode is not installed or not on PATH\n' >&2
-  exit 1
-fi
-
-if [[ ! -r "$framework_env_file" ]]; then
-  printf 'opencode-framework: missing environment reference: %s\n' \
-    "$framework_env_file" >&2
+  echo 'opencode-framework: OpenCode is not installed or not on PATH' >&2
   exit 1
 fi
 
 if [[ -z "${OPENCODE_CONFIG:-}" ]]; then
-  if [[ ! -r "$framework_profile" ]]; then
-    printf 'opencode-framework: missing launch profile: %s\n' "$framework_profile" >&2
+  export OPENCODE_CONFIG="$framework_config_root/framework.json"
+  if [[ ! -r "$OPENCODE_CONFIG" ]]; then
+    printf 'opencode-framework: missing launch profile: %s\n' "$OPENCODE_CONFIG" >&2
     exit 1
   fi
-  export OPENCODE_CONFIG="$framework_profile"
 fi
 
+case "${FRAMEWORK_AUTH:-1password}" in
+  none)
+    : "${FRAMEWORK_BASE_URL:?Set FRAMEWORK_BASE_URL for the unauthenticated server}"
+    export FRAMEWORK_BASE_URL FRAMEWORK_API_KEY=''
+    exec "$framework_opencode_bin" "$@"
+    ;;
+  env)
+    : "${FRAMEWORK_BASE_URL:?Set FRAMEWORK_BASE_URL}"
+    : "${FRAMEWORK_API_KEY:?Set FRAMEWORK_API_KEY to the resolved credential}"
+    export FRAMEWORK_BASE_URL FRAMEWORK_API_KEY
+    exec "$framework_opencode_bin" "$@"
+    ;;
+  1password) ;;
+  *)
+    echo 'opencode-framework: FRAMEWORK_AUTH must be 1password, env, or none' >&2
+    exit 2
+    ;;
+esac
+
+framework_op_bin="$(command -v op || true)"
+if [[ -z "$framework_op_bin" ]]; then
+  echo 'opencode-framework: 1Password CLI is not installed or not on PATH' >&2
+  exit 1
+fi
+framework_env_file="$framework_config_root/framework.env"
+if [[ ! -r "$framework_env_file" ]]; then
+  printf 'opencode-framework: copy framework.env.example to %s and configure it\n' "$framework_env_file" >&2
+  exit 1
+fi
+
+framework_op_args=(run --env-file="$framework_env_file")
 if [[ -t 0 && -t 1 && -t 2 ]]; then
-  exec "$framework_op_bin" run \
-    --no-masking \
-    --env-file="$framework_env_file" \
-    -- "$framework_opencode_bin" "$@"
+  framework_op_args+=(--no-masking)
 fi
 
-exec "$framework_op_bin" run \
-  --env-file="$framework_env_file" \
-  -- "$framework_opencode_bin" "$@"
+# Validate after op run resolves the dotenv file; secrets stay in the environment.
+# shellcheck disable=SC2016
+exec "$framework_op_bin" "${framework_op_args[@]}" -- /bin/bash -c '
+  : "${FRAMEWORK_BASE_URL:?Set FRAMEWORK_BASE_URL in framework.env}"
+  : "${FRAMEWORK_API_KEY:?Set FRAMEWORK_API_KEY in framework.env}"
+  exec "$@"
+' opencode-framework "$framework_opencode_bin" "$@"
