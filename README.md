@@ -74,6 +74,8 @@ borders are not configurable in Herdr 0.8.
 Keys follow the tmux config: `Ctrl-A` prefix, `h/j/k/l` pane focus,
 `Ctrl-H`/`Ctrl-L` tab cycling (keep Ctrl held: `A` then `H`/`L`), `,` to rename
 the tab, `|`/`\` and `-`/`_` splits, and `r` to reload.
+`prefix+s` opens workspace navigation; `j`/`k` (and arrows) move the list,
+`Ctrl-J`/`Ctrl-K` move panes while that surface is open.
 Herdr extras stay on unused chords: `g` for the workspace/agent picker, `b` or
 `m` for the sidebar, `d` or `q` to detach, `Shift-R` for resize mode. `prefix+%` and `prefix+"` are extra
 split aliases. `prefix+a` forwards a literal `Ctrl-A` into the focused pane;
