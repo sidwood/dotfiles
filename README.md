@@ -21,7 +21,7 @@ components to install. It also points this repository's `core.hooksPath` at
 ```
 Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
-> [x] Install Homebrew packages and applications.
+> [x] Install Homebrew packages and applications (including LM Studio).
   [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
   [x] Set up mise with default runtimes.
@@ -117,6 +117,9 @@ cf 122b
 cf 27b-64k run "Explain this project"
 ```
 
+The Homebrew installation option includes the `lm-studio` cask; no standalone
+MLX Python environment is installed.
+
 LM Studio manages its own MLX and llama.cpp runtimes and model loading. The
 local launcher checks the API on `127.0.0.1:1234`; it does not start a separate
 Python server. Gemma is the configured local default. Model IDs and context
@@ -186,9 +189,11 @@ inline config, `c` delegates endpoint checks to that configuration. Use
 `cmab` are retired. Local model selection no longer implies automatic cloud
 reviews. The former Python environment at `~/.local/share/venvs/mlx` is not a
 runtime dependency of LM Studio. The direct-server scripts and installer menu
-entries have been removed; the old environment is retained on disk.
-Downloaded Hugging Face models may also be
-used by other tools and should not be deleted as part of this migration.
+entries have been removed. The old environment, its two Qwen model downloads,
+and its server state have also been deleted on this Mac. LM Studio retains its
+two downloaded chat models and its bundled embedding helper. Other tools can
+use the shared Hugging Face cache, so cleanup targets named model repositories
+rather than removing the whole cache.
 The separate oMLX/Hermes service below is independent of this change.
 
 ### Always-on GLM Hermes worker

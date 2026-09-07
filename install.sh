@@ -42,7 +42,7 @@ option_keys=()
 # Build menu options
 #
 
-options+=("Install Homebrew packages and applications.")
+options+=("Install Homebrew packages and applications (including LM Studio).")
 option_keys+=("homebrew")
 options+=("Apply macOS system defaults.")
 option_keys+=("macos")
