@@ -25,7 +25,6 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
   [x] Set up mise with default runtimes.
-  [x] Set up MLX for Apple silicon.
   [x] Install global pnpm packages.
   [x] Install vim plugins.
 ```
@@ -102,7 +101,8 @@ The `shell/` package provides configuration sourced from zsh:
 ### OpenCode: local and Framework models
 
 `c` launches OpenCode against LM Studio on this Mac. `cf` selects the Framework
-Desktop server. `cm` is a compatibility alias for `c`.
+Desktop server. `cm` is a compatibility alias for `c`. Start a new shell after
+updating to pick up the changed aliases.
 
 ```sh
 lms server start --port 1234
@@ -120,7 +120,8 @@ cf 27b-64k run "Explain this project"
 LM Studio manages its own MLX and llama.cpp runtimes and model loading. The
 local launcher checks the API on `127.0.0.1:1234`; it does not start a separate
 Python server. Gemma is the configured local default. Model IDs and context
-limits live in `opencode/.config/opencode/opencode.jsonc`; match those limits to
+limits and the allowed-model list live in
+`opencode/.config/opencode/opencode.jsonc`; match those limits to
 the context actually loaded in LM Studio. Listing a model does not mean it is
 loaded. Local API authentication is currently disabled.
 
@@ -184,7 +185,9 @@ inline config, `c` delegates endpoint checks to that configuration. Use
 `c` previously meant Framework; use `cf` for that destination now. `cmq` and
 `cmab` are retired. Local model selection no longer implies automatic cloud
 reviews. The former Python environment at `~/.local/share/venvs/mlx` is not a
-runtime dependency of LM Studio. Downloaded Hugging Face models may also be
+runtime dependency of LM Studio. The direct-server scripts and installer menu
+entries have been removed; the old environment is retained on disk.
+Downloaded Hugging Face models may also be
 used by other tools and should not be deleted as part of this migration.
 The separate oMLX/Hermes service below is independent of this change.
 
