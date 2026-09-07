@@ -24,6 +24,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 > [x] Install Homebrew packages and applications (including LM Studio).
   [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
+  [ ] Enable LM Studio models in OpenCode on this Mac.
   [x] Set up mise with default runtimes.
   [x] Install global pnpm packages.
   [x] Install vim plugins.
@@ -104,6 +105,20 @@ The `shell/` package provides configuration sourced from zsh:
 Desktop server. The enabled configuration selects the local or cloud model. Start a new shell after
 updating to pick up the changed aliases.
 
+The shared `opencode.jsonc` intentionally selects no provider or default model.
+On a Mac that runs local models, select **Enable LM Studio models in OpenCode
+on this Mac** in `install.sh`, alongside the Stow option. This creates a
+machine-local `~/.config/opencode/opencode.json -> lmstudio.json` symlink;
+future dotfiles updates then update that profile automatically. The installer
+preserves existing custom configuration instead of overwriting it.
+
+On a cloud-only Mac, leave that option off: OpenCode keeps using that machine’s
+connected providers and saved model choices. Its credentials and model history
+are not shared by Stow. To skip installing the LM Studio app as well, run
+`HOMEBREW_BUNDLE_CASK_SKIP=lm-studio ./install.sh`. To disable a previously
+enabled local profile, remove only the `opencode.json` symlink that points to
+`lmstudio.json`; preserve any custom regular configuration file.
+
 ```sh
 lms server start --port 1234
 c
@@ -124,7 +139,7 @@ LM Studio manages its own MLX and llama.cpp runtimes and model loading. The
 local endpoint is `127.0.0.1:1234`; start it in LM Studio or with `lms` before
 selecting a local model. Gemma is the configured local default. Model IDs and context
 limits and the allowed-model list live in
-`opencode/.config/opencode/opencode.jsonc`; match those limits to
+`opencode/.config/opencode/lmstudio.json`; match those limits to
 the context actually loaded in LM Studio. Listing a model does not mean it is
 loaded. Local API authentication is currently disabled.
 
@@ -132,12 +147,22 @@ Control Gemma’s thinking toggle in LM Studio. OpenCode’s generated
 `low`/`medium`/`high` effort presets are disabled for this model because it
 does not support those levels.
 
-The global config has no `small_model` override: for these custom providers,
+Neither the shared config nor the local profile has a `small_model` override: for these custom providers,
 OpenCode's title helper falls back to the selected model. The optional
 `--agent local-worker` role also inherits the selected model. Launchers never
 request cloud reviews or run remediation; orchestration belongs to the harness
 or a future Atomic workflow. The standalone `frontier-review` utility remains
 available for deliberate use.
+
+#### Finding local models in the TUI
+
+The provider is named **LM Studio (local)**. OpenCode 1.18.30 moves recent and
+favorite models out of their provider section to avoid duplicate entries. Once
+both local models are recent, that section has no remaining entries and is
+hidden. This is TUI behavior, not a missing provider definition, and it has no
+configuration switch. In `/models`, type `LM Studio` to see both models with
+their provider label. Clearing recent history would restore the section only
+until those models were selected again.
 
 #### Framework configuration
 

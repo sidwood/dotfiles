@@ -48,6 +48,8 @@ options+=("Apply macOS system defaults.")
 option_keys+=("macos")
 options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
+options+=("Enable LM Studio models in OpenCode on this Mac.")
+option_keys+=("opencode_lmstudio")
 options+=("Set up mise with default runtimes.")
 option_keys+=("mise")
 options+=("Install global pnpm packages.")
@@ -56,6 +58,12 @@ options+=("Install vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
   selected[i]=true
+  if [[ "${option_keys[$i]}" == "opencode_lmstudio" ]]; then
+    selected[i]=false
+    if [[ "$(readlink "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/opencode.json" 2>/dev/null)" == "lmstudio.json" ]]; then
+      selected[i]=true
+    fi
+  fi
 done
 
 #
@@ -229,6 +237,25 @@ stow_dotfiles() {
   # Herdr owns this generated plugin, so install the version bundled with the
   # Herdr binary on each machine rather than stowing a potentially stale copy.
   install_herdr_integrations
+}
+
+enable_opencode_lmstudio() {
+  local config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+  local target="$config_dir/opencode.json"
+
+  [[ -r "$config_dir/lmstudio.json" ]] || abort 'Select the Stow option to install the LM Studio profile first'
+  if [[ -L "$target" && "$(readlink "$target")" == "lmstudio.json" ]]; then
+    return 0
+  fi
+  if [[ -e "$target" || -L "$target" ]]; then
+    command -v jq >/dev/null 2>&1 || abort 'jq required to check existing OpenCode configuration'
+    if [[ -L "$target" ]] || ! jq -e 'type == "object" and (keys - ["$schema"] | length == 0)' "$target" >/dev/null 2>&1; then
+      abort "Preserving existing $target; merge the LM Studio profile manually or use OPENCODE_CONFIG"
+    fi
+    rm "$target"
+  fi
+  ln -s lmstudio.json "$target"
+  echo 'Enabled local LM Studio models in OpenCode'
 }
 
 link_agent_memory() {
@@ -466,6 +493,10 @@ fi
 
 if is_selected "stow"; then
   stow_dotfiles
+fi
+
+if is_selected "opencode_lmstudio"; then
+  enable_opencode_lmstudio
 fi
 
 setup_local_shell_env

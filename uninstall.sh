@@ -145,6 +145,10 @@ reset_macos_defaults() {
 }
 
 uninstall_dotfiles() {
+  local local_profile="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/opencode.json"
+  if [[ -L "$local_profile" && "$(readlink "$local_profile")" == "lmstudio.json" ]]; then
+    rm "$local_profile"
+  fi
   echo "Removing dotfile package symlinks"
   for pkg in */; do
     [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "cursor/" ]] && continue
