@@ -2,7 +2,6 @@ tap "1password/tap", trusted: true
 tap "ampcode/tap", trusted: true
 tap "jesseduffield/lazydocker", trusted: true
 tap "jesseduffield/lazygit", trusted: true
-tap "jundot/omlx", "https://github.com/jundot/omlx", trusted: { formula: "omlx" }
 tap "mongodb/brew", trusted: true
 
 # cli tools
@@ -44,7 +43,6 @@ brew "mise"
 brew "mongodb-database-tools"
 brew "neovim"
 brew "ollama"
-brew "jundot/omlx/omlx", restart_service: :changed
 brew "opencode"
 brew "openssh"
 brew "openssl"

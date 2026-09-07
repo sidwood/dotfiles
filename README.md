@@ -194,33 +194,9 @@ and its server state have also been deleted on this Mac. LM Studio retains its
 two downloaded chat models and its bundled embedding helper. Other tools can
 use the shared Hugging Face cache, so cleanup targets named model repositories
 rather than removing the whole cache.
-The separate oMLX/Hermes service below is independent of this change.
-
-### Always-on GLM Hermes worker
-
-oMLX is installed from its Homebrew tap as the always-on model server. Run the
-idempotent setup once after installing the Brewfile:
-
-```bash
-omlx-glm-setup
-```
-
-The command downloads `mlx-community/GLM-4.7-Flash-4bit`, binds oMLX only to
-`127.0.0.1:13308`, generates a per-machine API key, and pins GLM so it is
-preloaded whenever the login service starts. It also snapshots the previous
-Hermes configuration before making `glm-4.7-flash-4bit` the primary model with
-a 65,536-token context window. The API key is written only to local oMLX and
-Hermes configuration; it is never stored in this repository.
-
-The setup keeps oMLX's paged SSD and hot prefix caches enabled and uses a
-deterministic non-thinking tool-agent profile at temperature 0 and top-p 1.0.
-Thinking is forced off because the 4-bit MLX checkpoint can enter repetition
-loops after tool results when thinking is enabled. Speculative decoding remains
-disabled until it is validated against Hermes's large tool prompt.
-
-Use `omlx stop`, `omlx start`, and `omlx restart` to control the managed
-service. The model remains in the shared Hugging Face cache if oMLX is
-uninstalled.
+The former oMLX/Hermes server and its GLM download have also been retired;
+the Brewfile no longer installs that server. Hermes maintains its own provider
+configuration separately from these OpenCode launchers.
 
 ### Flutter iOS toolchain
 
