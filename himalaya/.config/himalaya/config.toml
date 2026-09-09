@@ -5,7 +5,8 @@
 #
 # Stow: himalaya/.config/himalaya/config.toml -> ~/.config/himalaya/config.toml
 # Secret: Apple app-specific password via 1Password CLI. Never put the
-# password in this file.
+# password in this file. `op read` on this item includes a leading space;
+# strip whitespace or IMAP/SMTP AUTH fails.
 
 display-name = "Sid Wood"
 
@@ -15,12 +16,12 @@ email = "sidwood@me.com"
 
 imap.server = "imaps://imap.mail.me.com:993"
 imap.sasl.plain.username = "sidwood"
-imap.sasl.plain.password.command = ["op", "read", "op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password"]
+imap.sasl.plain.password.command = ["sh", "-c", "op read -n 'op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password' | tr -d '[:space:]'"]
 
 smtp.server = "smtp://smtp.mail.me.com:587"
 smtp.starttls = true
 smtp.sasl.plain.username = "sidwood@me.com"
-smtp.sasl.plain.password.command = ["op", "read", "op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password"]
+smtp.sasl.plain.password.command = ["sh", "-c", "op read -n 'op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password' | tr -d '[:space:]'"]
 
 mailbox.alias.inbox = "INBOX"
 mailbox.alias.sent = "Sent Messages"
