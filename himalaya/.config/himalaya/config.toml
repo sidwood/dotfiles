@@ -1,0 +1,30 @@
+# Himalaya 2.x (Homebrew 2.1.x). Do not use v1 keys:
+#   backend.type / backend.host / backend.auth.* / message.send.backend.*
+#   folder.aliases.* / folder.alias.*
+# Docs: https://github.com/pimalaya/himalaya/blob/v2.1.0/README.md  (iCloud section)
+#
+# Stow: himalaya/.config/himalaya/config.toml -> ~/.config/himalaya/config.toml
+# Secret: Apple app-specific password via 1Password CLI. Never put the
+# password in this file.
+
+display-name = "Sid Wood"
+
+[accounts.icloud]
+default = true
+email = "sidwood@me.com"
+
+imap.server = "imaps://imap.mail.me.com:993"
+imap.sasl.plain.username = "sidwood"
+imap.sasl.plain.password.command = ["op", "read", "op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password"]
+
+smtp.server = "smtp://smtp.mail.me.com:587"
+smtp.starttls = true
+smtp.sasl.plain.username = "sidwood@me.com"
+smtp.sasl.plain.password.command = ["op", "read", "op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password"]
+
+mailbox.alias.inbox = "INBOX"
+mailbox.alias.sent = "Sent Messages"
+mailbox.alias.drafts = "Drafts"
+mailbox.alias.trash = "Deleted Messages"
+mailbox.alias.junk = "Junk"
+mailbox.alias.archive = "Archive"
