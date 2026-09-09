@@ -31,6 +31,7 @@ brew "git-filter-repo"
 brew "git"
 brew "herdr", restart_service: :changed
 brew "heroku"
+brew "himalaya"
 brew "htop"
 brew "imagemagick"
 brew "jq"
