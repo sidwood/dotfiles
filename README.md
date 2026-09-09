@@ -27,6 +27,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [ ] Enable LM Studio models in OpenCode on this Mac.
   [x] Set up mise with default runtimes.
   [x] Install DeepSeek Harness with portable defaults.
+  [x] Install Atomic with portable defaults.
   [x] Install global pnpm packages.
   [x] Install vim plugins.
 ```
@@ -42,6 +43,7 @@ packages. Each top-level directory is a package that gets symlinked to `$HOME`.
 ```
 dotfiles/
 ├── agents/         # Global agent memory shared by every AI harness
+├── atomic/         # Atomic install manifest and starter settings
 ├── bin/            # Custom executables on PATH via ~/.local/bin
 ├── dsh/            # DeepSeek Harness install manifest and starter settings
 ├── ghostty/        # Ghostty terminal config
@@ -165,6 +167,66 @@ References: [official quick start](https://github.com/deepseek-ai/deepseek-harne
 [model configuration](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/guide/providers.md),
 [CLI reference](https://github.com/deepseek-ai/deepseek-harness/blob/master/apps/cli/reference/README.md),
 and [plugin configuration catalog](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/config-catalog.md).
+
+### Atomic
+
+Select **Install Atomic with portable defaults** in `./install.sh`, along with
+mise for Node.js and Stow for the reference files. The installer pins Atomic
+`0.9.18` and its dependency tree with the manifests in
+`atomic/.config/atomic/runtime/`. Node.js 22.19 or newer is required; the existing
+Homebrew/mise setup supplies it, so Atomic needs no new Brewfile entry.
+
+The separate npm runtime lives at `${XDG_DATA_HOME:-~/.local/share}/atomic`,
+with its executable linked as `~/.local/bin/atomic` on the existing PATH.
+Installation starts no background service and downloads no local models.
+
+```bash
+cd ~/code/your-project
+atomic
+```
+
+Use `/login` for a supported provider login, `/model` to select a model, and
+`/settings` for preferences. Provider credentials and project trust decisions
+are configured on each Mac. Local OpenAI-compatible endpoints such as LM Studio
+can be declared in `~/.atomic/agent/models.json`; no local provider is enabled
+by the dotfiles starter, so the cloud-only laptop uses the same installation.
+
+- `atomic/.config/atomic/settings.json` is the portable starter, currently `{}`
+  to retain upstream defaults; it is copied to `~/.atomic/agent/settings.json`
+  only when absent. Reinstallation preserves existing settings and symlinks.
+- `atomic/.config/atomic/defaults.md` captures the default-setting tables from
+  the installed release's documentation for reference, not as active overrides.
+- `~/.atomic/agent/` remains machine-local: logins (`auth.json`), model choices,
+  trust decisions, sessions, installed extensions, and workflow state stay there
+  or in Atomic's project state. Its settings file is not linked into the repo,
+  because interactive changes save model choices and other local values.
+
+Global instructions link from `~/.atomic/agent/AGENTS.md` to the shared agent
+memory. Atomic discovers `~/.agents/skills` itself. Its built-in workflows and
+extensions stay bundled with the locked release rather than copied into dotfiles.
+
+`ATOMIC_CODING_AGENT_DIR` overrides the agent directory; Atomic also accepts
+`PI_CODING_AGENT_DIR` as a legacy fallback. For installer/uninstaller overrides,
+use an absolute path and the same environment when launching Atomic. Without an
+override, Atomic can read compatible legacy `~/.pi/agent/` settings as a fallback.
+
+Promote later preferences by copying only reviewed, non-secret settings into
+the starter and merging them into existing machines explicitly. For a core
+upgrade, copy the runtime manifests into a temporary directory, run
+`npm install --save-exact @bastani/atomic@<version>` there, review and copy the
+manifests back, and rerun the Atomic installer. Refresh `defaults.md` from the
+installed package's `docs/settings.md` and check startup before committing;
+updating the core through Atomic itself would bypass the repository's lockfile.
+
+The Atomic option in `./uninstall.sh` removes its managed npm runtime, executable
+link, and shared-memory link while preserving settings, logins, sessions, and
+project state. Stow removal removes the starter/reference links. Stop Atomic
+before upgrading or uninstalling. Atomic's own `uninstall` subcommand removes
+extensions; use the dotfiles script to remove the runtime.
+
+References: [official setup](https://bastani.ai/),
+[settings](https://docs.bastani.ai/settings), and
+[custom models](https://docs.bastani.ai/models).
 
 ### Unified Shell Config
 
@@ -338,6 +400,7 @@ Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Reset macOS system defaults.
   [x] Remove dotfile package symlinks with GNU Stow.
   [x] Uninstall DeepSeek Harness (keep settings and sessions).
+  [x] Uninstall Atomic (keep settings and sessions).
   [x] Uninstall vim plugins.
 ```
 
@@ -433,6 +496,7 @@ file:
 ├── ~/.cursor/rules/global-agent-memory.mdc  # Cursor
 ├── ~/.gemini/GEMINI.md                      # Gemini CLI
 ├── ~/.dsh/AGENTS.md                         # DeepSeek Harness
+├── ~/.atomic/agent/AGENTS.md                # Atomic
 └── ~/.pi/agent/AGENTS.md                    # Pi
 ```
 

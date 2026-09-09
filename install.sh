@@ -54,6 +54,8 @@ options+=("Set up mise with default runtimes.")
 option_keys+=("mise")
 options+=("Install DeepSeek Harness with portable defaults.")
 option_keys+=("deepseek_harness")
+options+=("Install Atomic with portable defaults.")
+option_keys+=("atomic")
 options+=("Install global pnpm packages.")
 option_keys+=("pnpm_globals")
 options+=("Install vim plugins.")
@@ -291,6 +293,7 @@ link_agent_memory() {
     "gemini|$HOME/.gemini/GEMINI.md"
     "pi|$HOME/.pi/agent/AGENTS.md"
     "dsh|${DSH_HOME:-$HOME/.dsh}/AGENTS.md"
+    "atomic|${ATOMIC_CODING_AGENT_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.atomic/agent}}/AGENTS.md"
   )
 
   echo "Linking global agent memory"
@@ -409,6 +412,45 @@ install_deepseek_harness() {
   DSH_HOME="$harness_home" "$launcher" web --dump-default-config >/dev/null || abort 'Could not initialise the DeepSeek Harness web profile'
   link_agent_memory
   echo 'DeepSeek Harness ready: run dsh web, then configure a provider in Settings > Models'
+}
+
+install_atomic() {
+  local source_dir="$PWD/atomic/.config/atomic"
+  local runtime="${XDG_DATA_HOME:-$HOME/.local/share}/atomic"
+  local launcher="$HOME/.local/bin/atomic"
+  local agent_dir="${ATOMIC_CODING_AGENT_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.atomic/agent}}"
+
+  if command -v mise >/dev/null 2>&1; then
+    eval "$(mise activate bash)" 2>/dev/null || true
+  fi
+  command -v npm >/dev/null 2>&1 || abort 'npm required (install mise runtimes first)'
+  command -v node >/dev/null 2>&1 || abort 'Node.js required (install mise runtimes first)'
+  node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 19) ? 0 : 1)' || abort 'Atomic requires Node.js 22.19 or newer'
+
+  if [[ -e "$launcher" || -L "$launcher" ]]; then
+    [[ -L "$launcher" && "$(readlink "$launcher")" == "$runtime/node_modules/.bin/atomic" ]] || abort "Preserving existing $launcher; move it before installing Atomic"
+  fi
+  if [[ -e "$runtime" || -L "$runtime" ]]; then
+    [[ ! -L "$runtime" && -f "$runtime/package.json" ]] &&
+      grep -Fqx '  "name": "dotfiles-atomic-runtime",' "$runtime/package.json" || abort "Preserving unrecognised runtime at $runtime"
+  fi
+
+  echo 'Installing Atomic from its dependency lockfile'
+  mkdir -p "$runtime" "$(dirname "$launcher")" || abort 'Could not create Atomic directories'
+  cp "$source_dir/runtime/package.json" "$source_dir/runtime/package-lock.json" "$runtime/" || abort 'Could not copy Atomic package manifests'
+  (cd "$runtime" && npm ci --engine-strict --no-audit --no-fund) || abort 'Atomic installation failed'
+  ln -sfn "$runtime/node_modules/.bin/atomic" "$launcher" || abort 'Could not link atomic'
+
+  (
+    umask 077
+    mkdir -p "$agent_dir" || exit 1
+    if [[ ! -e "$agent_dir/settings.json" && ! -L "$agent_dir/settings.json" ]]; then
+      cp "$source_dir/settings.json" "$agent_dir/settings.json" || exit 1
+    fi
+  ) || abort 'Could not initialise Atomic settings'
+  "$launcher" --version || abort 'Atomic executable check failed'
+  link_agent_memory
+  echo 'Atomic ready: run atomic in a project, then use /login and /model'
 }
 
 setup_pnpm_globals() {
@@ -550,6 +592,10 @@ fi
 
 if is_selected "deepseek_harness"; then
   install_deepseek_harness
+fi
+
+if is_selected "atomic"; then
+  install_atomic
 fi
 
 if is_selected "pnpm_globals"; then
