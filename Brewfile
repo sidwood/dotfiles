@@ -3,6 +3,7 @@ tap "ampcode/tap", trusted: true
 tap "jesseduffield/lazydocker", trusted: true
 tap "jesseduffield/lazygit", trusted: true
 tap "mongodb/brew", trusted: true
+tap "xdevplatform/tap", trusted: true
 
 # cli tools
 brew "ampcode"
@@ -73,6 +74,7 @@ cask "flutter"
 cask "gcloud-cli"
 cask "grok-build"
 cask "warp-agent-cli"
+cask "xurl"
 
 # gui applications
 cask "1password"
