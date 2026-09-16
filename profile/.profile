@@ -56,5 +56,8 @@ export GITHUB_REGISTRY_TOKEN="op://Personal/GitHub Registry Token/token"
 # add lm studio cli (lms)
 export PATH="$PATH:$HOME/.lmstudio/bin"
 
+# add kimi code cli (kimi)
+export PATH="$PATH:$HOME/.kimi-code/bin"
+
 # Custom executables (bin/ stow package) and locally installed tools
 export PATH="$HOME/.local/bin:$PATH"
