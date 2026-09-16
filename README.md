@@ -51,6 +51,7 @@ dotfiles/
 ├── herdr/          # Herdr workspace manager (Solarized Dark, tmux-first keys)
 ├── himalaya/       # Himalaya CLI email config (iCloud via 1Password)
 ├── htop/           # htop process viewer config
+├── humanlayer/     # HumanLayer workspace defaults
 ├── iterm2/         # iTerm2 terminal config (macOS)
 ├── misc/           # Miscellaneous dotfiles (.editorconfig, .agignore, etc.)
 ├── mutt/           # Mutt email client config
@@ -95,6 +96,19 @@ its lifecycle state and resumable session identity to Herdr. The generated
 file is deliberately not stored here so it stays matched to the installed
 Herdr version. Check it with `herdr integration status`; re-running
 `./install.sh` with Stow selected refreshes it.
+
+### HumanLayer
+
+The `humanlayer/` package folds to `~/.config/humanlayer/workspace.json`. That
+file is the upstream default workspace config from HumanLayer 0.175, kept as
+the portable starter. HumanLayer itself reads `.humanlayer/workspace.json` in
+the selected repository, so copy this file there when a project needs
+worktrees. Auth, host id, window state, and logs stay in
+`~/.humanlayer/riptide/` on each Mac and are not stowed.
+
+Install the app with Homebrew (`cask "humanlayer"` from the trusted
+`humanlayer/humanlayer` tap). The cask also links `riptided`. Sign-in happens
+in the app on first launch.
 
 ### DeepSeek Harness
 

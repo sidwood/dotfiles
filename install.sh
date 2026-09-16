@@ -204,6 +204,7 @@ stow_dotfiles() {
   backup_config "$HOME/.config/tmux/tmux.conf" "$PWD/tmux/.config/tmux/tmux.conf" "tmux config"
   backup_config "$HOME/.config/herdr/config.toml" "$PWD/herdr/.config/herdr/config.toml" "herdr config"
   backup_config "$HOME/.config/himalaya/config.toml" "$PWD/himalaya/.config/himalaya/config.toml" "himalaya config"
+  backup_config "$HOME/.config/humanlayer/workspace.json" "$PWD/humanlayer/.config/humanlayer/workspace.json" "humanlayer workspace config"
   backup_config "$HOME/.config/opencode/opencode.jsonc" "$PWD/opencode/.config/opencode/opencode.jsonc" "OpenCode config"
   backup_config "$HOME/.config/zed/settings.json" "$PWD/zed/.config/zed/settings.json" "zed settings"
   backup_config "$HOME/.config/zed/keymap.json" "$PWD/zed/.config/zed/keymap.json" "zed keymap"

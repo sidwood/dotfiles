@@ -1,5 +1,6 @@
 tap "1password/tap", trusted: true
 tap "ampcode/tap", trusted: true
+tap "humanlayer/humanlayer", trusted: true
 tap "jesseduffield/lazydocker", trusted: true
 tap "jesseduffield/lazygit", trusted: true
 tap "mongodb/brew", trusted: true
@@ -93,6 +94,7 @@ cask "docker-desktop"
 cask "font-jetbrains-mono-nerd-font"
 cask "ghostty"
 cask "google-chrome"
+cask "humanlayer"
 cask "insomnia"
 cask "iterm2"
 cask "lm-studio"
