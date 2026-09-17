@@ -126,8 +126,9 @@ these projects set `nodeLinker: hoisted`. Build-script approval is
 `allowBuilds` in each project's `pnpm-workspace.yaml`; pnpm 11 does not read
 that list from `package.json` or `.npmrc`. Gemini CLI and firecrawl-cli stay
 here rather than in Homebrew: Gemini's formula is deprecated upstream, and
-firecrawl-cli has no formula. `@sidwood/timecraft` still needs the stowed
-npmrc and `op run` for GitHub Packages.
+firecrawl-cli has no formula. `@sidwood/timecraft` still needs the stowed npmrc.
+`op run` resolves the GitHub token only when it is not already loaded
+from `~/.config/shell/local.env`.
 
 ```bash
 node-cli-update atomic 0.9.18

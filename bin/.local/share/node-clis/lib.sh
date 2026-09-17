@@ -116,20 +116,39 @@ node_cli_dependency_name() {
   node -e 'const fs=require("fs"); const pkg=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const names=Object.keys(pkg.dependencies||{}); if(names.length!==1){process.exit(1)} process.stdout.write(names[0]);' "$project/package.json"
 }
 
-node_cli_require_registry_auth() {
-  local template
-  command -v op >/dev/null 2>&1 || abort '1Password CLI required (install Homebrew packages first)'
+node_cli_token_resolved() {
+  [[ -n "${GITHUB_REGISTRY_TOKEN:-}" && "$GITHUB_REGISTRY_TOKEN" != op://* ]]
+}
+
+node_cli_load_registry_token() {
+  local env_file="${XDG_CONFIG_HOME:-$HOME/.config}/shell/local.env"
+  node_cli_token_resolved && return 0
+  if [[ -f "$env_file" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$env_file"
+    set +a
+  fi
+  node_cli_token_resolved
+}
+
+node_cli_require_npmrc() {
   export NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/npm/npmrc"
   [[ -f "$NPM_CONFIG_USERCONFIG" ]] || abort 'npm config missing (~/.config/npm/npmrc). Select "Symlink dotfile packages with GNU Stow" first.'
-  template="$(node_cli_repo_root)/shell/.config/shell/local.env.tpl"
-  [[ -f "$template" ]] || abort "Missing 1Password env template: $template"
 }
 
 node_cli_pnpm() {
   local template
   if [[ "${nc_auth:-0}" == "1" ]]; then
-    node_cli_require_registry_auth
+    node_cli_require_npmrc
+    if node_cli_load_registry_token; then
+      pnpm "$@"
+      return
+    fi
+    command -v op >/dev/null 2>&1 || abort '1Password CLI required (install Homebrew packages first)'
     template="$(node_cli_repo_root)/shell/.config/shell/local.env.tpl"
+    [[ -f "$template" ]] || abort "Missing 1Password env template: $template"
+    # First install, before local.env exists: resolve the op:// reference.
     op run --env-file="$template" -- pnpm "$@"
   else
     pnpm "$@"

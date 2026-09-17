@@ -356,7 +356,15 @@ setup_local_shell_env() {
     echo "Wrote $target_path"
   else
     rm -f "$tmp_path"
-    echo "Skipping local shell env setup (could not resolve 1Password secrets)"
+    if [[ -f "$target_path" ]]; then
+      set -a
+      # shellcheck disable=SC1090
+      source "$target_path"
+      set +a
+      echo "Using existing $target_path (could not refresh from 1Password)"
+    else
+      echo "Skipping local shell env setup (could not resolve 1Password secrets)"
+    fi
   fi
 }
 
