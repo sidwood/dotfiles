@@ -494,18 +494,19 @@ setup_pnpm_globals() {
     browser-use-sdk
     defuddle
     firecrawl-cli
+    opencode-ai@1.18.20
   )
 
   echo "Installing global packages with pnpm..."
   # --env-file resolves op:// refs for this subprocess only (works on first run
   # even when local.env has not been sourced into the parent shell)
-  if ! op run --env-file="$template_path" -- pnpm add -g "${global_packages[@]}"; then
+  if ! op run --env-file="$template_path" -- pnpm add -g --allow-build=opencode-ai "${global_packages[@]}"; then
     abort 'Failed to install global packages (check 1Password CLI auth and GitHub Registry Token)'
   fi
 
   # Binaries the packages above expose
   local cmd
-  for cmd in tc gemini defuddle firecrawl; do
+  for cmd in tc gemini defuddle firecrawl opencode; do
     if command -v "$cmd" >/dev/null 2>&1; then
       echo "Installed $cmd -> $(command -v "$cmd")"
     else

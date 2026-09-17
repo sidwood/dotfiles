@@ -257,6 +257,11 @@ The `shell/` package provides configuration sourced from zsh:
 Desktop server. The enabled configuration selects the local or cloud model. Start a new shell after
 updating to pick up the changed aliases.
 
+The CLI is the global pnpm package `opencode-ai@1.18.20`, installed by the
+**Install global pnpm packages** option, not Homebrew. On a Mac that already
+has the Homebrew formula, `brew uninstall opencode` so only the pnpm binary
+remains.
+
 The shared `opencode.jsonc` intentionally selects no provider or default model.
 On a Mac that runs local models, select **Enable LM Studio models in OpenCode
 on this Mac** in `install.sh`, alongside the Stow option. This creates a
