@@ -6,6 +6,6 @@
     "node": ">=22.19.0"
   },
   "dependencies": {
-    "@bastani/atomic": "0.9.18"
+    "@bastani/atomic": "0.9.19"
   }
 }

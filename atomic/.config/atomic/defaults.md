@@ -1,10 +1,16 @@
-# Atomic 0.9.18 default settings
+# Atomic 0.9.19 default settings
 
-Captured from the settings reference shipped in `@bastani/atomic@0.9.18`.
+Captured from the settings reference shipped in `@bastani/atomic@0.9.19`.
 These tables are a reference snapshot, not an active settings file.
 Unset model, authentication, and machine-specific values remain unset.
 
 Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/docs/settings.md
+
+### Herdr
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `herdr.enabled` | boolean | `true` | Enable the built-in reporter in an eligible Herdr pane. Set to `false`, then reload or restart to opt out. Requires `mode: "tui"`, a UI, and the Herdr environment variables. Child sessions and other modes never claim. |
 
 ### Model & Thinking
 
@@ -64,6 +70,7 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 | `compaction.compression_ratio` | number | `0.5` | Fraction of compactable transcript **lines to keep** (`0 < value < 1`) |
 | `compaction.preserve_recent` | number | `2` | Exact number of newest context-visible messages kept outside the compactable region; `0` keeps none |
 | `compaction.query` | string | last user message | Optional relevance focus for selecting older lines to retain |
+| `compaction.modelOverrides` | object | `{}` | Exact `"provider/modelId"` keys with optional `reserveTokens` and `preserve_recent` overrides |
 
 ### Branch Summary
 
@@ -85,6 +92,7 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 | `retry.enabled` | boolean | `true` | Enable automatic agent-level retry on transient errors |
 | `retry.maxRetries` | number | `3` | Maximum agent-level retry attempts |
 | `retry.baseDelayMs` | number | `2000` | Base delay for agent-level exponential backoff (2s, 4s, 8s) |
+| `retry.maxAgentDelayMs` | number | `60000` | Maximum agent-level backoff delay (60s); `0` retries immediately |
 | `retry.provider.timeoutMs` | number | SDK default | Provider/SDK request timeout in milliseconds |
 | `retry.provider.maxRetries` | number | `0` | Provider/SDK retry attempts. Leave unset/`0` to let Atomic's agent-level retry handle transient failures |
 | `retry.provider.maxRetryDelayMs` | number | `60000` | Max server-requested delay before failing (60s) |
@@ -124,8 +132,8 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `shellPath` | string | - | Custom shell path (e.g., for Cygwin on Windows) |
-| `shellCommandPrefix` | string | - | Prefix for every bash command (e.g., `"shopt -s expand_aliases"`) |
+| `shellPath` | string | - | Custom Bash path (e.g., for Cygwin on Windows); does not select the PowerShell used by native Windows `!`/`!!` or the interactive subshell |
+| `shellCommandPrefix` | string | - | Prefix for shell commands, including `!`/`!!`; use PowerShell syntax for native Windows interactive commands and Bash syntax elsewhere (e.g., `"shopt -s expand_aliases"`) |
 | `bashInterceptor.enabled` | boolean | `false` | When true, block shell commands that have dedicated tools and offer remaining `bash` tool calls to `user_bash` extension handlers before local execution. Also available in `/settings` as **Bash Interceptor**. |
 | `search.contextBefore` | number | `1` | Number of context lines before each `search` match. |
 | `search.contextAfter` | number | `3` | Number of context lines after each `search` match. |

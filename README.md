@@ -131,7 +131,7 @@ firecrawl-cli has no formula. `@sidwood/timecraft` still needs the stowed npmrc.
 from `~/.config/shell/local.env`.
 
 ```bash
-node-cli-update atomic 0.9.18
+node-cli-update atomic 0.9.19
 ```
 
 That sets the exact version in `node-clis/<tool>`, rewrites the lockfile
@@ -207,7 +207,7 @@ and [plugin configuration catalog](https://github.com/deepseek-ai/deepseek-harne
 
 Select **Install Atomic with portable defaults** in `./install.sh`, along with
 mise for Node.js and Stow for the reference files. The pinned project is
-`node-clis/atomic` at CLI `0.9.18`. Node.js 22.19 or newer is required; the
+`node-clis/atomic` at CLI `0.9.19`. Node.js 22.19 or newer is required; the
 existing Homebrew/mise setup supplies it, so Atomic needs no new Brewfile entry.
 
 The runtime lives at `${XDG_DATA_HOME:-~/.local/share}/atomic`, with its
