@@ -1,0 +1,11 @@
+{
+  "name": "dotfiles-firecrawl-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "firecrawl-cli": "1.23.2"
+  }
+}

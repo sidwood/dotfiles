@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+_self="$(realpath "$0")"
+# shellcheck source-path=SCRIPTDIR source=../share/node-clis/lib.sh
+source "$(dirname "$_self")/../share/node-clis/lib.sh"
+
+usage() {
+  local status="${1:-0}"
+  printf '%s\n' \
+    'Usage: node-cli-update <tool> <version>' \
+    '' \
+    'Set one pinned Node CLI to an exact version, rewrite its lockfile in' \
+    'the dotfiles checkout, and reinstall that runtime. Does not commit.' \
+    '' \
+    'Tools:'
+  local id
+  while IFS= read -r id || [[ -n "${id:-}" ]]; do
+    [[ -n "$id" ]] || continue
+    printf '  %s\n' "$id"
+  done < <(node_cli_ids)
+  exit "$status"
+}
+
+case "${1:-}" in
+  -h|--help) usage 0 ;;
+esac
+
+[[ $# -eq 2 ]] || usage 2
+
+node_cli_update "$1" "$2"

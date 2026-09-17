@@ -4,6 +4,7 @@
 !cursor/.config/Cursor/User/snippets/
 !cursor/.config/Cursor/User/snippets/*.json
 .DS_Store
+node_modules/
 .netrwhist
 .nvimlog
 .superpowers/

@@ -1,0 +1,8 @@
+{
+  "name": "dotfiles-defuddle-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "defuddle": "0.19.3"
+  }
+}

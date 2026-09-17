@@ -1,0 +1,137 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      opencode-ai:
+        specifier: 1.18.20
+        version: 1.18.20
+
+packages:
+
+  opencode-ai@1.18.20:
+    resolution: {integrity: sha512-8c2yJ/Oe1qFi9KYE0KS9WCyy6O1QtI9odzBmBWGOeyOgXTn/hGOwCp/fgcHY2qVQ2TVgkQXze7jXjJ6AFyeU0Q==}
+    cpu: [arm64, x64]
+    os: [darwin, linux, win32]
+    hasBin: true
+
+  opencode-darwin-arm64@1.18.20:
+    resolution: {integrity: sha512-fgEBJswx91OAtEmJy7iTT22iYsadCyn4Yp7rV09g+uf5loyZXknyOLYmILYIDrvEP6FrULrPYWBjWmWqIr6ugA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  opencode-darwin-x64-baseline@1.18.20:
+    resolution: {integrity: sha512-+KF59u/SSjUyaGqtrjckywsVGyqBcOzkRJcO1c3Crx/IKV+U2azNuIZ/S22ngEfXf4u9fxeT/Cohmczq2s8VCQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  opencode-darwin-x64@1.18.20:
+    resolution: {integrity: sha512-y63l232dLPMXWmYVWroTxbd7wfYCsRePBaXsi7n3eYPNe7Keo6rMlxcNsmbBhxc8OmCer0yD9DkaSS5yMLg9wQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  opencode-linux-arm64-musl@1.18.20:
+    resolution: {integrity: sha512-qpRofadzK5SsARB9u4uaZK/Lkaf+p1zluXTN8BqOYAhzCLkFLpisyP76s1NxM0ZLPPXszvOsoi4QrXfViu8pmQ==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  opencode-linux-arm64@1.18.20:
+    resolution: {integrity: sha512-DbxQeYtEAbUUExuFP5vh+jzxeKQwnQ1nnAW7vx4noZqoyeMqj58y5ynwkSzgX886yiCi1WIrN7jaZdmiYpZuzA==}
+    cpu: [arm64]
+    os: [linux]
+
+  opencode-linux-x64-baseline-musl@1.18.20:
+    resolution: {integrity: sha512-enVVSrQ2RAoTHTbBRWwmF1FVmP8fmWUWGHGbJMsH69RxkFvrAnmoHq9FaorcKlTSlqfI4gpF4NgmL053yO4x4w==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  opencode-linux-x64-baseline@1.18.20:
+    resolution: {integrity: sha512-u5Ud6jyj83ebxTuWGyogJsWSD9BZH7+N1WejtIIFVkIK2sjgie4o6VZabQUXQy1FLCvRfpW8HZkIjiARhebY9g==}
+    cpu: [x64]
+    os: [linux]
+
+  opencode-linux-x64-musl@1.18.20:
+    resolution: {integrity: sha512-PdlCelm/EvIKB6U1w23Wb3Bnv2JizuJYzM5RB9u2lDsuF1NSg9dGHTgcs8pEu/xG4bscqY6pWPruxbUp2E3pZw==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  opencode-linux-x64@1.18.20:
+    resolution: {integrity: sha512-H+XhU7NbfTBt+YE1zasYduljfveZQbatw72gDUhWKfnE83gd9KZ8u5biCf7TZEcsi9QJebFga2UTrebsivzQug==}
+    cpu: [x64]
+    os: [linux]
+
+  opencode-windows-arm64@1.18.20:
+    resolution: {integrity: sha512-P0FmDdwdH/afaXSJ8QA29LESEZjMaZVzqCddITgClOe1DHlr502+CPFbIvl2I8dp0C0KDdmh+gq4sciK0Tl/bg==}
+    cpu: [arm64]
+    os: [win32]
+
+  opencode-windows-x64-baseline@1.18.20:
+    resolution: {integrity: sha512-dTUWq8Z5prd7WjccG6lqSbyXn3PL5tsNlqpNzjW+uBnJDVXLaN3Zv10OMvFDVlr1cmHQoggRKwvmyYwA2eDrrQ==}
+    cpu: [x64]
+    os: [win32]
+
+  opencode-windows-x64@1.18.20:
+    resolution: {integrity: sha512-crDW+lxiXTdjMbvIW67y3SkbGkMNlTtIV9eFCsjU4gjOW6EN9hfj28GMlAI4hePEBs9JLs5dD7EJUMjQwZ9IOQ==}
+    cpu: [x64]
+    os: [win32]
+
+snapshots:
+
+  opencode-ai@1.18.20:
+    optionalDependencies:
+      opencode-darwin-arm64: 1.18.20
+      opencode-darwin-x64: 1.18.20
+      opencode-darwin-x64-baseline: 1.18.20
+      opencode-linux-arm64: 1.18.20
+      opencode-linux-arm64-musl: 1.18.20
+      opencode-linux-x64: 1.18.20
+      opencode-linux-x64-baseline: 1.18.20
+      opencode-linux-x64-baseline-musl: 1.18.20
+      opencode-linux-x64-musl: 1.18.20
+      opencode-windows-arm64: 1.18.20
+      opencode-windows-x64: 1.18.20
+      opencode-windows-x64-baseline: 1.18.20
+
+  opencode-darwin-arm64@1.18.20:
+    optional: true
+
+  opencode-darwin-x64-baseline@1.18.20:
+    optional: true
+
+  opencode-darwin-x64@1.18.20:
+    optional: true
+
+  opencode-linux-arm64-musl@1.18.20:
+    optional: true
+
+  opencode-linux-arm64@1.18.20:
+    optional: true
+
+  opencode-linux-x64-baseline-musl@1.18.20:
+    optional: true
+
+  opencode-linux-x64-baseline@1.18.20:
+    optional: true
+
+  opencode-linux-x64-musl@1.18.20:
+    optional: true
+
+  opencode-linux-x64@1.18.20:
+    optional: true
+
+  opencode-windows-arm64@1.18.20:
+    optional: true
+
+  opencode-windows-x64-baseline@1.18.20:
+    optional: true
+
+  opencode-windows-x64@1.18.20:
+    optional: true

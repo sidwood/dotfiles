@@ -1,0 +1,8 @@
+{
+  "name": "dotfiles-browser-use-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "browser-use-sdk": "3.11.1"
+  }
+}

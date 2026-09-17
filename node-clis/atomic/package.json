@@ -1,0 +1,11 @@
+{
+  "name": "dotfiles-atomic-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dependencies": {
+    "@bastani/atomic": "0.9.18"
+  }
+}

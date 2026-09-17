@@ -14,6 +14,9 @@ abort() {
   printf "\n \033[31mError: %s\033[0m\n\n" "$*" && exit 1
 }
 
+# shellcheck source=bin/.local/share/node-clis/lib.sh
+source "$PWD/bin/.local/share/node-clis/lib.sh"
+
 #
 # Ensure dependencies are installed
 #
@@ -56,8 +59,8 @@ options+=("Install DeepSeek Harness with portable defaults.")
 option_keys+=("deepseek_harness")
 options+=("Install Atomic with portable defaults.")
 option_keys+=("atomic")
-options+=("Install global pnpm packages.")
-option_keys+=("pnpm_globals")
+options+=("Install pinned Node CLIs.")
+option_keys+=("node_clis")
 options+=("Install vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -225,7 +228,7 @@ stow_dotfiles() {
 
   echo "Symlinking dotfile packages"
   for pkg in */; do
-    [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "cursor/" ]] && continue
+    [[ "$pkg" == "macos/" || "$pkg" == "alfred/" || "$pkg" == "cursor/" || "$pkg" == "node-clis/" ]] && continue
     stow -v -t "$HOME" "${pkg%/}"
   done
 
@@ -262,65 +265,6 @@ enable_opencode_lmstudio() {
   fi
   ln -s lmstudio.json "$target"
   echo 'Enabled local LM Studio models in OpenCode'
-}
-
-link_agent_memory() {
-  local canonical="$HOME/.config/agents/AGENTS.md"
-
-  if [[ ! -e "$canonical" ]]; then
-    echo "Skipping agent memory links (agents package not stowed)"
-    return 0
-  fi
-
-  # <command>|<global instructions path>. Every harness reads a different
-  # filename in a different place, so rather than keep a copy per tool we keep
-  # one file and point them all at it. Add a harness by adding a line.
-  #
-  # Paths verified against the tools themselves: codex (binary references
-  # ~/.codex/AGENTS.md), grok (its shipped docs/user-guide), opencode (config
-  # root ~/.config/opencode), pi (global context lives in agentDir, default
-  # ~/.pi/agent). claude and gemini follow each vendor's documented path.
-  # Cursor's home-level rules are .mdc files in ~/.cursor/rules/. The shared
-  # file carries no alwaysApply frontmatter, so enable the rule in Cursor.
-  #
-  # Deliberately absent: kimi. It only reads AGENTS.md from the working
-  # directory — global support is an open, unimplemented request
-  # (MoonshotAI/kimi-cli#2152). Add "kimi|$HOME/.kimi/AGENTS.md" when it lands.
-  local harnesses=(
-    "claude|$HOME/.claude/CLAUDE.md"
-    "codex|$HOME/.codex/AGENTS.md"
-    "grok|$HOME/.grok/AGENTS.md"
-    "opencode|$HOME/.config/opencode/AGENTS.md"
-    "cursor|$HOME/.cursor/rules/global-agent-memory.mdc"
-    "gemini|$HOME/.gemini/GEMINI.md"
-    "pi|$HOME/.pi/agent/AGENTS.md"
-    "dsh|${DSH_HOME:-$HOME/.dsh}/AGENTS.md"
-    "atomic|${ATOMIC_CODING_AGENT_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.atomic/agent}}/AGENTS.md"
-  )
-
-  echo "Linking global agent memory"
-  local entry cmd target
-  for entry in "${harnesses[@]}"; do
-    cmd="${entry%%|*}"
-    target="${entry#*|}"
-
-    # Only touch harnesses that are actually here, so $HOME does not collect
-    # config directories for tools that were never installed.
-    if ! command -v "$cmd" >/dev/null 2>&1 && [[ ! -d "$(dirname "$target")" ]]; then
-      continue
-    fi
-
-    if [[ -L "$target" ]]; then
-      [[ "$(readlink "$target")" == "$canonical" ]] && continue
-    elif [[ -e "$target" ]]; then
-      echo "  Backing up existing ${target##*/} to ${target}.bak"
-      mv "$target" "${target}.bak"
-    fi
-
-    mkdir -p "$(dirname "$target")"
-    ln -sfn "$canonical" "$target"
-    echo "  ${cmd} -> ~/${target#"$HOME"/}"
-  done
 }
 
 install_herdr_integrations() {
@@ -375,147 +319,6 @@ setup_mise() {
 
   echo "Mise setup complete. Installed versions:"
   mise list
-}
-
-install_deepseek_harness() {
-  local source_dir="$PWD/dsh/.config/dsh"
-  local runtime="${XDG_DATA_HOME:-$HOME/.local/share}/deepseek-harness"
-  local launcher="$HOME/.local/bin/dsh"
-  local harness_home="${DSH_HOME:-$HOME/.dsh}"
-
-  if command -v mise >/dev/null 2>&1; then
-    eval "$(mise activate bash)" 2>/dev/null || true
-  fi
-  command -v npm >/dev/null 2>&1 || abort 'npm required (install mise runtimes first)'
-  command -v node >/dev/null 2>&1 || abort 'Node.js required (install mise runtimes first)'
-  node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit((major === 22 && minor >= 19) || major >= 24 ? 0 : 1)' || abort 'DeepSeek Harness requires Node.js 22.19+ (22.x) or 24+'
-
-  if [[ -e "$launcher" || -L "$launcher" ]]; then
-    [[ -L "$launcher" && "$(readlink "$launcher")" == "$runtime/node_modules/.bin/dsh" ]] || abort "Preserving existing $launcher; move it before installing DeepSeek Harness"
-  fi
-  if [[ -e "$runtime" || -L "$runtime" ]]; then
-    [[ ! -L "$runtime" && -f "$runtime/package.json" ]] &&
-      grep -Fqx '  "name": "dotfiles-deepseek-harness-runtime",' "$runtime/package.json" || abort "Preserving unrecognised runtime at $runtime"
-  fi
-
-  echo 'Installing DeepSeek Harness from its dependency lockfile'
-  mkdir -p "$runtime" "$(dirname "$launcher")" || abort 'Could not create DeepSeek Harness directories'
-  cp "$source_dir/runtime/package.json" "$source_dir/runtime/package-lock.json" "$runtime/" || abort 'Could not copy DeepSeek Harness package manifests'
-  (cd "$runtime" && npm ci --engine-strict --no-audit --no-fund) || abort 'DeepSeek Harness installation failed'
-  ln -sfn "$runtime/node_modules/.bin/dsh" "$launcher" || abort 'Could not link dsh'
-
-  (
-    umask 077
-    mkdir -p "$harness_home" || exit 1
-    if [[ ! -e "$harness_home/settings.yaml" && ! -L "$harness_home/settings.yaml" ]]; then
-      cp "$source_dir/settings.yaml" "$harness_home/settings.yaml" || exit 1
-    fi
-  ) || abort 'Could not initialise DeepSeek Harness settings'
-  DSH_HOME="$harness_home" "$launcher" web --dump-default-config >/dev/null || abort 'Could not initialise the DeepSeek Harness web profile'
-  link_agent_memory
-  echo 'DeepSeek Harness ready: run dsh web, then configure a provider in Settings > Models'
-}
-
-install_atomic() {
-  local source_dir="$PWD/atomic/.config/atomic"
-  local runtime="${XDG_DATA_HOME:-$HOME/.local/share}/atomic"
-  local launcher="$HOME/.local/bin/atomic"
-  local agent_dir="${ATOMIC_CODING_AGENT_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.atomic/agent}}"
-
-  if command -v mise >/dev/null 2>&1; then
-    eval "$(mise activate bash)" 2>/dev/null || true
-  fi
-  command -v npm >/dev/null 2>&1 || abort 'npm required (install mise runtimes first)'
-  command -v node >/dev/null 2>&1 || abort 'Node.js required (install mise runtimes first)'
-  node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 19) ? 0 : 1)' || abort 'Atomic requires Node.js 22.19 or newer'
-
-  if [[ -e "$launcher" || -L "$launcher" ]]; then
-    [[ -L "$launcher" && "$(readlink "$launcher")" == "$runtime/node_modules/.bin/atomic" ]] || abort "Preserving existing $launcher; move it before installing Atomic"
-  fi
-  if [[ -e "$runtime" || -L "$runtime" ]]; then
-    [[ ! -L "$runtime" && -f "$runtime/package.json" ]] &&
-      grep -Fqx '  "name": "dotfiles-atomic-runtime",' "$runtime/package.json" || abort "Preserving unrecognised runtime at $runtime"
-  fi
-
-  echo 'Installing Atomic from its dependency lockfile'
-  mkdir -p "$runtime" "$(dirname "$launcher")" || abort 'Could not create Atomic directories'
-  cp "$source_dir/runtime/package.json" "$source_dir/runtime/package-lock.json" "$runtime/" || abort 'Could not copy Atomic package manifests'
-  (cd "$runtime" && npm ci --engine-strict --no-audit --no-fund) || abort 'Atomic installation failed'
-  ln -sfn "$runtime/node_modules/.bin/atomic" "$launcher" || abort 'Could not link atomic'
-
-  (
-    umask 077
-    mkdir -p "$agent_dir" || exit 1
-    if [[ ! -e "$agent_dir/settings.json" && ! -L "$agent_dir/settings.json" ]]; then
-      cp "$source_dir/settings.json" "$agent_dir/settings.json" || exit 1
-    fi
-  ) || abort 'Could not initialise Atomic settings'
-  "$launcher" --version || abort 'Atomic executable check failed'
-  link_agent_memory
-  echo 'Atomic ready: run atomic in a project, then use /login and /model'
-}
-
-setup_pnpm_globals() {
-  command -v op >/dev/null 2>&1 || abort '1Password CLI required (install Homebrew packages first)'
-
-  # Ensure mise-managed tools are on PATH even if mise step was skipped this run
-  if command -v mise >/dev/null 2>&1; then
-    eval "$(mise activate bash)" 2>/dev/null || true
-  fi
-  command -v pnpm >/dev/null 2>&1 || abort 'pnpm required (install mise runtimes first)'
-
-  # pnpm refuses to install globally unless its bin directory ($PNPM_HOME/bin,
-  # not $PNPM_HOME) exists and is on PATH. .profile exports this too, but a
-  # first run may not have sourced it yet.
-  export PNPM_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/pnpm"
-  mkdir -p "$PNPM_HOME/bin"
-  case ":$PATH:" in
-    *":$PNPM_HOME/bin:"*) ;;
-    *) export PATH="$PNPM_HOME/bin:$PATH" ;;
-  esac
-
-  # GitHub Packages auth comes from stowed npmrc + GITHUB_REGISTRY_TOKEN.
-  # pnpm reads it via NPM_CONFIG_USERCONFIG, same as npm.
-  if [[ ! -f "$HOME/.config/npm/npmrc" ]]; then
-    abort 'npm config missing (~/.config/npm/npmrc). Select "Symlink dotfile packages with GNU Stow" first.'
-  fi
-
-  local template_path="$PWD/shell/.config/shell/local.env.tpl"
-  if [[ ! -f "$template_path" ]]; then
-    abort "Missing 1Password env template: $template_path"
-  fi
-
-  # @google/gemini-cli and firecrawl-cli are installed with pnpm rather than
-  # Homebrew: gemini's brew formula is deprecated upstream, lags several minor
-  # versions, and is disabled from 2026-12-18; firecrawl-cli has no brew formula.
-  local global_packages=(
-    @sidwood/timecraft
-    @google/gemini-cli
-    browser-use-sdk
-    defuddle
-    firecrawl-cli
-    opencode-ai@1.18.20
-  )
-
-  echo "Installing global packages with pnpm..."
-  # --env-file resolves op:// refs for this subprocess only (works on first run
-  # even when local.env has not been sourced into the parent shell)
-  if ! op run --env-file="$template_path" -- pnpm add -g --allow-build=opencode-ai "${global_packages[@]}"; then
-    abort 'Failed to install global packages (check 1Password CLI auth and GitHub Registry Token)'
-  fi
-
-  # Binaries the packages above expose
-  local cmd
-  for cmd in tc gemini defuddle firecrawl opencode; do
-    if command -v "$cmd" >/dev/null 2>&1; then
-      echo "Installed $cmd -> $(command -v "$cmd")"
-    else
-      printf "\033[33mWarning: %s installed but not on PATH in this session\033[0m\n" "$cmd"
-    fi
-  done
-
-  # gemini may have just appeared, so its global memory link can now be made
-  link_agent_memory
 }
 
 setup_repo_hooks() {
@@ -594,15 +397,15 @@ if is_selected "mise"; then
 fi
 
 if is_selected "deepseek_harness"; then
-  install_deepseek_harness
+  node_cli_install deepseek-harness
 fi
 
 if is_selected "atomic"; then
-  install_atomic
+  node_cli_install atomic
 fi
 
-if is_selected "pnpm_globals"; then
-  setup_pnpm_globals
+if is_selected "node_clis"; then
+  node_cli_install_menu group
 fi
 
 if is_selected "vim"; then

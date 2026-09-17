@@ -1,0 +1,9 @@
+# id, runtime dir, package.json name, launcher (- if none), side effects, GitHub Packages auth, node policy, remove from pnpm global, menu
+atomic	atomic	dotfiles-atomic-runtime	atomic	atomic	0	ge22.19	0	own
+deepseek-harness	deepseek-harness	dotfiles-deepseek-harness-runtime	dsh	harness	0	22or24	0	own
+gemini	gemini	dotfiles-gemini-runtime	gemini	gemini	0	ge20	1	group
+browser-use	browser-use	dotfiles-browser-use-runtime	-	none	0	any	1	group
+defuddle	defuddle	dotfiles-defuddle-runtime	defuddle	none	0	any	1	group
+firecrawl	firecrawl	dotfiles-firecrawl-runtime	firecrawl	none	0	ge18	1	group
+opencode	opencode-cli	dotfiles-opencode-runtime	opencode	opencode	0	any	1	group
+timecraft	timecraft	dotfiles-timecraft-runtime	tc	none	1	ge26	1	group

@@ -1,0 +1,11 @@
+{
+  "name": "dotfiles-gemini-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google/gemini-cli": "0.57.0"
+  }
+}

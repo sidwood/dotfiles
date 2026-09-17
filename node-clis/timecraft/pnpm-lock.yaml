@@ -1,0 +1,24 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@sidwood/timecraft':
+        specifier: 2.0.0
+        version: 2.0.0
+
+packages:
+
+  '@sidwood/timecraft@2.0.0':
+    resolution: {integrity: sha512-80WYEyWpzus9h/GGSSUgGWqiDnQul0TEh8o7KLiIRBIpMojKq2zSHR29+3NlTkDI8DdKUtHAQaigrk6VSBySBA==, tarball: https://npm.pkg.github.com/download/@sidwood/timecraft/2.0.0/d5940806fde850868bbe9319c896f514350ac178}
+    engines: {node: '>=26'}
+    hasBin: true
+
+snapshots:
+
+  '@sidwood/timecraft@2.0.0': {}

@@ -1,0 +1,3 @@
+nodeLinker: hoisted
+allowBuilds:
+  opencode-ai: true

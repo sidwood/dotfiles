@@ -30,7 +30,7 @@
 
 ## Stow Model
 - Most top-level dirs are Stow packages into `$HOME`.
-- `install.sh` skips `macos/`, `alfred/`, and `cursor/`.
+- `install.sh` skips `macos/`, `alfred/`, `cursor/`, and `node-clis/`.
 - `cursor/` is linked manually to `~/Library/Application Support/Cursor/User`.
 - `bin/` is stowed and depends on `~/.local/bin` being on PATH (set in `profile/.profile`).
 - `agents/` folds to `~/.config/agents/`.
@@ -62,5 +62,5 @@
 
 ## Operational Notes
 Non-obvious constraints only; the mechanics are in `install.sh`.
-- pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`, repeated in `setup_pnpm_globals` for first runs that have not sourced it. pnpm honours `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
+- pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`. The bin directory is `$PNPM_HOME/bin`. Node CLIs in `node-clis/` are not installed there. pnpm honours `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
 - `install.sh` blocks on 1Password CLI auth in sandboxed or non-interactive environments.

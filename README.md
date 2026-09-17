@@ -28,7 +28,7 @@ Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
   [x] Set up mise with default runtimes.
   [x] Install DeepSeek Harness with portable defaults.
   [x] Install Atomic with portable defaults.
-  [x] Install global pnpm packages.
+  [x] Install pinned Node CLIs.
   [x] Install vim plugins.
 ```
 
@@ -38,14 +38,16 @@ confirm.
 ## Structure
 
 The dotfiles are organized as [GNU Stow](https://www.gnu.org/software/stow/)
-packages. Each top-level directory is a package that gets symlinked to `$HOME`.
+packages. Each top-level directory is a package that gets symlinked to `$HOME`,
+except `macos/`, `alfred/`, `cursor/`, and `node-clis/`.
 
 ```
 dotfiles/
 ├── agents/         # Global agent memory shared by every AI harness
-├── atomic/         # Atomic install manifest and starter settings
+├── atomic/         # Atomic starter settings (the CLI project is node-clis/atomic)
 ├── bin/            # Custom executables on PATH via ~/.local/bin
-├── dsh/            # DeepSeek Harness install manifest and starter settings
+├── dsh/            # DeepSeek Harness starter settings (the CLI project is node-clis/deepseek-harness)
+├── node-clis/      # Pinned Node CLI projects; not a Stow package
 ├── ghostty/        # Ghostty terminal config
 ├── git/            # Git config and global ignore
 ├── herdr/          # Herdr workspace manager (Solarized Dark, tmux-first keys)
@@ -110,6 +112,33 @@ Install the app with Homebrew (`cask "humanlayer"` from the trusted
 `humanlayer/humanlayer` tap). The cask also links `riptided`. Sign-in happens
 in the app on first launch.
 
+### Node CLIs
+
+Homebrew installs vendor apps. Node CLIs are pinned projects under
+`node-clis/`. Install copies a project to
+`${XDG_DATA_HOME:-~/.local/share}/<dir>` and links that runtime's bin into
+`~/.local/bin`. Nothing is installed inside the git checkout, and
+`node_modules` is not committed.
+
+Atomic and Harness load plugins from the `node_modules` directory beside
+themselves. pnpm 11's global install does not lay packages out that way, so
+these projects set `nodeLinker: hoisted`. Build-script approval is
+`allowBuilds` in each project's `pnpm-workspace.yaml`; pnpm 11 does not read
+that list from `package.json` or `.npmrc`. Gemini CLI and firecrawl-cli stay
+here rather than in Homebrew: Gemini's formula is deprecated upstream, and
+firecrawl-cli has no formula. `@sidwood/timecraft` still needs the stowed
+npmrc and `op run` for GitHub Packages.
+
+```bash
+node-cli-update atomic 0.9.18
+```
+
+That sets the exact version in `node-clis/<tool>`, rewrites the lockfile
+there, and reinstalls the runtime. It does not commit, and it does not call
+Atomic's or Harness's own upgrade command. Refresh `defaults.md` or
+`defaults.web.cordis.yml` from the installed release before committing a
+version change.
+
 ### DeepSeek Harness
 
 Select **Set up mise with default runtimes**, **Install DeepSeek Harness with
@@ -118,13 +147,10 @@ portable defaults**, and **Symlink dotfile packages with GNU Stow** in
 mise. Harness requires Node.js 22.19+ on the 22.x line, or Node.js 24+;
 Homebrew already supplies mise, so no additional Brewfile entry is needed.
 
-The installer uses npm with the committed dependency lockfile in
-`dsh/.config/dsh/runtime/`. It installs CLI version `0.1.5-rc.1` into
-`${XDG_DATA_HOME:-~/.local/share}/deepseek-harness` and links its executable
-as `~/.local/bin/dsh`. That directory is already on PATH. This separate npm
-runtime avoids the plugin-resolution failure observed with pnpm 11's isolated
-global layout. There is no launcher wrapper, Python environment, model download,
-or background service.
+The pinned project is `node-clis/deepseek-harness` at CLI `0.1.5-rc.1`. The
+runtime is `${XDG_DATA_HOME:-~/.local/share}/deepseek-harness`, linked as
+`~/.local/bin/dsh`. There is no launcher wrapper, Python environment, model
+download, or background service.
 
 ```bash
 cd ~/code/your-project
@@ -166,13 +192,6 @@ changes merged into their local settings; reinstallation deliberately does not
 reset them. Never copy `.credentials.yaml`, `.env`, conversations, or the
 entire Harness home into dotfiles.
 
-For an upgrade, copy the runtime manifests to a temporary directory, run
-`npm install --save-exact @deepseek-ai/dsh@<version>` there, review the manifest
-and lockfile changes, then copy them back and rerun the Harness installer.
-Refresh the default-profile snapshot from the installed version and verify
-`dsh web` before committing. This keeps preview upgrades deliberate and gives
-fresh installations the same resolved dependency versions on both Macs.
-
 `./uninstall.sh` has a separate Harness option that removes only its managed
 runtime, executable link, and shared-memory link. It preserves `~/.dsh` settings,
 credentials, and sessions. The Stow removal option removes the starter links.
@@ -186,14 +205,13 @@ and [plugin configuration catalog](https://github.com/deepseek-ai/deepseek-harne
 ### Atomic
 
 Select **Install Atomic with portable defaults** in `./install.sh`, along with
-mise for Node.js and Stow for the reference files. The installer pins Atomic
-`0.9.18` and its dependency tree with the manifests in
-`atomic/.config/atomic/runtime/`. Node.js 22.19 or newer is required; the existing
-Homebrew/mise setup supplies it, so Atomic needs no new Brewfile entry.
+mise for Node.js and Stow for the reference files. The pinned project is
+`node-clis/atomic` at CLI `0.9.18`. Node.js 22.19 or newer is required; the
+existing Homebrew/mise setup supplies it, so Atomic needs no new Brewfile entry.
 
-The separate npm runtime lives at `${XDG_DATA_HOME:-~/.local/share}/atomic`,
-with its executable linked as `~/.local/bin/atomic` on the existing PATH.
-Installation starts no background service and downloads no local models.
+The runtime lives at `${XDG_DATA_HOME:-~/.local/share}/atomic`, with its
+executable linked as `~/.local/bin/atomic` on the existing PATH. Installation
+starts no background service and downloads no local models.
 
 ```bash
 cd ~/code/your-project
@@ -226,14 +244,12 @@ use an absolute path and the same environment when launching Atomic. Without an
 override, Atomic can read compatible legacy `~/.pi/agent/` settings as a fallback.
 
 Promote later preferences by copying only reviewed, non-secret settings into
-the starter and merging them into existing machines explicitly. For a core
-upgrade, copy the runtime manifests into a temporary directory, run
-`npm install --save-exact @bastani/atomic@<version>` there, review and copy the
-manifests back, and rerun the Atomic installer. Refresh `defaults.md` from the
-installed package's `docs/settings.md` and check startup before committing;
-updating the core through Atomic itself would bypass the repository's lockfile.
+the starter and merging them into existing machines explicitly. Refresh
+`defaults.md` from the installed package's `docs/settings.md` when the pinned
+release changes. Updating the core through Atomic itself would bypass the
+repository's lockfile.
 
-The Atomic option in `./uninstall.sh` removes its managed npm runtime, executable
+The Atomic option in `./uninstall.sh` removes its managed runtime, executable
 link, and shared-memory link while preserving settings, logins, sessions, and
 project state. Stow removal removes the starter/reference links. Stop Atomic
 before upgrading or uninstalling. Atomic's own `uninstall` subcommand removes
@@ -257,10 +273,11 @@ The `shell/` package provides configuration sourced from zsh:
 Desktop server. The enabled configuration selects the local or cloud model. Start a new shell after
 updating to pick up the changed aliases.
 
-The CLI is the global pnpm package `opencode-ai@1.18.20`, installed by the
-**Install global pnpm packages** option, not Homebrew. On a Mac that already
-has the Homebrew formula, `brew uninstall opencode` so only the pnpm binary
-remains.
+The CLI is `opencode-ai@1.18.20`, installed by **Install pinned Node CLIs**,
+not Homebrew. Its runtime directory is `opencode-cli`, not `opencode`, so it
+does not occupy OpenCode's own data directory. On a Mac that already has the
+Homebrew formula, `brew uninstall opencode` so `~/.local/bin/opencode` is the
+only one.
 
 The shared `opencode.jsonc` intentionally selects no provider or default model.
 On a Mac that runs local models, select **Enable LM Studio models in OpenCode
