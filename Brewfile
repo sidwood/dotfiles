@@ -4,6 +4,7 @@ tap "humanlayer/humanlayer", trusted: true
 tap "jesseduffield/lazydocker", trusted: true
 tap "jesseduffield/lazygit", trusted: true
 tap "mongodb/brew", trusted: true
+tap "qltysh/tap", trusted: true
 tap "xdevplatform/tap", trusted: true
 
 # cli tools
@@ -49,6 +50,7 @@ brew "ollama"
 brew "openssh"
 brew "openssl"
 brew "poppler"
+brew "qlty"
 brew "readline"
 brew "resvg"
 brew "ripgrep"
