@@ -1,0 +1,7 @@
+{
+  "workflows": {
+    "goal-select": {
+      "path": "../../code/dotfiles/atomic/.atomic/agent/workflows/goal-select.ts"
+    }
+  }
+}
