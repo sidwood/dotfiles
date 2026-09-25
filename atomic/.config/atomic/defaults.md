@@ -1,6 +1,6 @@
-# Atomic 0.9.19 default settings
+# Atomic 0.9.20 default settings
 
-Captured from the settings reference shipped in `@bastani/atomic@0.9.19`.
+Captured from the settings reference shipped in `@bastani/atomic@0.9.20`.
 These tables are a reference snapshot, not an active settings file.
 Unset model, authentication, and machine-specific values remain unset.
 
@@ -18,6 +18,7 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 |---------|------|---------|-------------|
 | `defaultProvider` | string | - | Startup provider, saved automatically when you switch models interactively |
 | `defaultModel` | string | - | Startup model ID, saved automatically when you switch models interactively |
+| `routerModel` | string | `""` | Inference model for workflow-stage and subagent `model: "auto"` selection only. An exact `provider/model` selects a registered chat or classifier model. `auto` and empty use the current chat model. Does not change chat or `structured_output` tool inference. |
 | `defaultThinkingLevel` | string | - | Startup thinking level, saved automatically on interactive model/thinking changes: `"off"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"max"`; clamped to the active model's supported levels |
 | `modelThinkingLevels` | object | - | Per-model startup thinking levels keyed by `"provider/modelId"`; updated automatically on interactive model/thinking changes, or configured from `/settings` → Default thinking level per model |
 | `hideThinkingBlock` | boolean | `false` | Hide thinking blocks in output |
@@ -36,9 +37,9 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 | `quietStartup` | boolean | `false` | Hide startup header |
 | `defaultProjectTrust` | string | `"ask"` | Fallback project trust behavior: `"ask"`, `"always"`, or `"never"`. Global setting only |
 | `collapseChangelog` | boolean | `false` | Show condensed changelog after updates |
-| `enableInstallTelemetry` | boolean | `true` | Send an anonymous install/update version ping after first install or changelog-detected updates. This does not control update checks |
-| `firstRunOnboardingStartedVersion` | string | - | Internal first-run onboarding start marker used when no prior Atomic startup state identifies the user as returning |
-| `onboardedVersion` | string | - | Internal one-time first-run onboarding completion marker. Returning-user detection from prior startup state or displaying the first-run workflow-engine explanation sets it |
+| `enableInstallTelemetry` | boolean | `true` | Send a version-adoption ping on the first interactive launch with fresh settings, and on the first interactive launch after an update whose version has changelog entries. This does not control update checks |
+| `firstRunOnboardingStartedVersion` | string | - | Managed onboarding state; leave unchanged |
+| `onboardedVersion` | string | - | Managed onboarding completion state; leave unchanged |
 | `enableAnalytics` | boolean | `false` | Opt in to analytics during first-run setup |
 | `trackingId` | string | - | Locally generated analytics identifier when analytics is enabled |
 | `doubleEscapeAction` | string | `"tree"` | Action for double-escape: `"tree"`, `"fork"`, or `"none"` |

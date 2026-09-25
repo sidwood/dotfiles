@@ -12,3 +12,15 @@ allowBuilds:
   "@embedded-postgres/linux-ia32": true
   "@embedded-postgres/linux-ppc64": true
   "@embedded-postgres/windows-x64": true
+minimumReleaseAgeExclude:
+  - '@bastani/atomic-natives-darwin-arm64@0.9.20'
+  - '@bastani/atomic-natives-darwin-x64@0.9.20'
+  - '@bastani/atomic-natives-linux-arm64-gnu@0.9.20'
+  - '@bastani/atomic-natives-linux-arm64-musl@0.9.20'
+  - '@bastani/atomic-natives-linux-x64-gnu@0.9.20'
+  - '@bastani/atomic-natives-linux-x64-musl@0.9.20'
+  - '@bastani/atomic-natives-win32-arm64-msvc@0.9.20'
+  - '@bastani/atomic-natives-win32-x64-msvc@0.9.20'
+  - '@bastani/atomic-natives@0.9.20'
+  - '@bastani/atomic@0.9.20'
+  - '@bastani/pi-ai@0.9.20'
