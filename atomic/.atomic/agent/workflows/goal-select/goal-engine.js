@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
+import { keepContext } from "@bastani/atomic/workflows";
 import {
-  keepContext,
   REVIEWER_CALIBRATION_RULES,
   WORKER_PREFLIGHT_CONTRACT,
   E2E_VERIFICATION_GUIDANCE,
@@ -21,7 +21,7 @@ import {
   EVIDENCE_CLOSURE_POLICY,
   WORKTREE_DISCIPLINE_CONTRACT,
   REVIEW_CODE_DELTA_CONTRACT
-} from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-kspvwc24.js";
+} from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-9cm2ckq2.js";
 import {
   workflowArtifactDirectoryPath,
   ensureWorkflowArtifactDirectory,
@@ -33,7 +33,7 @@ import {
   reviewerFailureText,
   summarizeReviewConvergence,
   reverify_consolidated_batch
-} from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-73c5tayt.js";
+} from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-kgn5wz1c.js";
 import {
   VERIFICATION_SCALE
 } from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-n1910xc4.js";

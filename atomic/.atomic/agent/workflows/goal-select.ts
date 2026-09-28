@@ -1,6 +1,6 @@
 import { workflow } from "@bastani/atomic/workflows";
 import { Type } from "typebox";
-import { withSteeringPropagationContext2 } from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-kspvwc24.js";
+import { withSteeringPropagationContext } from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/steering-context.js";
 import { runGoalWorkflow } from "./goal-select/goal-engine.js";
 
 function cleanModel(value: string | undefined): string | undefined {
@@ -150,7 +150,7 @@ export default workflow({
         models: JSON.stringify({ launch: selection, policy: models }),
       };
     }
-    const workflowCtx = withSteeringPropagationContext2(ctx);
+    const workflowCtx = withSteeringPropagationContext(ctx);
     const workflowStartCwd = workflowCtx.cwd ?? process.cwd();
     return await runGoalWorkflow(workflowCtx, {
       createPr: workflowCtx.inputs.create_pr === true,
