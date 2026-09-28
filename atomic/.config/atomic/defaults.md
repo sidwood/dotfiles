@@ -1,6 +1,6 @@
-# Atomic 0.9.20 default settings
+# Atomic 0.9.22 default settings
 
-Captured from the settings reference shipped in `@bastani/atomic@0.9.20`.
+Captured from the settings reference shipped in `@bastani/atomic@0.9.22`.
 These tables are a reference snapshot, not an active settings file.
 Unset model, authentication, and machine-specific values remain unset.
 
@@ -19,6 +19,7 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 | `defaultProvider` | string | - | Startup provider, saved automatically when you switch models interactively |
 | `defaultModel` | string | - | Startup model ID, saved automatically when you switch models interactively |
 | `routerModel` | string | `""` | Inference model for workflow-stage and subagent `model: "auto"` selection only. An exact `provider/model` selects a registered chat or classifier model. `auto` and empty use the current chat model. Does not change chat or `structured_output` tool inference. |
+| `modelRouting` | object | `{}` | Provider filters for the models `model: "auto"` may select: `allowedProviders` and `excludedProviders` (provider ID arrays). Does not change `routerModel`. See [modelRouting](#modelrouting). |
 | `defaultThinkingLevel` | string | - | Startup thinking level, saved automatically on interactive model/thinking changes: `"off"`, `"minimal"`, `"low"`, `"medium"`, `"high"`, `"xhigh"`, `"max"`; clamped to the active model's supported levels |
 | `modelThinkingLevels` | object | - | Per-model startup thinking levels keyed by `"provider/modelId"`; updated automatically on interactive model/thinking changes, or configured from `/settings` → Default thinking level per model |
 | `hideThinkingBlock` | boolean | `false` | Hide thinking blocks in output |
