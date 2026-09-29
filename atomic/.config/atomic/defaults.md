@@ -1,6 +1,6 @@
-# Atomic 0.9.22 default settings
+# Atomic 0.9.24 default settings
 
-Captured from the settings reference shipped in `@bastani/atomic@0.9.22`.
+Captured from the settings reference shipped in `@bastani/atomic@0.9.24`.
 These tables are a reference snapshot, not an active settings file.
 Unset model, authentication, and machine-specific values remain unset.
 

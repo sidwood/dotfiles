@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@bastani/atomic':
-        specifier: 0.9.22
-        version: 0.9.22(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(ws@8.21.3)
+        specifier: 0.9.24
+        version: 0.9.24(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(ws@8.21.3)
 
 packages:
 
@@ -107,69 +107,69 @@ packages:
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
 
-  '@bastani/atomic-natives-darwin-arm64@0.9.22':
-    resolution: {integrity: sha512-YQAfe/w5VN/cq+Fl2JMJ0uctoT/krpwm5UDCU5YzXy/S+AQBTwYI6hJ1KiU1Z6j02CHMbdLhOg6QIHCiBLLadw==}
+  '@bastani/atomic-natives-darwin-arm64@0.9.24':
+    resolution: {integrity: sha512-yO3AY9xi+aeqZLJYCQpzGVqvI9ELTeeSeeHAbDTwxepzKcCmboEDjCUWRcIk4x4AFVs+j+J5KgbPn+9HZX+OVQ==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@bastani/atomic-natives-darwin-x64@0.9.22':
-    resolution: {integrity: sha512-f0235d/Tr+Cm+lamHZygtIB/qmK4HCjqVqe70IRPNxGdCfDzxY2lzlKMaAgfA+Tq0WhagEK8JgPNIaNrZwix/A==}
+  '@bastani/atomic-natives-darwin-x64@0.9.24':
+    resolution: {integrity: sha512-ygoylvuflhqjFjyUyn+4hcI1bMMzuQDFrdncDmSlJKZKZxNRBnzEywMlHzRqZfnn/JKmLl+sVJnMIQx+sbnpgw==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@bastani/atomic-natives-linux-arm64-gnu@0.9.22':
-    resolution: {integrity: sha512-HKqF/+Y/4jGbsppHquhkmsWvBl8o7GLAn0SjtO0FKCq8VmCHuzirSSzeHL8YGbNJEEk6+MpMLUyD0rhG96XHCw==}
+  '@bastani/atomic-natives-linux-arm64-gnu@0.9.24':
+    resolution: {integrity: sha512-e+T3In8ZKlu9Egbh2vGO0Np2WQbEr5hXKT8zflz7+uFT9EWYEv/L15aNaURjLCW/+oQ4NxcM8dXLHkyP754S3A==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@bastani/atomic-natives-linux-arm64-musl@0.9.22':
-    resolution: {integrity: sha512-DkQJDboW8GnSPt3vj9DwsllvZhlHl5oW+iSZKTR0CQuZF6f5JVctP+qBfV05ZDrQUuW1+2avRa6uuqRjmy06kA==}
+  '@bastani/atomic-natives-linux-arm64-musl@0.9.24':
+    resolution: {integrity: sha512-yzy4UHh4zwZWzoJayN1j/teuz80ksfvadzdMZbm47KNtElz7PJyDIu6JhQBZAp8N7SApqR5itDCYBib13wkGqA==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@bastani/atomic-natives-linux-x64-gnu@0.9.22':
-    resolution: {integrity: sha512-5UEzRP0+1dE2EJw152SK9eIjnPwE/g7bLXamIV3cvNdSTngHiYTQ2urQXGy5cjoPEjFlLHrJQJFsmT1Wq4PPvQ==}
+  '@bastani/atomic-natives-linux-x64-gnu@0.9.24':
+    resolution: {integrity: sha512-1Moc3RNaQMiGBGUh3h5AUWqV2WnqtZt6JpfX2mFYh+JMO7aS+3f+k7vOGW8iJvwXZzFaEobwhqlgorKCMes4/Q==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@bastani/atomic-natives-linux-x64-musl@0.9.22':
-    resolution: {integrity: sha512-BYr04GrLvE2hv2VHiY/Uq46oRBHXCpatHOjA+Tv/2p4oXdbHrYAo23iudwN+2Uc53p86Zh8LDUAfdDX9pRwK0w==}
+  '@bastani/atomic-natives-linux-x64-musl@0.9.24':
+    resolution: {integrity: sha512-2l1uwiI+WGp5O9SVSz9HzmBlxz3Qlw/+gzoAmeDco+G/BkNTX3gDPgFnm4dY1kBW6VG3ZAl2VAiTnnW3+7nDaw==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@bastani/atomic-natives-win32-arm64-msvc@0.9.22':
-    resolution: {integrity: sha512-6x5zOotaHEWqLR4+pQ9rX8yZhNODh93G/PeODgLTh3WSczF7d37xdfULYWsV4s78Vk4vN+3XlBHRD5FQ8BwktA==}
+  '@bastani/atomic-natives-win32-arm64-msvc@0.9.24':
+    resolution: {integrity: sha512-vQPV/dBHoH8eb8ienG0oknAm/IKvj1W7Fz3rfOqLR28WlEJai/+/WpwvRwnibC+eimU9qVzR2gl0eTm2dl2s6g==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@bastani/atomic-natives-win32-x64-msvc@0.9.22':
-    resolution: {integrity: sha512-mBcGXr/2ABD3qCyVEuHm9musv5P2mI5SMQKZcy6Ij7389VsJ4zYDkWz9Dy75Ew6AHqwL1PohkRaqFLRDvZlK+A==}
+  '@bastani/atomic-natives-win32-x64-msvc@0.9.24':
+    resolution: {integrity: sha512-6OiLmYdv+N/i0z8xncdwIocRUEXf/fsOd0zbIDoO5imR8KdnuPXBWy0jSeHAHOIqPsa212NfZQxn0D+8z56bDA==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [x64]
     os: [win32]
 
-  '@bastani/atomic-natives@0.9.22':
-    resolution: {integrity: sha512-/Qc3FgeYIBHyGT3KXYDDyK/7tYW5j1XMXHtvwWEvME1HWnhree1IP96ntPR2UOFaGglpgKlR7sj0nTXorCMvYw==}
+  '@bastani/atomic-natives@0.9.24':
+    resolution: {integrity: sha512-zj3xqLeG7mOrWdbu/0Bs83cTeUDjGhoT8oOLMI5UgzrtBOirAR+szcche+4zBXPS9l47FK4Op3ow6SgJtUSQ4w==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
 
-  '@bastani/atomic@0.9.22':
-    resolution: {integrity: sha512-WvXuog8F5BVBIykYWeYFmZw45p7wocFN1dNIiyZMVYOwhdU4gM7Vr+MyJaZcGyUKXTUtIwoUeMo8EEnMvvu1BQ==}
+  '@bastani/atomic@0.9.24':
+    resolution: {integrity: sha512-8YY9bbgmx0dZAypACcvIVj8iaZIQE8UPO16EH4N4GS7C7DBW+Qf2mU52E3HQt0IRCk6ZU7FbHh/+nVgiA8HpNw==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
-  '@bastani/pi-ai@0.9.22':
-    resolution: {integrity: sha512-4UW7iF/iRVn9kGCCannf2oXofV0SrejeKDO7bXBasdE4N/EV6FyPSjyZHBCCSjQWzCAo+nBnbUaFVUDfce/W2Q==}
+  '@bastani/pi-ai@0.9.24':
+    resolution: {integrity: sha512-NgWNjm58CfLJexCIWzgvmIctn5V0Ul+GY7fRH3QuaYNna73+QCh1cM+jZgwRkQ4/rAToAXI5D1cG0rYDkSkfXg==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
@@ -1330,15 +1330,6 @@ packages:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
 
-  pg@8.22.0:
-    resolution: {integrity: sha512-8wih1vVIBMxoUM2oB4soJsD9tDnDpLv4OXBJ+EJzFsvycD+lfyIreC2gGHq78f8jbLLt+bvlPTFdFZfJkOuzAA==}
-    engines: {node: '>= 16.0.0'}
-    peerDependencies:
-      pg-native: '>=3.0.1'
-    peerDependenciesMeta:
-      pg-native:
-        optional: true
-
   pg@8.23.0:
     resolution: {integrity: sha512-Ip2EQCngowJLGOfCwkFhPXU7/ljlhn6Rxlmy4XYfL2Y+vyRM59+8uR2xqRWKdYmbXmxCFOAmKxBuSUCdF34qLg==}
     engines: {node: '>= 16.0.0'}
@@ -1861,45 +1852,45 @@ snapshots:
 
   '@babel/runtime@7.29.7': {}
 
-  '@bastani/atomic-natives-darwin-arm64@0.9.22':
+  '@bastani/atomic-natives-darwin-arm64@0.9.24':
     optional: true
 
-  '@bastani/atomic-natives-darwin-x64@0.9.22':
+  '@bastani/atomic-natives-darwin-x64@0.9.24':
     optional: true
 
-  '@bastani/atomic-natives-linux-arm64-gnu@0.9.22':
+  '@bastani/atomic-natives-linux-arm64-gnu@0.9.24':
     optional: true
 
-  '@bastani/atomic-natives-linux-arm64-musl@0.9.22':
+  '@bastani/atomic-natives-linux-arm64-musl@0.9.24':
     optional: true
 
-  '@bastani/atomic-natives-linux-x64-gnu@0.9.22':
+  '@bastani/atomic-natives-linux-x64-gnu@0.9.24':
     optional: true
 
-  '@bastani/atomic-natives-linux-x64-musl@0.9.22':
+  '@bastani/atomic-natives-linux-x64-musl@0.9.24':
     optional: true
 
-  '@bastani/atomic-natives-win32-arm64-msvc@0.9.22':
+  '@bastani/atomic-natives-win32-arm64-msvc@0.9.24':
     optional: true
 
-  '@bastani/atomic-natives-win32-x64-msvc@0.9.22':
+  '@bastani/atomic-natives-win32-x64-msvc@0.9.24':
     optional: true
 
-  '@bastani/atomic-natives@0.9.22':
+  '@bastani/atomic-natives@0.9.24':
     optionalDependencies:
-      '@bastani/atomic-natives-darwin-arm64': 0.9.22
-      '@bastani/atomic-natives-darwin-x64': 0.9.22
-      '@bastani/atomic-natives-linux-arm64-gnu': 0.9.22
-      '@bastani/atomic-natives-linux-arm64-musl': 0.9.22
-      '@bastani/atomic-natives-linux-x64-gnu': 0.9.22
-      '@bastani/atomic-natives-linux-x64-musl': 0.9.22
-      '@bastani/atomic-natives-win32-arm64-msvc': 0.9.22
-      '@bastani/atomic-natives-win32-x64-msvc': 0.9.22
+      '@bastani/atomic-natives-darwin-arm64': 0.9.24
+      '@bastani/atomic-natives-darwin-x64': 0.9.24
+      '@bastani/atomic-natives-linux-arm64-gnu': 0.9.24
+      '@bastani/atomic-natives-linux-arm64-musl': 0.9.24
+      '@bastani/atomic-natives-linux-x64-gnu': 0.9.24
+      '@bastani/atomic-natives-linux-x64-musl': 0.9.24
+      '@bastani/atomic-natives-win32-arm64-msvc': 0.9.24
+      '@bastani/atomic-natives-win32-x64-msvc': 0.9.24
 
-  '@bastani/atomic@0.9.22(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(ws@8.21.3)':
+  '@bastani/atomic@0.9.24(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(ws@8.21.3)':
     dependencies:
-      '@bastani/atomic-natives': 0.9.22
-      '@bastani/pi-ai': 0.9.22(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
+      '@bastani/atomic-natives': 0.9.24
+      '@bastani/pi-ai': 0.9.24(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
       '@dbos-inc/dbos-sdk': 4.25.14
       '@earendil-works/pi-agent-core': 0.87.1(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(ws@8.21.3)(zod@4.6.5)
       '@earendil-works/pi-client': 0.87.1
@@ -1926,7 +1917,7 @@ snapshots:
       minimatch: 10.2.6
       open: 11.0.4
       p-limit: 7.3.3
-      pg: 8.22.0
+      pg: 8.23.0
       proper-lockfile: 4.1.2
       semver: 7.8.5
       turndown: 7.2.4
@@ -1953,7 +1944,7 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@bastani/pi-ai@0.9.22(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)':
+  '@bastani/pi-ai@0.9.24(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)':
     dependencies:
       '@anthropic-ai/sdk': 0.124.0(zod@4.6.5)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
@@ -3066,10 +3057,6 @@ snapshots:
 
   pg-int8@1.0.1: {}
 
-  pg-pool@3.14.0(pg@8.22.0):
-    dependencies:
-      pg: 8.22.0
-
   pg-pool@3.14.0(pg@8.23.0):
     dependencies:
       pg: 8.23.0
@@ -3083,16 +3070,6 @@ snapshots:
       postgres-bytea: 1.0.1
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
-
-  pg@8.22.0:
-    dependencies:
-      pg-connection-string: 2.14.0
-      pg-pool: 3.14.0(pg@8.22.0)
-      pg-protocol: 1.16.0
-      pg-types: 2.2.0
-      pgpass: 1.0.5
-    optionalDependencies:
-      pg-cloudflare: 1.4.0
 
   pg@8.23.0:
     dependencies:
