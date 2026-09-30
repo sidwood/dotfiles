@@ -40,98 +40,94 @@ fi
 
 subject="${lines[0]}"
 
-case "$subject" in
-  'Merge '*|'Revert "'*|'fixup! '*|'squash! '*|'amend! '*)
-    exit 0
-    ;;
-esac
-
 errors=()
 
 add_error() {
   errors+=("$1")
 }
 
-is_ai_trailer() {
+is_attribution_trailer() {
   local lower
   lower="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
   case "$lower" in
-    'generated with'*|'generated-by:'*|'assistant-'*)
+    'generated with '*|'generated-by:'*|'assistant-'*|'co-authored-by:'*|'signed-off-by:'*)
       return 0
-      ;;
-    'co-authored-by:'*|'signed-off-by:'*)
-      case "$lower" in
-        *cursor*|*claude*|*copilot*|*codex*|*gemini*|*grok*|*chatgpt*|*opencode*|*devin*)
-          return 0
-          ;;
-      esac
       ;;
   esac
   return 1
 }
 
-allowed='brew doc gitignore readme stow editorconfig mise bundler biome gem install uninstall'
-repo_root="$(git rev-parse --show-toplevel)"
-for dir in "$repo_root"/*/; do
-  allowed="$allowed $(basename "$dir")"
-done
-
-scope_ok=0
-if [[ "$subject" != *':'* ]]; then
-  add_error 'subject must start with a lowercase scope and a colon'
-else
-  scope="${subject%%:*}"
-  after="${subject#*:}"
-  scope_ok=1
-
-  if ! printf '%s' "$scope" | grep -Eq '^[a-z0-9-]+(/[a-z0-9-]+)*$'; then
-    add_error 'scope must be lowercase a-z, digits, or hyphens, with / between compound scopes'
-    scope_ok=0
-  fi
-
-  if [[ $scope_ok -eq 1 ]]; then
-    rest="$scope"
-    while [[ -n "$rest" ]]; do
-      case "$rest" in
-        */*)
-          segment="${rest%%/*}"
-          rest="${rest#*/}"
-          ;;
-        *)
-          segment="$rest"
-          rest=""
-          ;;
-      esac
-      case " $allowed " in
-        *" $segment "*) ;;
-        *)
-          add_error "unknown scope '${segment}'"
-          ;;
-      esac
-    done
-  fi
-
-  if [[ ! "$after" =~ ^\ [A-Z] ]]; then
-    add_error 'first word after the colon must be capitalised'
-  fi
-fi
-
-# A path like ../.. ends in a dot but is not a sentence full stop.
-if [[ "$subject" == *. && "$subject" != *.. ]]; then
-  add_error 'subject must not end with a full stop'
-fi
-
-if [[ ${#lines[@]} -gt 1 && -n "${lines[1]}" ]]; then
-  add_error 'separate the subject from the body with a blank line'
-fi
-
 i=0
 while [[ $i -lt ${#lines[@]} ]]; do
-  if is_ai_trailer "${lines[$i]}"; then
-    add_error "line $((i + 1)) names an AI tool; remove the attribution trailer"
+  if is_attribution_trailer "${lines[$i]}"; then
+    add_error "line $((i + 1)) adds an attribution trailer; remove it"
   fi
   i=$((i + 1))
 done
+
+skip_style=0
+case "$subject" in
+  'Merge '*|'Revert "'*|'fixup! '*|'squash! '*|'amend! '*)
+    skip_style=1
+    ;;
+esac
+
+if [[ $skip_style -eq 0 ]]; then
+  allowed='brew doc gitignore readme stow editorconfig mise bundler biome gem install uninstall'
+  repo_root="$(git rev-parse --show-toplevel)"
+  for dir in "$repo_root"/*/; do
+    allowed="$allowed $(basename "$dir")"
+  done
+
+  scope_ok=0
+  if [[ "$subject" != *':'* ]]; then
+    add_error 'subject must start with a lowercase scope and a colon'
+  else
+    scope="${subject%%:*}"
+    after="${subject#*:}"
+    scope_ok=1
+
+    if ! printf '%s' "$scope" | grep -Eq '^[a-z0-9-]+(/[a-z0-9-]+)*$'; then
+      add_error 'scope must be lowercase a-z, digits, or hyphens, with / between compound scopes'
+      scope_ok=0
+    fi
+
+    if [[ $scope_ok -eq 1 ]]; then
+      rest="$scope"
+      while [[ -n "$rest" ]]; do
+        case "$rest" in
+          */*)
+            segment="${rest%%/*}"
+            rest="${rest#*/}"
+            ;;
+          *)
+            segment="$rest"
+            rest=""
+            ;;
+        esac
+        case " $allowed " in
+          *" $segment "*) ;;
+          *)
+            add_error "unknown scope '${segment}'"
+            ;;
+        esac
+      done
+    fi
+
+    if [[ ! "$after" =~ ^\ [A-Z] ]]; then
+      add_error 'first word after the colon must be capitalised'
+    fi
+  fi
+
+  # A path like ../.. ends in a dot but is not a sentence full stop.
+  if [[ "$subject" == *. && "$subject" != *.. ]]; then
+    add_error 'subject must not end with a full stop'
+  fi
+
+  if [[ ${#lines[@]} -gt 1 && -n "${lines[1]}" ]]; then
+    add_error 'separate the subject from the body with a blank line'
+  fi
+fi
 
 if [[ ${#errors[@]} -gt 0 ]]; then
   for err in "${errors[@]}"; do
@@ -140,7 +136,7 @@ if [[ ${#errors[@]} -gt 0 ]]; then
   exit 1
 fi
 
-if [[ ${#subject} -gt 50 ]]; then
+if [[ $skip_style -eq 0 && ${#subject} -gt 50 ]]; then
   echo "commit-msg: warning: subject is ${#subject} characters; keep it to 50 or fewer" >&2
 fi
 
