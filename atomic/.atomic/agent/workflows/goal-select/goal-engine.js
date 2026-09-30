@@ -1,6 +1,39 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { keepContext } from "@bastani/atomic/workflows";
-import {
+import { createRequire } from "node:module";
+
+// Atomic's bundler renames its content-hashed chunk-*.js files on every
+// release, so each import site below finds its chunk by the names it needs
+// instead of by filename. GOAL_SELECT_ATOMIC_BUILTIN_DIR overrides the
+// scanned directory for tests.
+const ATOMIC_BUILTIN_DIR = process.env.GOAL_SELECT_ATOMIC_BUILTIN_DIR || "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin";
+function requireAtomicChunk(names) {
+  // Atomic's jiti workflow loader supplies require; native Node ESM does not.
+  const load = typeof require === "function" ? require : createRequire(import.meta.url);
+  let closest = { file: "none", missing: names };
+  for (const file of readdirSync(ATOMIC_BUILTIN_DIR).filter((entry) => /^chunk-.+\.js$/.test(entry)).sort()) {
+    // Shortlist by export clause so only the owning chunk is loaded; the
+    // loaded module then has the final say.
+    const exported = new Set();
+    for (const [, list] of readFileSync(`${ATOMIC_BUILTIN_DIR}/${file}`, "utf8").matchAll(/export\s*\{([^}]*)\}/g)) {
+      for (const specifier of list.split(",")) exported.add(specifier.split(/\s+as\s+/).pop().trim());
+    }
+    let missing = names.filter((name) => !exported.has(name));
+    if (missing.length === 0) {
+      const chunk = load(`${ATOMIC_BUILTIN_DIR}/${file}`);
+      missing = names.filter((name) => chunk[name] === undefined);
+      if (missing.length === 0) return chunk;
+    }
+    if (missing.length < closest.missing.length) closest = { file, missing };
+  }
+  // jiti turns a missing named import into a silent undefined, so fail loudly.
+  throw new Error(
+    `goal-engine.js: no chunk-*.js in ${ATOMIC_BUILTIN_DIR} exports all of ${names.join(", ")}. ` +
+      `Missing: ${closest.missing.join(", ")} (closest: ${closest.file}). ` +
+      "Atomic's builtin workflow internals changed; re-derive goal-engine.js against the current Atomic dist."
+  );
+}
+const {
   REVIEWER_CALIBRATION_RULES,
   WORKER_PREFLIGHT_CONTRACT,
   E2E_VERIFICATION_GUIDANCE,
@@ -21,8 +54,29 @@ import {
   EVIDENCE_CLOSURE_POLICY,
   WORKTREE_DISCIPLINE_CONTRACT,
   REVIEW_CODE_DELTA_CONTRACT
-} from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-9cm2ckq2.js";
-import {
+} = requireAtomicChunk([
+  "REVIEWER_CALIBRATION_RULES",
+  "WORKER_PREFLIGHT_CONTRACT",
+  "E2E_VERIFICATION_GUIDANCE",
+  "CODE_QUALITY_VERIFICATION_GUIDANCE",
+  "MEDIA_PUBLICATION_GUIDANCE",
+  "REPO_INTENT_MINING_GUIDANCE",
+  "renderE2eQaVideoReviewGuidance",
+  "LITERAL_OBJECTIVE_CONTRACT",
+  "REVIEWER_SPEC_VS_OBJECTIVE_GUARD",
+  "REVIEWER_OVERIMPLEMENTATION_GUARD",
+  "ACCEPTANCE_MATRIX_CONTRACT",
+  "CONTRACT_FIDELITY_AUDIT",
+  "REVIEWER_INTERCOM_COORDINATION_PROTOCOL",
+  "REVIEWER_INDEPENDENT_VERIFICATION_CONTRACT",
+  "REGRESSION_EVIDENCE_CONTRACT",
+  "FINDINGS_CONSOLIDATION_CONTRACT",
+  "SCOPE_DISCIPLINE_CONTRACT",
+  "EVIDENCE_CLOSURE_POLICY",
+  "WORKTREE_DISCIPLINE_CONTRACT",
+  "REVIEW_CODE_DELTA_CONTRACT"
+]);
+const {
   workflowArtifactDirectoryPath,
   ensureWorkflowArtifactDirectory,
   record_convergence,
@@ -33,13 +87,24 @@ import {
   reviewerFailureText,
   summarizeReviewConvergence,
   reverify_consolidated_batch
-} from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-e1254zvd.js";
-import {
+} = requireAtomicChunk([
+  "workflowArtifactDirectoryPath",
+  "ensureWorkflowArtifactDirectory",
+  "record_convergence",
+  "convergence_escalation_evidence",
+  "finalActionRemaining",
+  "consolidateFindingsBatch",
+  "parseFailureDiagnostics",
+  "reviewerFailureText",
+  "summarizeReviewConvergence",
+  "reverify_consolidated_batch"
+]);
+const {
   VERIFICATION_SCALE
-} from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-n1910xc4.js";
-import {
+} = requireAtomicChunk(["VERIFICATION_SCALE"]);
+const {
   fold_usage
-} from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/chunk-tgt0s5e5.js";
+} = requireAtomicChunk(["fold_usage"]);
 
 // dist/builtin/workflows/builtin/goal.ts
 import { Type as Type2 } from "typebox";
