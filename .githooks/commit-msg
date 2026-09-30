@@ -56,7 +56,7 @@ is_ai_trailer() {
   local lower
   lower="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
   case "$lower" in
-    'generated with'*|'generated-by:'*)
+    'generated with'*|'generated-by:'*|'assistant-'*)
       return 0
       ;;
     'co-authored-by:'*|'signed-off-by:'*)
