@@ -1060,6 +1060,7 @@ async function runGoalWorkflow(ctx, options) {
         reads: [ledgerPath, ...latestReviewArtifactPaths],
         output: orchestratorReceiptPath,
         outputMode: "file-only",
+        cwd: workflowStartCwd,
         ...turnModels.orchestrator,
         ...orchestratorForkOptions
       });
@@ -1118,6 +1119,7 @@ async function runGoalWorkflow(ctx, options) {
         createPr
       }),
       reads: [ledgerPath, orchestratorReceiptPath],
+      cwd: workflowStartCwd,
       ...modelConfig
     });
     const reviewerSteps = [
@@ -1175,7 +1177,7 @@ async function runGoalWorkflow(ctx, options) {
     const reverifyResults = [];
     const reverifyContext = {
       task: async (name, taskOptions) => {
-        const result = await ctx.task(name, taskOptions);
+        const result = await ctx.task(name, { ...taskOptions, cwd: workflowStartCwd });
         reverifyResults.push(result);
         return result;
       }
@@ -1303,6 +1305,7 @@ async function runGoalWorkflow(ctx, options) {
 `)]
       ]),
       reads: prReads,
+      cwd: workflowStartCwd,
       ...lastTurnModels.orchestrator
     });
     finalPrReport = prResult.text;
