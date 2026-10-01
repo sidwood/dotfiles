@@ -53,6 +53,11 @@ function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value)}\n`);
 }
 
+function writeJsonText(path, text) {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text);
+}
+
 // A JSONC policy as Sid keeps it: alternatives commented out, trailing
 // commas, and comment markers inside model strings that must survive.
 const jsoncPolicyText = `{
@@ -67,6 +72,9 @@ const jsoncPolicyText = `{
 `;
 const jsoncPolicy = { orchestrator_model: "test/jsonc-orchestrator//not-a-comment", reviewer_model: "test/jsonc-reviewer /* not a comment */", max_turns: 3 };
 const malformedPolicyText = `{ "orchestrator_model": "test/malformed", /* unterminated\n`;
+const defaultJson = ".atomic/goal-select-models.json";
+const defaultJsonc = ".atomic/goal-select-models.jsonc";
+const jsonPolicyText = `${JSON.stringify({ orchestrator_model: "test/json-orchestrator" })}\n`;
 
 function launchInputs(overrides) {
   const inputs = { objective: "Prove branch checkout routing." };
@@ -266,6 +274,142 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     const turnPolicy = (turn) => calls.find((call) => call.name === `resolve-models-${turn}`).result;
     assert.equal(turnPolicy(1).maxTurns, 3);
     assert.deepEqual(turnPolicy(2), {});
+  });
+
+  function policyCheckout(name, files) {
+    const dir = join(root, name);
+    git("init", "--quiet", "-b", "main", dir);
+    mkdirSync(join(dir, ".atomic"), { recursive: true });
+    for (const [path, text] of Object.entries(files)) writeFileSync(join(dir, path), text);
+    return dir;
+  }
+  const launchOrchestrator = () => goalSelect.inputs.orchestrator_model.default;
+  const launchReviewer = () => goalSelect.inputs.reviewer_model.default;
+
+  it("declares model_policy_path as optional, so an omitted path selects the default .json then .jsonc policy", () => {
+    const input = goalSelect.inputs.model_policy_path;
+    assert.equal(input.default, undefined);
+    assert.equal(launchInputs({}).model_policy_path, undefined);
+    assert.ok(input.description.includes(defaultJson), input.description);
+    assert.ok(input.description.includes(defaultJsonc), input.description);
+    assert.match(input.description, /only when .*\.json is absent/);
+    assert.match(input.description, /Omitted selects the default policy/);
+    assert.match(input.description, /including an empty or whitespace string/);
+    assert.doesNotMatch(input.description, /blank/i);
+    assert.match(goalSelect.description, /goal-select-models\.jsonc/);
+  });
+
+  it("resolves the default policy as .json when present and .jsonc only when .json is absent, under resolve_only and on a real turn 1", async () => {
+    const malformedJson = malformedPolicyText;
+    for (const [label, files, policy, source, models] of [
+      ["only .jsonc", { [defaultJsonc]: jsoncPolicyText }, jsoncPolicy, defaultJsonc, { orchestrator: jsoncPolicy.orchestrator_model, reviewer: jsoncPolicy.reviewer_model }],
+      ["both", { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText }, { orchestrator_model: "test/json-orchestrator" }, defaultJson, { orchestrator: "test/json-orchestrator", reviewer: launchReviewer() }],
+      ["malformed .json beside a valid .jsonc", { [defaultJson]: malformedJson, [defaultJsonc]: jsoncPolicyText }, {}, defaultJson, { orchestrator: launchOrchestrator(), reviewer: launchReviewer() }],
+      ["neither", {}, {}, null, { orchestrator: launchOrchestrator(), reviewer: launchReviewer() }],
+    ]) {
+      const dir = policyCheckout(`default policy ${label}`, files);
+      const resolved = await resolveOnly(seed, { branch_checkout_dir: dir });
+      assert.equal(resolved.checkout, dir, label);
+      assert.equal(resolved.launch.policyPath, join(dir, defaultJson), label);
+      assert.equal(resolved.launch.policyFallbackPath, join(dir, defaultJsonc), label);
+      assert.deepEqual(resolved.policy, policy, label);
+      assert.equal(resolved.policy_source, source === null ? null : join(dir, source), label);
+
+      const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir } });
+      assert.equal((await goalSelect.run(ctx)).status, "complete", label);
+      const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
+      assert.equal(byName["orchestrator-1"].model, models.orchestrator, `${label}: turn 1 matches resolve_only`);
+      for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, models.reviewer, `${label} ${role}`);
+      assert.deepEqual(toolArgs(calls, "resolve-models-1"), { path: join(dir, defaultJson), fallback_path: join(dir, defaultJsonc), turn: 1 }, label);
+      assert.deepEqual(readdirSync(join(dir, ".atomic")).sort(), Object.keys(files).map((path) => basename(path)).sort(), `${label}: nothing written`);
+    }
+  });
+
+  it("re-resolves the default policy before every turn: .jsonc, then a .json that appears, then .jsonc again once it is gone", async () => {
+    const dir = policyCheckout("default policy turns", { [defaultJsonc]: jsoncPolicyText });
+    const json = join(dir, defaultJson);
+    const { ctx, calls } = fakeContext({
+      cwd: seed,
+      inputs: { branch_checkout_dir: dir },
+      onTask: (name) => {
+        if (name === "orchestrator-1") writeFileSync(json, jsonPolicyText);
+        if (name === "orchestrator-2") rmSync(json);
+        return {};
+      },
+      review: (name) => (name.endsWith("-3") ? approve : keepGoing),
+    });
+    const result = await goalSelect.run(ctx);
+    assert.equal(result.status, "complete");
+    const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
+    assert.equal(byName["orchestrator-1"].model, jsoncPolicy.orchestrator_model);
+    assert.equal(byName["completion-reviewer-1"].model, jsoncPolicy.reviewer_model);
+    assert.equal(byName["orchestrator-2"].model, "test/json-orchestrator");
+    assert.equal(byName["completion-reviewer-2"].model, launchReviewer(), ".json wins whole, without merging .jsonc keys");
+    assert.equal(byName["orchestrator-3"].model, jsoncPolicy.orchestrator_model);
+    assert.equal(byName["completion-reviewer-3"].model, jsoncPolicy.reviewer_model);
+    const turnPolicy = (turn) => calls.find((call) => call.name === `resolve-models-${turn}`).result;
+    assert.equal(turnPolicy(1).maxTurns, 3, "max_turns comes from .jsonc on turn 1");
+    for (const turn of [1, 2, 3]) assert.deepEqual(toolArgs(calls, `resolve-models-${turn}`), { path: json, fallback_path: join(dir, defaultJsonc), turn });
+  });
+
+  it("keeps explicit policy paths exact, including the default .json name, with no .jsonc fallback", async () => {
+    const dir = policyCheckout("explicit policy paths", { [defaultJsonc]: jsoncPolicyText });
+    const explicitJson = await resolveOnly(seed, { branch_checkout_dir: dir, model_policy_path: defaultJson });
+    assert.equal(explicitJson.launch.policyPath, join(dir, defaultJson));
+    assert.equal("policyFallbackPath" in explicitJson.launch, false);
+    assert.deepEqual(explicitJson.policy, {});
+    assert.equal(explicitJson.policy_source, null);
+    const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir, model_policy_path: defaultJson } });
+    await goalSelect.run(ctx);
+    assert.equal(modelStages(calls)[0].options.model, launchOrchestrator());
+    assert.deepEqual(toolArgs(calls, "resolve-models-1"), { path: join(dir, defaultJson), turn: 1 });
+
+    writeFileSync(join(dir, defaultJson), jsonPolicyText);
+    for (const path of [defaultJsonc, join(dir, defaultJsonc)]) {
+      const explicitJsonc = await resolveOnly(seed, { branch_checkout_dir: dir, model_policy_path: path });
+      assert.equal(explicitJsonc.launch.policyPath, join(dir, defaultJsonc), path);
+      assert.deepEqual(explicitJsonc.policy, jsoncPolicy, `${path}: an explicit .jsonc is read even beside a .json`);
+      assert.equal(explicitJsonc.policy_source, join(dir, defaultJsonc), path);
+    }
+  });
+
+  it("keeps an explicitly supplied empty or whitespace model_policy_path as a literal relative path, with no default policy", async () => {
+    const spaces = "  ";
+    const dir = policyCheckout("explicit blank policy paths", { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText, [spaces]: jsoncPolicyText });
+
+    const empty = await resolveOnly(seed, { branch_checkout_dir: dir, model_policy_path: "" });
+    assert.equal(empty.launch.policyPath, dir);
+    assert.equal("policyFallbackPath" in empty.launch, false);
+    assert.deepEqual(empty.policy, {});
+    const emptyRun = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir, model_policy_path: "" } });
+    await goalSelect.run(emptyRun.ctx);
+    assert.equal(modelStages(emptyRun.calls)[0].options.model, launchOrchestrator());
+    assert.deepEqual(toolArgs(emptyRun.calls, "resolve-models-1"), { path: dir, turn: 1 });
+
+    const named = await resolveOnly(seed, { branch_checkout_dir: dir, model_policy_path: spaces });
+    assert.equal(named.launch.policyPath, join(dir, spaces));
+    assert.equal("policyFallbackPath" in named.launch, false);
+    assert.deepEqual(named.policy, jsoncPolicy);
+    assert.equal(named.policy_source, join(dir, spaces));
+    const namedRun = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir, model_policy_path: spaces } });
+    await goalSelect.run(namedRun.ctx);
+    assert.equal(modelStages(namedRun.calls)[0].options.model, jsoncPolicy.orchestrator_model);
+    assert.deepEqual(toolArgs(namedRun.calls, "resolve-models-1"), { path: join(dir, spaces), turn: 1 });
+  });
+
+  it("Atomic's runtime accepts an omitted model_policy_path and resolves the default .jsonc policy, under resolve_only and on turn 1", async () => {
+    const dir = policyCheckout("runtime default jsonc", { [defaultJsonc]: jsoncPolicyText });
+    const seen = [];
+    const adapters = { prompt: { prompt: async (_text, meta) => (seen.push([meta.stageName, meta.stageOptions?.cwd, meta.stageOptions?.model]), "done") } };
+    const options = { durability: { mode: "memory" }, cwd: seed, adapters };
+    const resolved = await run(goalSelect, { objective: "probe", branch_checkout_dir: dir, resolve_only: true }, options);
+    assert.equal(resolved.status, "completed");
+    const models = JSON.parse(resolved.result.models);
+    assert.deepEqual(models.policy, jsoncPolicy);
+    assert.equal(models.policy_source, join(dir, defaultJsonc));
+    assert.deepEqual(seen, []);
+    await run(goalSelect, { objective: "probe", branch_checkout_dir: dir }, options);
+    assert.deepEqual(seen[0], ["orchestrator-1", dir, jsoncPolicy.orchestrator_model]);
   });
 
   for (const [label, input, reason] of [
@@ -790,6 +934,106 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
       assert.equal(byName["completion-reviewer-1"].model, models.reviewer, path);
     }
     assert.deepEqual(seedState(jsoncSeed), jsoncSeedBefore);
+  });
+
+  it("hands the default policy to a new clone as the clone reads it: .json first, .jsonc only when .json is absent, matched by the preview", async () => {
+    const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: goalSelect.inputs.reviewer_model.default };
+    const fromJsonc = { orchestrator: jsoncPolicy.orchestrator_model, reviewer: jsoncPolicy.reviewer_model };
+    const fromJson = { orchestrator: "test/json-orchestrator", reviewer: launch.reviewer };
+    const committedFile = (path, head) => `${path} at seed commit ${head} (the clone gets this committed file)`;
+    const uncommittedFile = (dir, path) => `${join(dir, path)} (not committed; copied into the clone when it is created)`;
+    for (const [label, committed, untracked, expected, inputs = {}] of [
+      ["untracked .jsonc only", {}, { [defaultJsonc]: jsoncPolicyText }, { policy: jsoncPolicy, source: "uncommitted", path: defaultJsonc, copied: defaultJsonc, models: fromJsonc }],
+      ["committed .jsonc only", { [defaultJsonc]: jsoncPolicyText }, {}, { policy: jsoncPolicy, source: "committed", path: defaultJsonc, copied: null, models: fromJsonc }],
+      ["untracked .json and .jsonc", {}, { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText }, { policy: { orchestrator_model: "test/json-orchestrator" }, source: "uncommitted", path: defaultJson, copied: defaultJson, models: fromJson }],
+      ["committed .json, untracked .jsonc", { [defaultJson]: jsonPolicyText }, { [defaultJsonc]: jsoncPolicyText }, { policy: { orchestrator_model: "test/json-orchestrator" }, source: "committed", path: defaultJson, copied: null, models: fromJson }],
+      ["committed .jsonc, untracked .json", { [defaultJsonc]: jsoncPolicyText }, { [defaultJson]: jsonPolicyText }, { policy: { orchestrator_model: "test/json-orchestrator" }, source: "uncommitted", path: defaultJson, copied: defaultJson, models: fromJson }],
+      ["untracked malformed .json beside a valid .jsonc", {}, { [defaultJson]: malformedPolicyText, [defaultJsonc]: jsoncPolicyText }, { policy: {}, source: "uncommitted", path: defaultJson, copied: defaultJson, models: launch }],
+      ["committed malformed .json beside a committed .jsonc", { [defaultJson]: malformedPolicyText, [defaultJsonc]: jsoncPolicyText }, {}, { policy: {}, source: "committed", path: defaultJson, copied: null, models: launch }],
+      ["neither", {}, {}, { policy: {}, source: null, path: null, copied: null, models: launch }],
+      ["explicit default .json name beside an untracked .jsonc", {}, { [defaultJsonc]: jsoncPolicyText }, { policy: {}, source: null, path: null, copied: null, models: launch, explicit: true }, { model_policy_path: defaultJson }],
+    ]) {
+      const dir = makeRepo(join(autoRoot, `default policy ${label}`), { commit: false });
+      for (const [path, text] of Object.entries(committed)) writeJsonText(join(dir, path), text);
+      git("-C", dir, "add", ".");
+      git("-C", dir, "commit", "--quiet", "--allow-empty", "-m", "Policies");
+      for (const [path, text] of Object.entries(untracked)) writeJsonText(join(dir, path), text);
+      const before = seedState(dir);
+      const head = before.head.slice(0, 12);
+      const source = expected.source === "committed" ? committedFile(expected.path, head) : expected.source === "uncommitted" ? uncommittedFile(dir, expected.path) : null;
+
+      const preview = await autoRun({ cwd: dir, inputs: { ...inputs, resolve_only: true } });
+      assert.deepEqual(modelStages(preview.calls), [], label);
+      const previewed = JSON.parse(preview.result.models);
+      assert.deepEqual(previewed.policy, expected.policy, label);
+      assert.equal(previewed.policy_source, source, label);
+      assert.equal(previewed.launch.policyPath, join(preview.target, defaultJson), label);
+      assert.equal(previewed.launch.policyFallbackPath, expected.explicit ? undefined : join(preview.target, defaultJsonc), label);
+      assert.ok(preview.result.result.includes(`- Turn-1 model policy: ${source ?? "no policy file found; launch inputs apply"}`), `${label}: ${preview.result.result}`);
+      assert.equal(existsSync(preview.target), false, `${label}: preview creates no clone`);
+      assert.deepEqual(seedState(dir), before, `${label}: preview leaves the seed alone`);
+
+      const actual = await autoRun({ cwd: dir, inputs });
+      assert.equal(actual.result.status, "complete", label);
+      assert.equal(created(actual.calls).policy_copied_from, expected.copied === null ? null : join(dir, expected.copied), label);
+      const cloned = existsSync(join(actual.target, ".atomic")) ? readdirSync(join(actual.target, ".atomic")).sort() : [];
+      const expectedFiles = [...new Set([...Object.keys(committed), ...(expected.copied === null ? [] : [expected.copied])])].map((path) => basename(path)).sort();
+      assert.deepEqual(cloned, expectedFiles, `${label}: the clone gets committed policies plus at most the one copied`);
+      if (expected.copied !== null) assert.equal(readFileSync(join(actual.target, expected.copied), "utf8"), readFileSync(join(dir, expected.copied), "utf8"), `${label}: copied verbatim`);
+      const byName = Object.fromEntries(modelStages(actual.calls).map((stage) => [stage.name, stage.options]));
+      assert.equal(byName["orchestrator-1"].model, expected.models.orchestrator, `${label}: preview matches turn 1`);
+      for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, expected.models.reviewer, `${label} ${role}`);
+      assert.ok(Object.values(byName).every((stage) => stage.cwd === actual.target), label);
+      assert.deepEqual(seedState(dir), before, `${label}: the run leaves the seed alone`);
+    }
+  });
+
+  it("falls back to .jsonc in the clone when the committed default .json is a dangling symlink, in the preview and the run alike", async () => {
+    const dir = makeRepo(join(autoRoot, "default policy dangling json"), { commit: false });
+    mkdirSync(join(dir, ".atomic"));
+    symlinkSync("missing-models.json", join(dir, defaultJson));
+    git("-C", dir, "add", ".");
+    git("-C", dir, "commit", "--quiet", "-m", "Dangling policy link");
+    writeFileSync(join(dir, defaultJsonc), jsoncPolicyText);
+    const before = seedState(dir);
+
+    const preview = JSON.parse((await autoRun({ cwd: dir, inputs: { resolve_only: true } })).result.models);
+    assert.deepEqual(preview.policy, jsoncPolicy);
+    assert.equal(preview.policy_source, `${join(dir, defaultJsonc)} (not committed; copied into the clone when it is created)`);
+
+    const actual = await autoRun({ cwd: dir });
+    assert.equal(created(actual.calls).policy_copied_from, join(dir, defaultJsonc));
+    assert.equal(lstatSync(join(actual.target, defaultJson)).isSymbolicLink(), true);
+    assert.equal(modelStages(actual.calls)[0].options.model, jsoncPolicy.orchestrator_model);
+    assert.deepEqual(seedState(dir), before);
+  });
+
+  it("Atomic's runtime previews and runs the default .jsonc policy in a new branch clone of a seed that has only an ignored .jsonc", async () => {
+    const dir = makeRepo(join(autoRoot, "runtime jsonc seed"), { commit: false });
+    writeFileSync(join(dir, ".gitignore"), ".atomic/\n");
+    git("-C", dir, "add", ".");
+    git("-C", dir, "commit", "--quiet", "-m", "Ignore .atomic");
+    writeJsonText(join(dir, defaultJsonc), jsoncPolicyText);
+    const before = seedState(dir);
+    const seen = [];
+    const adapters = { prompt: { prompt: async (_text, meta) => (seen.push([meta.stageName, meta.stageOptions?.cwd, meta.stageOptions?.model]), "done") } };
+    const options = (runId) => ({ durability: { mode: "memory" }, cwd: dir, adapters, runId });
+
+    const preview = await run(goalSelect, { objective, resolve_only: true }, options(randomUUID()));
+    assert.equal(preview.status, "completed");
+    const models = JSON.parse(preview.result.models);
+    assert.deepEqual(models.policy, jsoncPolicy);
+    assert.equal(models.policy_source, `${join(dir, defaultJsonc)} (not committed; copied into the clone when it is created)`);
+    assert.equal(existsSync(models.planned_checkout.path), false);
+    assert.deepEqual(seen, []);
+
+    const runId = randomUUID();
+    const target = join(autoRoot, `runtime jsonc seed.goal-${slug}-${idFor(runId)}`);
+    await run(goalSelect, { objective }, options(runId));
+    assert.deepEqual(seen[0], ["orchestrator-1", target, jsoncPolicy.orchestrator_model]);
+    assert.equal(readFileSync(join(target, defaultJsonc), "utf8"), jsoncPolicyText);
+    assert.equal(existsSync(join(target, defaultJson)), false);
+    assert.deepEqual(seedState(dir), before);
   });
 
   it("previews the policy that committed symlinks lead to, as the clone reads it, without creating a clone", async () => {

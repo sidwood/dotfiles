@@ -11,17 +11,21 @@ import {
   previewBranchClonePolicy,
 } from "./goal-select/branch-clone.js";
 import { runGoalWorkflow } from "./goal-select/goal-engine.js";
-import { parseModelPolicy } from "./goal-select/model-policy.js";
+import { modelPolicyPaths, readModelPolicyFile } from "./goal-select/model-policy.js";
 
 function cleanModel(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
 
+function withFallback<T extends object>(args: T, key: string, fallback: string | undefined): T {
+  return fallback === undefined ? args : { ...args, [key]: fallback };
+}
+
 export default workflow({
   name: "goal-select",
   description:
-    "Builtin Goal Runner, including its ledger, three reviewer roles, quorum of 2, and reducer, with a model choice for the orchestrator, each reviewer, and the implementation agent. By default every stage works in a new objective-named git bc-add branch clone beside the invoking checkout. A JSONC policy file is read before every turn for models and max_turns. A stage that has already started keeps its model.",
+    "Builtin Goal Runner, including its ledger, three reviewer roles, quorum of 2, and reducer, with a model choice for the orchestrator, each reviewer, and the implementation agent. By default every stage works in a new objective-named git bc-add branch clone beside the invoking checkout. A JSONC policy file, by default .atomic/goal-select-models.json or else .atomic/goal-select-models.jsonc, is read before every turn for models and max_turns. A stage that has already started keeps its model.",
   heartbeatIntervalMinutes: 15,
   inputs: {
     objective: Type.String({
@@ -83,14 +87,15 @@ export default workflow({
           "Model the orchestrator must pass when it delegates implementation. Empty leaves the builtin worker pin unchanged.",
       }),
     ),
-    model_policy_path: Type.String({
-      default: ".atomic/goal-select-models.json",
-      description:
-        "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas, so alternative models can stay in it commented out. The file keeps its .json name, so the default path is unchanged and an existing policy needs no rename. A relative path resolves from the selected checkout; in auto mode a relative file the new clone lacks is copied from the seed once, when the clone is created. Model keys: orchestrator_model, reviewer_model, completion_reviewer_model, evidence_reviewer_model, risk_reviewer_model, writer_model. A present model key replaces the launch input for that turn. A positive max_turns replaces the turn cap before the next turn starts; omit it to keep the current cap.",
-    }),
+    model_policy_path: Type.Optional(
+      Type.String({
+        description:
+          "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas, so alternative models can stay in it commented out. Omitted selects the default policy, chosen again before every read: .atomic/goal-select-models.json when it exists, and .atomic/goal-select-models.jsonc only when .json is absent. A malformed .json is not skipped for the .jsonc; that turn uses the launch inputs. Any supplied path, including an empty or whitespace string and .atomic/goal-select-models.json, is read exactly as given, with no .jsonc fallback. A relative path resolves from the selected checkout; in auto mode a relative file the new clone lacks is copied from the seed once, when the clone is created, and for the default policy only the one file the clone will read is copied. Model keys: orchestrator_model, reviewer_model, completion_reviewer_model, evidence_reviewer_model, risk_reviewer_model, writer_model. A present model key replaces the launch input for that turn. A positive max_turns replaces the turn cap before the next turn starts; omit it to keep the current cap.",
+      }),
+    ),
     resolve_only: Type.Boolean({
       default: false,
-      description: "Resolve turn-1 models and stop. Does not run Goal. In auto mode it previews the planned clone path, branch and policy source without creating the clone.",
+      description: "Resolve turn-1 models and stop. Does not run Goal. policy_source names the policy file turn 1 reads, or null when there is none. In auto mode it previews the planned clone path, branch and policy source without creating the clone.",
     }),
   },
   outputs: {
@@ -128,8 +133,10 @@ export default workflow({
   },
   run: async (ctx) => {
     const invocationCwd = ctx.cwd ?? process.cwd();
+    const [policyPath, policyFallbackPath] = modelPolicyPaths(ctx.inputs.model_policy_path);
     const launchSelection = (checkoutDir: string) => ({
-      policyPath: resolvePolicyPath(ctx.inputs.model_policy_path, checkoutDir),
+      policyPath: resolvePolicyPath(policyPath, checkoutDir),
+      policyFallbackPath: policyFallbackPath && resolvePolicyPath(policyFallbackPath, checkoutDir),
       orchestrator: cleanModel(ctx.inputs.orchestrator_model),
       reviewer: cleanModel(ctx.inputs.reviewer_model),
       completionReviewer: cleanModel(ctx.inputs.completion_reviewer_model),
@@ -151,8 +158,8 @@ export default workflow({
         const selection = launchSelection(plan.target);
         const preview = await ctx.tool(
           "resolve-models-1",
-          { path: selection.policyPath, turn: 1, preview: true },
-          async ({ signal }) => previewBranchClonePolicy(plan, ctx.inputs.model_policy_path, signal),
+          { ...withFallback({ path: selection.policyPath }, "fallback_path", selection.policyFallbackPath), turn: 1, preview: true },
+          async ({ signal }) => previewBranchClonePolicy(plan, policyPath, signal, policyFallbackPath),
           { timeoutMs: 10_000 },
         );
         return {
@@ -174,8 +181,8 @@ export default workflow({
       }
       const clone = await ctx.tool(
         "create-branch-clone",
-        { ...plan, policy_path: ctx.inputs.model_policy_path },
-        async ({ signal }) => createBranchClone(plan, { policyPath: ctx.inputs.model_policy_path, signal }),
+        withFallback({ ...plan, policy_path: policyPath }, "policy_fallback_path", policyFallbackPath),
+        async ({ signal }) => createBranchClone(plan, { policyPath, policyFallbackPath, signal }),
         { timeoutMs: CLONE_TIMEOUT_MS + 30_000 },
       );
       checkoutDir = clone.checkout;
@@ -189,23 +196,16 @@ export default workflow({
     }
     const selection = launchSelection(checkoutDir);
     if (ctx.inputs.resolve_only) {
-      const models = await ctx.tool(
+      const resolved = await ctx.tool(
         "resolve-models-1",
-        { path: selection.policyPath, turn: 1 },
-        async () => {
-          const { readFileSync } = await import("node:fs");
-          try {
-            return parseModelPolicy(readFileSync(selection.policyPath, "utf8"));
-          } catch {
-            return {};
-          }
-        },
+        { ...withFallback({ path: selection.policyPath }, "fallback_path", selection.policyFallbackPath), turn: 1 },
+        async () => readModelPolicyFile(selection.policyPath, selection.policyFallbackPath),
         { timeoutMs: 10_000 },
       );
       return {
         status: "complete" as const,
         result: "Resolved models for turn 1. No Goal stage ran.",
-        models: JSON.stringify({ checkout: checkoutDir, launch: selection, policy: models }),
+        models: JSON.stringify({ checkout: checkoutDir, launch: selection, policy: resolved.policy, policy_source: resolved.source }),
       };
     }
     const workflowCtx = withSteeringPropagationContext(ctx);

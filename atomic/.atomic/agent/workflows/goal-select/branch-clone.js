@@ -233,7 +233,7 @@ function cancelledError(plan, cause) {
 
 // Creates the planned clone and marks it finished, or adopts this run's finished clone
 // when a resumed run already made it. An unfinished clone is refused, not completed.
-export async function createBranchClone(plan, { policyPath, signal, timeoutMs = CLONE_TIMEOUT_MS } = {}) {
+export async function createBranchClone(plan, { policyPath, policyFallbackPath, signal, timeoutMs = CLONE_TIMEOUT_MS } = {}) {
   signal?.throwIfAborted();
   if (typeof plan.owner !== "string" || plan.owner === "") {
     throw new Error(`The branch clone plan for ${plan.target} names no owning run, so goal-select could not mark or recognise its clone. Start a new goal-select run. ${NO_FALLBACK}`);
@@ -259,6 +259,9 @@ export async function createBranchClone(plan, { policyPath, signal, timeoutMs = 
   let policyCopiedFrom;
   try {
     policyCopiedFrom = copySeedPolicy(plan, policyPath);
+    if (policyCopiedFrom === null && policyFallbackPath !== undefined && !existsSync(resolve(plan.target, policyPath))) {
+      policyCopiedFrom = copySeedPolicy(plan, policyFallbackPath);
+    }
     if (after === "unfinished") await git(["-C", plan.target, "config", "--local", COMPLETION_MARK, plan.owner], signal);
   } catch (error) {
     if (signal?.aborted) throw cancelledError(plan, error);
@@ -359,19 +362,26 @@ async function followCommitted(plan, done, pending, signal) {
 }
 
 // What the clone will read for a policy path, without the clone existing.
-export async function previewBranchClonePolicy(plan, policyPath, signal) {
+export async function previewBranchClonePolicy(plan, policyPath, signal, policyFallbackPath) {
+  const shown = ({ source, policy }) => ({ source, policy });
+  const preview = await previewPolicyPath(plan, policyPath, signal);
+  if (preview.absent !== true || policyFallbackPath === undefined) return shown(preview);
+  return shown(await previewPolicyPath(plan, policyFallbackPath, signal));
+}
+
+async function previewPolicyPath(plan, policyPath, signal) {
   const planned = isAbsolute(policyPath) ? policyPath : resolve(plan.target, policyPath);
   const inside = isAbsolute(policyPath) ? undefined : insideCheckout(plan.target, planned);
   if (inside === undefined) {
     if (intoClone(plan.target, planned)) return { source: `${planned}, ${UNAVAILABLE}`, policy: null };
     return { source: planned, policy: readPolicy(planned) };
   }
-  const uncommitted = () => {
+  const uncommitted = (absent = true) => {
     const seedFile = resolve(plan.seed, policyPath);
     if (statSync(seedFile, { throwIfNoEntry: false })?.isFile()) {
       return { source: `${seedFile} (not committed; copied into the clone when it is created)`, policy: readPolicy(seedFile) };
     }
-    return { source: null, policy: {} };
+    return { source: null, policy: {}, absent };
   };
   const at = `${inside} at seed commit ${plan.seed_head.slice(0, 12)}`;
   const parts = inside.split(sep);
@@ -393,12 +403,12 @@ export async function previewBranchClonePolicy(plan, policyPath, signal) {
       final = true;
     }
   }
-  if (found.loop) return { source: `${at} is a loop of committed symlinks, so the clone reads no policy there`, policy: {} };
+  if (found.loop) return { source: `${at} is a loop of committed symlinks, so the clone reads no policy there`, policy: {}, absent: true };
   if (found.outside !== undefined) {
     const resolved = `${at}, resolved through committed symlinks to ${found.outside}, outside the clone`;
     if (intoClone(plan.target, found.outside)) return { source: `${resolved}, ${UNAVAILABLE}`, policy: null };
     if (final && lstatSync(found.outside, { throwIfNoEntry: false }) === undefined) return uncommitted();
-    return { source: resolved, policy: readPolicy(found.outside) };
+    return { source: resolved, policy: readPolicy(found.outside), absent: !existsSync(found.outside) };
   }
   if (found.entry?.mode?.startsWith("100")) {
     let policy = {};
@@ -417,8 +427,8 @@ export async function previewBranchClonePolicy(plan, policyPath, signal) {
         policy: null,
       };
     }
-    return { source: `${at}, resolved through committed symlinks to ${found.rel}, which is not committed, so the clone reads no policy there`, policy: {} };
+    return { source: `${at}, resolved through committed symlinks to ${found.rel}, which is not committed, so the clone reads no policy there`, policy: {}, absent: true };
   }
-  if (found.entry === undefined || found.links === 0) return uncommitted();
+  if (found.entry === undefined || found.links === 0) return uncommitted(found.entry === undefined);
   return { source: null, policy: {} };
 }
