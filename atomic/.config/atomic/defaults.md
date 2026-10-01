@@ -1,6 +1,6 @@
-# Atomic 0.9.24 default settings
+# Atomic 0.9.25 default settings
 
-Captured from the settings reference shipped in `@bastani/atomic@0.9.24`.
+Captured from the settings reference shipped in `@bastani/atomic@0.9.25`.
 These tables are a reference snapshot, not an active settings file.
 Unset model, authentication, and machine-specific values remain unset.
 
@@ -31,10 +31,11 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `theme` | string | `"dark"` | Theme name (`"dark"`, `"light"`, a Catppuccin built-in, or custom) |
+| `theme` | string | `"dark"` | Theme name (`"dark"`, `"light"`, `"system"`, a Catppuccin built-in, or custom). `"system"` derives its palette from the terminal; see [Themes](/themes) |
 | `fullscreenScrollbar` | string | `"auto"` | Fullscreen transcript scrollbar: `"auto"` shows it temporarily while scrolling, `"always"` reserves the rightmost transcript column and keeps it visible, and `"hidden"` hides it. The thumb can be dragged when shown. |
 | `fullscreenExitOutput` | string | `"transcript"` | Fullscreen exit output: `"transcript"` prints the final transcript and session resume hint, while `"resume-hint"` restores the terminal's previous screen and prints only the resume hint. Settable from `/settings` |
 | `fullscreenCopyOnSelect` | boolean | `true` | Copy fullscreen text selections automatically on mouse release. When `false`, selection only highlights text. Ctrl+X does not copy; `/copy` copies the last assistant message. Settable from `/settings` |
+| `fullscreenWheelScrollLines` | `"auto"` or number | `"auto"` | Lines per mouse-wheel tick in fullscreen views. `"auto"` uses terminal-aware scrolling; numeric values are clamped to 1–100. Settable from `/settings` |
 | `quietStartup` | boolean | `false` | Hide startup header |
 | `defaultProjectTrust` | string | `"ask"` | Fallback project trust behavior: `"ask"`, `"always"`, or `"never"`. Global setting only |
 | `collapseChangelog` | boolean | `false` | Show condensed changelog after updates |
@@ -43,6 +44,7 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 | `onboardedVersion` | string | - | Managed onboarding completion state; leave unchanged |
 | `enableAnalytics` | boolean | `false` | Opt in to analytics during first-run setup |
 | `trackingId` | string | - | Locally generated analytics identifier when analytics is enabled |
+| `deviceId` | string | - | Managed global installation identity, created only when a provider sign-in needs it. Project values are ignored |
 | `doubleEscapeAction` | string | `"tree"` | Action for double-escape: `"tree"`, `"fork"`, or `"none"` |
 | `treeFilterMode` | string | `"default"` | Default filter for `/tree`: `"default"`, `"no-tools"`, `"user-only"`, `"labeled-only"`, `"all"` |
 | `editorPaddingX` | number | `0` | Horizontal padding for input editor (0-3) |
@@ -145,7 +147,9 @@ Upstream: https://github.com/bastani-inc/atomic/blob/main/packages/coding-agent/
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `defaultTools` | string[] | - | Built-in tools enabled at startup. When omitted, Atomic uses its standard defaults |
+| `defaultTools` | string[] | - | Initial built-in tools. Plain names replace the defaults; `+name` and `-name` add or remove tools |
+| `codemode.mode` | `"on"` or `"only"` | `"on"` | While codemode is active, `"on"` keeps direct tool declarations visible with script-call information; `"only"` hides ordinary direct callable declarations so the model uses scripts. Model-only tools remain directly available |
+| `codemode.inlineBudget` | number | `3000` | Estimated token budget for inline script-tool declarations. Omitted tools remain discoverable with `searchTools()`. `0` lists namespaces without inline declarations |
 
 ### Sessions
 

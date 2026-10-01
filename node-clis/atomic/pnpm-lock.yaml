@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@bastani/atomic':
-        specifier: 0.9.24
-        version: 0.9.24(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(ws@8.21.3)
+        specifier: 0.9.25
+        version: 0.9.25(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(ws@8.21.3)
 
 packages:
 
@@ -107,69 +107,69 @@ packages:
     resolution: {integrity: sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw==}
     engines: {node: '>=6.9.0'}
 
-  '@bastani/atomic-natives-darwin-arm64@0.9.24':
-    resolution: {integrity: sha512-yO3AY9xi+aeqZLJYCQpzGVqvI9ELTeeSeeHAbDTwxepzKcCmboEDjCUWRcIk4x4AFVs+j+J5KgbPn+9HZX+OVQ==}
+  '@bastani/atomic-natives-darwin-arm64@0.9.25':
+    resolution: {integrity: sha512-puuAEWVuQzpttskalJ3/LWb4gBp8yrWK+CFaSm7kDyJ7Y9XOmG90+xDpFXfT8uw9FkpsD9Ucjnh9/pBuBFzq+A==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@bastani/atomic-natives-darwin-x64@0.9.24':
-    resolution: {integrity: sha512-ygoylvuflhqjFjyUyn+4hcI1bMMzuQDFrdncDmSlJKZKZxNRBnzEywMlHzRqZfnn/JKmLl+sVJnMIQx+sbnpgw==}
+  '@bastani/atomic-natives-darwin-x64@0.9.25':
+    resolution: {integrity: sha512-YrhDtamBaWwzyMmslN9lSpPPOy7H2rcKE7xDa7akY5Fwxj7D7WwqsDHHAK0Qm8BIXkh1Ca4biaNh3FXMHtoLsw==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@bastani/atomic-natives-linux-arm64-gnu@0.9.24':
-    resolution: {integrity: sha512-e+T3In8ZKlu9Egbh2vGO0Np2WQbEr5hXKT8zflz7+uFT9EWYEv/L15aNaURjLCW/+oQ4NxcM8dXLHkyP754S3A==}
+  '@bastani/atomic-natives-linux-arm64-gnu@0.9.25':
+    resolution: {integrity: sha512-ZGj95QTWjp14qtXyeL+qO5pF4LA7E+n7noacBOrQ9ryjc92YMCr5Z1e6NRm9Gmxc1uvb56LkxOGSgblR2jMUfA==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@bastani/atomic-natives-linux-arm64-musl@0.9.24':
-    resolution: {integrity: sha512-yzy4UHh4zwZWzoJayN1j/teuz80ksfvadzdMZbm47KNtElz7PJyDIu6JhQBZAp8N7SApqR5itDCYBib13wkGqA==}
+  '@bastani/atomic-natives-linux-arm64-musl@0.9.25':
+    resolution: {integrity: sha512-YeXRi/3avBYfMXu8q5PG3YhXK8LUkMKiyQRnqROnbiDIoF+YqFwxHLrjTfZpDDAd/CIN+Zqt2ySeA6FpVIkQtA==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@bastani/atomic-natives-linux-x64-gnu@0.9.24':
-    resolution: {integrity: sha512-1Moc3RNaQMiGBGUh3h5AUWqV2WnqtZt6JpfX2mFYh+JMO7aS+3f+k7vOGW8iJvwXZzFaEobwhqlgorKCMes4/Q==}
+  '@bastani/atomic-natives-linux-x64-gnu@0.9.25':
+    resolution: {integrity: sha512-cCkTXcQAAv55w8f0ffOZ3A5p18vLu8b6YqjOUhrnNerrBzp+E96QXLQX3dyXqEf/4FVgzLz06DRXCTSZrQ1hXA==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@bastani/atomic-natives-linux-x64-musl@0.9.24':
-    resolution: {integrity: sha512-2l1uwiI+WGp5O9SVSz9HzmBlxz3Qlw/+gzoAmeDco+G/BkNTX3gDPgFnm4dY1kBW6VG3ZAl2VAiTnnW3+7nDaw==}
+  '@bastani/atomic-natives-linux-x64-musl@0.9.25':
+    resolution: {integrity: sha512-g2Y7MKUldwdlKmtzb3TZmuqfcsOOLBdoX2GIWZ0mnbEyk8NqpZjGWUgC4gbfF2SvwWW/aSd4PK4jeKkSzpEy0w==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@bastani/atomic-natives-win32-arm64-msvc@0.9.24':
-    resolution: {integrity: sha512-vQPV/dBHoH8eb8ienG0oknAm/IKvj1W7Fz3rfOqLR28WlEJai/+/WpwvRwnibC+eimU9qVzR2gl0eTm2dl2s6g==}
+  '@bastani/atomic-natives-win32-arm64-msvc@0.9.25':
+    resolution: {integrity: sha512-SMTJP0zwi/wKVIqRYvEoQX2hHEZ4V8bLJIhaiqsGn6yL7JHl9bw+uGqQ4krLbOZ+8+fPI4zi0ub6N7l+5zOp9Q==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@bastani/atomic-natives-win32-x64-msvc@0.9.24':
-    resolution: {integrity: sha512-6OiLmYdv+N/i0z8xncdwIocRUEXf/fsOd0zbIDoO5imR8KdnuPXBWy0jSeHAHOIqPsa212NfZQxn0D+8z56bDA==}
+  '@bastani/atomic-natives-win32-x64-msvc@0.9.25':
+    resolution: {integrity: sha512-zB3OVCjq5wQoZRQkl++7nLvA6Uqlv6OOkc0Hzk38rYSOqOo4jLvnejF6h6/2d3pKhRvoBmqshJY9Dfo+X1Lb3g==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
     cpu: [x64]
     os: [win32]
 
-  '@bastani/atomic-natives@0.9.24':
-    resolution: {integrity: sha512-zj3xqLeG7mOrWdbu/0Bs83cTeUDjGhoT8oOLMI5UgzrtBOirAR+szcche+4zBXPS9l47FK4Op3ow6SgJtUSQ4w==}
+  '@bastani/atomic-natives@0.9.25':
+    resolution: {integrity: sha512-M2OipXIzjIZJ0/DQm28zvzlI2wJ8poWBgCe9UKMLV2tBKItzxvIp85hEjUVir8ZbTOlAKpeAC83laTVmdaQ2FQ==}
     engines: {bun: '>=1.4.2', node: '>= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0'}
 
-  '@bastani/atomic@0.9.24':
-    resolution: {integrity: sha512-8YY9bbgmx0dZAypACcvIVj8iaZIQE8UPO16EH4N4GS7C7DBW+Qf2mU52E3HQt0IRCk6ZU7FbHh/+nVgiA8HpNw==}
+  '@bastani/atomic@0.9.25':
+    resolution: {integrity: sha512-yj/MX60cSZ2QIN+4Lmxgt7S0a/Ol06ZpH7tHsflVC36hzVl2K5a+AXWjd5KwnwGlP1ZJlvd3yr+pw+/9bwmBlw==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
-  '@bastani/pi-ai@0.9.24':
-    resolution: {integrity: sha512-NgWNjm58CfLJexCIWzgvmIctn5V0Ul+GY7fRH3QuaYNna73+QCh1cM+jZgwRkQ4/rAToAXI5D1cG0rYDkSkfXg==}
+  '@bastani/pi-ai@0.9.25':
+    resolution: {integrity: sha512-flPqKzaybHi7Aucvh8qFdhYduYpRVpvkgnRHlOecOhwbtSb4kjdztuhqtll7sr3k/lE0Q/CW0LsTbhEtphyH4g==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
@@ -181,33 +181,37 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@earendil-works/chord@0.87.1':
-    resolution: {integrity: sha512-bg7IkJGFcEaMqqYgOGUiq5Ky9RghpRfrlZ8I/v/1b4bBZ02A7t3E+6uhPRbadwWb/kWsnVFbZsqOKRN4a3LLCg==}
+  '@earendil-works/chord@0.99.2':
+    resolution: {integrity: sha512-2dJWiNsOJm/ioBl1fhpJmw0hIjFUhM0CAteEnVkiVG0Kg4LimR7Asq8PfjclEvrbCPsDntzy7rGKhTZObI9TZw==}
     engines: {node: '>=22.19.0'}
 
-  '@earendil-works/pi-agent-core@0.87.1':
-    resolution: {integrity: sha512-Zev3B0HK7YS5A4EZQ2XnEqiJuirx6QBiltJ+LpmjV5a/+2IU0cfKtIfnkNkORK707XOvKBY2WRtk7cAwHpbh2Q==}
+  '@earendil-works/pi-agent-core@0.99.2':
+    resolution: {integrity: sha512-VX0QMcg8HKBsv1bYP2NwmutBYa44OrwmtqR6Dq7QC3Ln8X/IlpHhUxB5L1JgnXNUUkTm8Wg/HZhzS797NBDMCQ==}
     engines: {node: '>=22.19.0'}
 
-  '@earendil-works/pi-ai@0.87.1':
-    resolution: {integrity: sha512-X/3PfQBnnoeVdO9Cv8zHghUMglzlgNZYGNzoPnbRoGnHl3Rw3TlA2UKSUB7BRHUOxMryHXYa8dnjWZlbRheDZA==}
+  '@earendil-works/pi-ai@0.99.2':
+    resolution: {integrity: sha512-9RFOEdY+ZTJ1AI+UuAFs4RM0tF2Tje/R/CEv9gWTJHt0iTu8XHZs64U/EIZxNSllFmec/4HfwsOxYj1qQek9bg==}
     engines: {node: '>=22.19.0'}
     hasBin: true
 
-  '@earendil-works/pi-client@0.87.1':
-    resolution: {integrity: sha512-x8dfZ7ppAao9SDnZvD5/DErVdq2fI7hg4lFj7qEhtgo6wimrRafGSLsqLklFVjb6kxU2W3j9F4RZz0rRcb0cwA==}
+  '@earendil-works/pi-client@0.99.2':
+    resolution: {integrity: sha512-j8dc4gOC3ExalNZqJODfmaT3Ei2nQNMFKDe4KbyGSMbByD/fbKXjbNeQLy2H0aG3L9fZJc4bZh+cR10D3XTfQQ==}
     engines: {node: '>=22.19.0'}
 
-  '@earendil-works/pi-protocol@0.87.1':
-    resolution: {integrity: sha512-48WVjryAIiKOJXnKgO15h2MT/oeH5uf0S4DykcVj3ZrxMTDSGxcUaS5VtvHtFQ1rZSSIjkVcblE13k0GksBuoQ==}
+  '@earendil-works/pi-codemode@0.99.2':
+    resolution: {integrity: sha512-PVxNGu4l7LI92MvwUbaY3trjznU1Mlp2OMGwHwCWzLsjG7/lDa8xf6ei+Gws7VCt+Ri1tO+nFVl9KV2EeX7HWg==}
     engines: {node: '>=22.19.0'}
 
-  '@earendil-works/pi-telemetry@0.87.1':
-    resolution: {integrity: sha512-MC6TRQH5lgMXpcN+Vku2WMI2T8BsiUPzMQHGo81uqFZD3/9O79WWJAysEDGuzduP6R4tvtgwMLwmqIxynM10JQ==}
+  '@earendil-works/pi-protocol@0.99.2':
+    resolution: {integrity: sha512-ry9hfwZy06sEjsQFsQJXptJ9EO5w8wxBUYVNNSo1WwkHVeItu5lTtCBAC80i9oRlTaSb2rXLjuuh+NWILhFw8g==}
     engines: {node: '>=22.19.0'}
 
-  '@earendil-works/pi-tui@0.87.1':
-    resolution: {integrity: sha512-YEH2vRyOeiO7hhN6j6AE6YwKSq2Kz2f3XR8bj1TbR+aGE/JsnY1hLPMI2pvaZfRM1n9Y00tejxFQ4zbzvF7nkQ==}
+  '@earendil-works/pi-telemetry@0.99.2':
+    resolution: {integrity: sha512-WThYU4XM6jjjzH4FzLdreN7QAPS9SDdokL0W0Ldheg1ssCIJkfpK7PgebFm7/PoQub7OiXx+SRF6B/oF7z7lXA==}
+    engines: {node: '>=22.19.0'}
+
+  '@earendil-works/pi-tui@0.99.2':
+    resolution: {integrity: sha512-IOcNnd390NCIwBEKeOiBK/bvaR7Z+vEsvB5TtKsFdsY/vAZE6qRHbQqt6jpTefTiKPfQlwG8eS1BU42DeG2v4w==}
     engines: {node: '>=22.19.0'}
 
   '@embedded-postgres/darwin-arm64@18.4.0-beta.17':
@@ -1233,17 +1237,6 @@ packages:
     resolution: {integrity: sha512-++Zlftm0kVLPmzC06t6epuWmcRMDbI4z5P3NNX979WA/k23+NtSOynEGzsVfZwguKw2mi5umVgnBlJQMwRz4Pg==}
     engines: {node: '>=20'}
 
-  openai@6.40.0:
-    resolution: {integrity: sha512-MWtTjd/gQt4jpbji61NTgFWJLoY/PdRJ6wG9/ZDRMYNMlBKrCrSlkLI+KgHP1vR1qT6LKSAyAqIxno6lcK9JiA==}
-    peerDependencies:
-      ws: ^8.18.0
-      zod: ^3.25 || ^4.0
-    peerDependenciesMeta:
-      ws:
-        optional: true
-      zod:
-        optional: true
-
   openai@7.19.0:
     resolution: {integrity: sha512-MX2s3u2L5racTO0CC/SWpCOasJQBCJrqLKXK+l82cAhdeF8mPMBEe/gxMm0ZFa2xpKpOFLRjxv5afYEZbBXmbQ==}
     engines: {node: '>=22.0.0'}
@@ -1396,6 +1389,9 @@ packages:
   qs@6.16.0:
     resolution: {integrity: sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA==}
     engines: {node: '>=0.6'}
+
+  quickjs-wasi@3.6.2:
+    resolution: {integrity: sha512-FCqGtGOrMgzUiIrMNMA2YnsOxCNwo31dzqXvclXUC6xeT35NJLKXQJsvbeCTjvoFAwZgEAPg8U6+KAPDGXn8Mg==}
 
   range-parser@1.3.0:
     resolution: {integrity: sha512-hek2mFQpPuI4E1BBKrSto+BU3e3x4xuarsbiwr3+lf7p44juvFMV0XFWQAP3xUyqXA4RrXLIoaSUGbSt056ZMw==}
@@ -1852,50 +1848,51 @@ snapshots:
 
   '@babel/runtime@7.29.7': {}
 
-  '@bastani/atomic-natives-darwin-arm64@0.9.24':
+  '@bastani/atomic-natives-darwin-arm64@0.9.25':
     optional: true
 
-  '@bastani/atomic-natives-darwin-x64@0.9.24':
+  '@bastani/atomic-natives-darwin-x64@0.9.25':
     optional: true
 
-  '@bastani/atomic-natives-linux-arm64-gnu@0.9.24':
+  '@bastani/atomic-natives-linux-arm64-gnu@0.9.25':
     optional: true
 
-  '@bastani/atomic-natives-linux-arm64-musl@0.9.24':
+  '@bastani/atomic-natives-linux-arm64-musl@0.9.25':
     optional: true
 
-  '@bastani/atomic-natives-linux-x64-gnu@0.9.24':
+  '@bastani/atomic-natives-linux-x64-gnu@0.9.25':
     optional: true
 
-  '@bastani/atomic-natives-linux-x64-musl@0.9.24':
+  '@bastani/atomic-natives-linux-x64-musl@0.9.25':
     optional: true
 
-  '@bastani/atomic-natives-win32-arm64-msvc@0.9.24':
+  '@bastani/atomic-natives-win32-arm64-msvc@0.9.25':
     optional: true
 
-  '@bastani/atomic-natives-win32-x64-msvc@0.9.24':
+  '@bastani/atomic-natives-win32-x64-msvc@0.9.25':
     optional: true
 
-  '@bastani/atomic-natives@0.9.24':
+  '@bastani/atomic-natives@0.9.25':
     optionalDependencies:
-      '@bastani/atomic-natives-darwin-arm64': 0.9.24
-      '@bastani/atomic-natives-darwin-x64': 0.9.24
-      '@bastani/atomic-natives-linux-arm64-gnu': 0.9.24
-      '@bastani/atomic-natives-linux-arm64-musl': 0.9.24
-      '@bastani/atomic-natives-linux-x64-gnu': 0.9.24
-      '@bastani/atomic-natives-linux-x64-musl': 0.9.24
-      '@bastani/atomic-natives-win32-arm64-msvc': 0.9.24
-      '@bastani/atomic-natives-win32-x64-msvc': 0.9.24
+      '@bastani/atomic-natives-darwin-arm64': 0.9.25
+      '@bastani/atomic-natives-darwin-x64': 0.9.25
+      '@bastani/atomic-natives-linux-arm64-gnu': 0.9.25
+      '@bastani/atomic-natives-linux-arm64-musl': 0.9.25
+      '@bastani/atomic-natives-linux-x64-gnu': 0.9.25
+      '@bastani/atomic-natives-linux-x64-musl': 0.9.25
+      '@bastani/atomic-natives-win32-arm64-msvc': 0.9.25
+      '@bastani/atomic-natives-win32-x64-msvc': 0.9.25
 
-  '@bastani/atomic@0.9.24(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(ws@8.21.3)':
+  '@bastani/atomic@0.9.25(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(ws@8.21.3)':
     dependencies:
-      '@bastani/atomic-natives': 0.9.24
-      '@bastani/pi-ai': 0.9.24(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
+      '@bastani/atomic-natives': 0.9.25
+      '@bastani/pi-ai': 0.9.25(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
       '@dbos-inc/dbos-sdk': 4.25.14
-      '@earendil-works/pi-agent-core': 0.87.1(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(ws@8.21.3)(zod@4.6.5)
-      '@earendil-works/pi-client': 0.87.1
-      '@earendil-works/pi-protocol': 0.87.1
-      '@earendil-works/pi-tui': 0.87.1
+      '@earendil-works/pi-agent-core': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
+      '@earendil-works/pi-client': 0.99.2
+      '@earendil-works/pi-codemode': 0.99.2
+      '@earendil-works/pi-protocol': 0.99.2
+      '@earendil-works/pi-tui': 0.99.2
       '@modelcontextprotocol/ext-apps': 1.7.5(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(zod@4.6.5)
       '@modelcontextprotocol/sdk': 1.30.0(zod@4.6.5)
       '@mozilla/readability': 0.6.0
@@ -1919,6 +1916,7 @@ snapshots:
       p-limit: 7.3.3
       pg: 8.23.0
       proper-lockfile: 4.1.2
+      quickjs-wasi: 3.6.2
       semver: 7.8.5
       turndown: 7.2.4
       typebox: 1.3.27
@@ -1944,11 +1942,11 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@bastani/pi-ai@0.9.24(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)':
+  '@bastani/pi-ai@0.9.25(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)':
     dependencies:
       '@anthropic-ai/sdk': 0.124.0(zod@4.6.5)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
-      '@earendil-works/pi-telemetry': 0.87.1
+      '@earendil-works/pi-telemetry': 0.99.2
       '@google/genai': 2.21.0(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))
       '@smithy/node-http-handler': 4.12.1
       http-proxy-agent: 9.1.0
@@ -1984,62 +1982,74 @@ snapshots:
       - pg-native
       - utf-8-validate
 
-  '@earendil-works/chord@0.87.1':
+  '@earendil-works/chord@0.99.2':
     dependencies:
       esbuild: 0.28.2
 
-  '@earendil-works/pi-agent-core@0.87.1(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(ws@8.21.3)(zod@4.6.5)':
+  '@earendil-works/pi-agent-core@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)':
     dependencies:
-      '@earendil-works/chord': 0.87.1
-      '@earendil-works/pi-ai': 0.87.1(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(ws@8.21.3)(zod@4.6.5)
-      '@earendil-works/pi-telemetry': 0.87.1
+      '@earendil-works/chord': 0.99.2
+      '@earendil-works/pi-ai': 0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
+      '@earendil-works/pi-telemetry': 0.99.2
       diff: 8.0.4
       ignore: 7.0.8
       typebox: 1.3.27
       yaml: 2.9.0
     transitivePeerDependencies:
+      - '@aws-sdk/credential-provider-node'
       - '@modelcontextprotocol/sdk'
+      - '@smithy/hash-node'
+      - '@smithy/signature-v4'
       - bufferutil
       - kerberos
       - supports-color
+      - undici
       - utf-8-validate
       - ws
       - zod
 
-  '@earendil-works/pi-ai@0.87.1(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(ws@8.21.3)(zod@4.6.5)':
+  '@earendil-works/pi-ai@0.99.2(@aws-sdk/credential-provider-node@3.972.83)(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)':
     dependencies:
       '@anthropic-ai/sdk': 0.124.0(zod@4.6.5)
       '@aws-sdk/client-bedrock-runtime': 3.1127.0
-      '@earendil-works/pi-telemetry': 0.87.1
+      '@earendil-works/pi-telemetry': 0.99.2
       '@google/genai': 2.21.0(@modelcontextprotocol/sdk@1.30.0(zod@4.6.5))
       '@smithy/node-http-handler': 4.12.1
       http-proxy-agent: 9.1.0
       https-proxy-agent: 9.1.0
-      openai: 6.40.0(ws@8.21.3)(zod@4.6.5)
+      openai: 7.19.0(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5)
       partial-json: 0.1.7
       typebox: 1.3.27
     transitivePeerDependencies:
+      - '@aws-sdk/credential-provider-node'
       - '@modelcontextprotocol/sdk'
+      - '@smithy/hash-node'
+      - '@smithy/signature-v4'
       - bufferutil
       - kerberos
       - supports-color
+      - undici
       - utf-8-validate
       - ws
       - zod
 
-  '@earendil-works/pi-client@0.87.1':
+  '@earendil-works/pi-client@0.99.2':
     dependencies:
-      '@earendil-works/chord': 0.87.1
-      '@earendil-works/pi-protocol': 0.87.1
+      '@earendil-works/chord': 0.99.2
+      '@earendil-works/pi-protocol': 0.99.2
 
-  '@earendil-works/pi-protocol@0.87.1':
+  '@earendil-works/pi-codemode@0.99.2':
     dependencies:
-      '@earendil-works/chord': 0.87.1
+      quickjs-wasi: 3.6.2
+
+  '@earendil-works/pi-protocol@0.99.2':
+    dependencies:
+      '@earendil-works/chord': 0.99.2
       typebox: 1.3.27
 
-  '@earendil-works/pi-telemetry@0.87.1': {}
+  '@earendil-works/pi-telemetry@0.99.2': {}
 
-  '@earendil-works/pi-tui@0.87.1':
+  '@earendil-works/pi-tui@0.99.2':
     dependencies:
       get-east-asian-width: 1.6.0
       marked: 18.0.11
@@ -3007,11 +3017,6 @@ snapshots:
       powershell-utils: 0.2.1
       wsl-utils: 1.0.0
 
-  openai@6.40.0(ws@8.21.3)(zod@4.6.5):
-    optionalDependencies:
-      ws: 8.21.3
-      zod: 4.6.5
-
   openai@7.19.0(@aws-sdk/credential-provider-node@3.972.83)(@smithy/signature-v4@5.7.3)(undici@8.10.2)(ws@8.21.3)(zod@4.6.5):
     optionalDependencies:
       '@aws-sdk/credential-provider-node': 3.972.83
@@ -3134,6 +3139,8 @@ snapshots:
     dependencies:
       es-define-property: 1.0.1
       side-channel: 1.1.1
+
+  quickjs-wasi@3.6.2: {}
 
   range-parser@1.3.0: {}
 
