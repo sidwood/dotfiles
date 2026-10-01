@@ -178,11 +178,7 @@
     "command": "workbench.action.toggleSidebarVisibility",
     "when": "explorerViewletFocus"
   },
-  {
-    "key": ", m",
-    "command": "workbench.action.toggleSidebarVisibility",
-    "when": "terminalFocus"
-  },
+  // Do not bind <leader> (,) while the terminal is focused, or comma is swallowed as a chord.
   {
     "key": "ctrl+p",
     "command": "workbench.action.quickOpen"
