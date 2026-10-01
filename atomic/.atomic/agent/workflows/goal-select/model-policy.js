@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const DEFAULT_POLICY_PATH = ".atomic/goal-select-models.json";
 const DEFAULT_POLICY_FALLBACK_PATH = ".atomic/goal-select-models.jsonc";
@@ -19,6 +20,36 @@ export function readModelPolicyFile(policyPath, fallbackPath) {
   } catch {
     return { source, policy: {} };
   }
+}
+
+const LAUNCH_MODEL_KEYS = [
+  ["orchestrator_model", "orchestrator"],
+  ["reviewer_model", "reviewer"],
+  ["completion_reviewer_model", "completion_reviewer"],
+  ["evidence_reviewer_model", "evidence_reviewer"],
+  ["risk_reviewer_model", "risk_reviewer"],
+  ["writer_model", "writer"],
+];
+
+export function launchDefaults(dir) {
+  const [policyPath, fallbackPath] = modelPolicyPaths(undefined).map((path) => resolve(dir, path));
+  const { policy } = readModelPolicyFile(policyPath, fallbackPath);
+  const defaults = {};
+  for (const [key, alias] of LAUNCH_MODEL_KEYS) {
+    const model = policyModel(policy?.[key]) ?? policyModel(policy?.[alias]);
+    if (model !== undefined) defaults[key] = model;
+  }
+  const maxTurns = policyMaxTurns(policy?.max_turns);
+  if (maxTurns !== undefined) defaults.max_turns = maxTurns;
+  return defaults;
+}
+
+function policyModel(value) {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
+function policyMaxTurns(value) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 1 ? Math.floor(value) : undefined;
 }
 
 const JSON_WHITESPACE = new Set([" ", "\t", "\n", "\r"]);

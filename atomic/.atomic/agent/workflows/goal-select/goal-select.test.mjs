@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { after, before, describe, it } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { after, before, beforeEach, describe, it } from "node:test";
 
 const ATOMIC_PACKAGE_JSON = "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/package.json";
 registerHooks({
@@ -20,11 +20,26 @@ registerHooks({
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-test-")));
 process.env.ATOMIC_WORKFLOW_ARTIFACT_DIR = join(root, "artifacts");
-const { default: goalSelect } = await import(new URL("../goal-select.ts", import.meta.url).href);
+const { resolveInputs, run, workflow } = await import("@bastani/atomic/workflows");
+const originalChdir = process.chdir;
+const startCwd = process.cwd();
+const goalSelectUrl = new URL("../goal-select.ts", import.meta.url).href;
+let goalSelectLoads = 0;
+async function loadGoalSelectFrom(dir) {
+  originalChdir.call(process, dir);
+  try {
+    goalSelectLoads += 1;
+    return (await import(`${goalSelectUrl}?from=${goalSelectLoads}`)).default;
+  } finally {
+    originalChdir.call(process, startCwd);
+  }
+}
+const goalSelect = await loadGoalSelectFrom(root);
 const { branchCloneName, createBranchClone, objectiveSlug, planBranchClone } = await import(new URL("./branch-clone.js", import.meta.url).href);
 const { parseModelPolicy } = await import(new URL("./model-policy.js", import.meta.url).href);
-const { run, workflow } = await import("@bastani/atomic/workflows");
 const { Type } = await import("typebox");
+const guard = await import(new URL("../../extensions/goal-select-tracker-guard.ts", import.meta.url).href);
+const { STOP_CHOICE: STOP_CHOICE_TEXT } = await import(new URL("./tracker-intake.js", import.meta.url).href);
 
 const server = join(root, "server.git");
 const seed = join(root, "seed");
@@ -76,9 +91,9 @@ const defaultJson = ".atomic/goal-select-models.json";
 const defaultJsonc = ".atomic/goal-select-models.jsonc";
 const jsonPolicyText = `${JSON.stringify({ orchestrator_model: "test/json-orchestrator" })}\n`;
 
-function launchInputs(overrides) {
+function launchInputs(overrides, definition = goalSelect) {
   const inputs = { objective: "Prove branch checkout routing." };
-  for (const [key, schema] of Object.entries(goalSelect.inputs)) {
+  for (const [key, schema] of Object.entries(definition.inputs)) {
     if (schema.default !== undefined) inputs[key] = schema.default;
   }
   return { ...inputs, ...overrides };
@@ -113,12 +128,13 @@ function blocking(file) {
   };
 }
 
-function fakeContext({ cwd, inputs, onTask = () => ({}), review = () => approve, signal = new AbortController().signal, runId = `goal-select-test-${randomUUID()}` }) {
+function fakeContext({ cwd, inputs, onTask = () => ({}), review = () => approve, signal = new AbortController().signal, runId = `goal-select-test-${randomUUID()}`, definition = goalSelect, ui }) {
   const calls = [];
   const ctx = {
     runId,
     cwd,
-    inputs: launchInputs(inputs),
+    inputs: launchInputs(inputs, definition),
+    ui,
     async tool(name, args, fn) {
       const call = { kind: "tool", name, args };
       calls.push(call);
@@ -159,8 +175,6 @@ async function resolveOnly(cwd, inputs) {
   return JSON.parse(result.models);
 }
 
-const originalChdir = process.chdir;
-const startCwd = process.cwd();
 
 describe("goal-select branch_checkout_dir (adapter tests: fake workflow context and Atomic prompt adapter, no model or TUI)", () => {
   before(() => {
@@ -1665,5 +1679,749 @@ describe("goal-select model policy parser (JSONC)", () => {
     ]) {
       assert.throws(() => parseModelPolicy(text), SyntaxError, JSON.stringify(text));
     }
+  });
+});
+
+describe("goal-select launch-form prefill (module evaluated in each directory, as Atomic discovery does)", () => {
+  const builtin = { orchestrator_model: "openai-codex/gpt-6-astra:medium", reviewer_model: "openai-codex/gpt-6-astra:high", max_turns: 10 };
+  const roleKeys = ["completion_reviewer_model", "evidence_reviewer_model", "risk_reviewer_model", "writer_model"];
+  let prefillRoot;
+
+  function checkoutWith(name, files) {
+    const dir = join(prefillRoot, name);
+    mkdirSync(dir, { recursive: true });
+    for (const [path, text] of Object.entries(files)) writeJsonText(join(dir, path), text);
+    return dir;
+  }
+
+  function defaults(definition) {
+    return Object.fromEntries(Object.entries(definition.inputs).flatMap(([key, schema]) => (schema.default === undefined ? [] : [[key, schema.default]])));
+  }
+
+  function assertBuiltinDefaults(definition, label) {
+    for (const [key, value] of Object.entries(builtin)) assert.equal(definition.inputs[key].default, value, `${label}: ${key}`);
+    for (const key of roleKeys) assert.equal(definition.inputs[key].default, undefined, `${label}: ${key}`);
+  }
+
+  before(() => {
+    prefillRoot = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-prefill-")));
+  });
+
+  after(() => {
+    rmSync(prefillRoot, { recursive: true, force: true });
+  });
+
+  it("keeps the current defaults when no policy file exists, and Atomic's input resolution accepts the definition", async () => {
+    const definition = await loadGoalSelectFrom(checkoutWith("absent", {}));
+    assertBuiltinDefaults(definition, "absent");
+    assert.deepEqual(defaults(definition), defaults(goalSelect));
+    const resolved = resolveInputs(definition.inputs, { objective: "probe" });
+    assert.equal(resolved.orchestrator_model, builtin.orchestrator_model);
+    assert.equal(resolved.max_turns, 10);
+    assert.equal(resolved.tracker, "none");
+    assert.equal("completion_reviewer_model" in resolved, false);
+  });
+
+  it("prefills every supported key from .atomic/goal-select-models.json as real launch-form defaults that Atomic applies", async () => {
+    const policy = {
+      orchestrator_model: "  test/prefill-orchestrator  ",
+      reviewer_model: "test/prefill-reviewer",
+      completion_reviewer_model: "test/prefill-completion",
+      evidence_reviewer_model: "test/prefill-evidence",
+      risk_reviewer_model: "test/prefill-risk",
+      writer_model: "test/prefill-writer",
+      max_turns: 4.7,
+    };
+    const definition = await loadGoalSelectFrom(checkoutWith("json", { [defaultJson]: JSON.stringify(policy) }));
+    const expected = {
+      orchestrator_model: "test/prefill-orchestrator",
+      reviewer_model: "test/prefill-reviewer",
+      completion_reviewer_model: "test/prefill-completion",
+      evidence_reviewer_model: "test/prefill-evidence",
+      risk_reviewer_model: "test/prefill-risk",
+      writer_model: "test/prefill-writer",
+      max_turns: 4,
+    };
+    for (const [key, value] of Object.entries(expected)) assert.equal(definition.inputs[key].default, value, key);
+    const resolved = resolveInputs(definition.inputs, { objective: "probe" });
+    for (const [key, value] of Object.entries(expected)) assert.equal(resolved[key], value, `resolved ${key}`);
+    assert.equal(resolveInputs(definition.inputs, { objective: "probe", orchestrator_model: "test/typed" }).orchestrator_model, "test/typed");
+    assert.equal(resolveInputs(definition.inputs, { objective: "probe", writer_model: "" }).writer_model, "");
+    assert.equal(goalSelect.inputs.orchestrator_model.default, builtin.orchestrator_model, "other directories keep their own prefill");
+  });
+
+  it("prefills from .jsonc, comments and trailing commas included, only when .json is absent", async () => {
+    const definition = await loadGoalSelectFrom(checkoutWith("jsonc", { [defaultJsonc]: jsoncPolicyText }));
+    assert.equal(definition.inputs.orchestrator_model.default, jsoncPolicy.orchestrator_model);
+    assert.equal(definition.inputs.reviewer_model.default, jsoncPolicy.reviewer_model);
+    assert.equal(definition.inputs.max_turns.default, 3);
+  });
+
+  it("uses .json over .jsonc when both exist, without merging keys from the .jsonc", async () => {
+    const definition = await loadGoalSelectFrom(checkoutWith("both", { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText }));
+    assert.equal(definition.inputs.orchestrator_model.default, "test/json-orchestrator");
+    assert.equal(definition.inputs.reviewer_model.default, builtin.reviewer_model);
+    assert.equal(definition.inputs.max_turns.default, 10);
+  });
+
+  it("keeps every current default for a malformed .json, without falling back to .jsonc", async () => {
+    const definition = await loadGoalSelectFrom(checkoutWith("malformed", { [defaultJson]: malformedPolicyText, [defaultJsonc]: jsoncPolicyText }));
+    assertBuiltinDefaults(definition, "malformed");
+  });
+
+  it("ignores missing keys and wrong-typed values key by key, and non-object or unreadable policies entirely", async () => {
+    const mixed = await loadGoalSelectFrom(
+      checkoutWith("mixed", {
+        [defaultJson]: JSON.stringify({ orchestrator_model: 42, reviewer_model: "   ", completion_reviewer_model: null, writer_model: ["x"], risk_reviewer_model: "test/only-risk", max_turns: "5" }),
+      }),
+    );
+    assert.equal(mixed.inputs.orchestrator_model.default, builtin.orchestrator_model);
+    assert.equal(mixed.inputs.reviewer_model.default, builtin.reviewer_model);
+    assert.equal(mixed.inputs.completion_reviewer_model.default, undefined);
+    assert.equal(mixed.inputs.writer_model.default, undefined);
+    assert.equal(mixed.inputs.risk_reviewer_model.default, "test/only-risk");
+    assert.equal(mixed.inputs.max_turns.default, 10);
+    for (const [name, maxTurns] of [["zero", 0], ["negative", -3], ["fraction", 0.5]]) {
+      const definition = await loadGoalSelectFrom(checkoutWith(name, { [defaultJson]: JSON.stringify({ max_turns: maxTurns }) }));
+      assert.equal(definition.inputs.max_turns.default, 10, name);
+    }
+    for (const [name, text] of [["array", "[1, 2]"], ["string", '"test/x"'], ["null", "null"]]) {
+      assertBuiltinDefaults(await loadGoalSelectFrom(checkoutWith(name, { [defaultJson]: text })), name);
+    }
+    const unreadable = checkoutWith("unreadable", {});
+    mkdirSync(join(unreadable, defaultJson), { recursive: true });
+    assertBuiltinDefaults(await loadGoalSelectFrom(unreadable), "unreadable");
+  });
+
+  it("still re-reads the policy before every turn: prefilled launch values are only the fallback", async () => {
+    const dir = checkoutWith("refresh", { [defaultJson]: JSON.stringify({ orchestrator_model: "test/prefill-orchestrator", reviewer_model: "test/prefill-reviewer", max_turns: 3 }) });
+    git("init", "--quiet", "-b", "main", dir);
+    git("-C", dir, "commit", "--quiet", "--allow-empty", "-m", "Prefill commit");
+    const definition = await loadGoalSelectFrom(dir);
+    const { ctx, calls } = fakeContext({
+      cwd: dir,
+      definition,
+      inputs: { branch_checkout_dir: "" },
+      onTask: (name) => {
+        if (name === "orchestrator-1") writeJson(join(dir, defaultJson), { orchestrator_model: "test/turn-2-orchestrator" });
+        return {};
+      },
+      review: (name) => (name.endsWith("-1") ? keepGoing : approve),
+    });
+    assert.equal(ctx.inputs.max_turns, 3);
+    const result = await definition.run(ctx);
+    assert.equal(result.status, "complete");
+    const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
+    assert.equal(byName["orchestrator-1"].model, "test/prefill-orchestrator");
+    assert.equal(byName["orchestrator-2"].model, "test/turn-2-orchestrator");
+    assert.equal(byName["completion-reviewer-1"].model, "test/prefill-reviewer");
+    assert.equal(byName["completion-reviewer-2"].model, "test/prefill-reviewer", "the prefilled launch reviewer is the fallback once the policy drops reviewer_model");
+  });
+});
+
+describe("goal-select tracker intake (fixture MCP transcripts and fake workflow context; no live tracker, model or TUI)", () => {
+  const guardSource = fileURLToPath(new URL("../../extensions/goal-select-tracker-guard.ts", import.meta.url));
+  const jiraIssue = {
+    id: "10007",
+    key: "PROJ-7",
+    fields: { summary: "Fix the login redirect", description: "Users loop on /login.\n\n## Acceptance criteria\n- Login lands on the dashboard\n- No redirect loop" },
+  };
+  const jiraCriteria = "- Login lands on the dashboard\n- No redirect loop";
+  const fetchedJira = {
+    outcome: "fetched",
+    issue_key: "PROJ-7",
+    title: "Fix the login redirect",
+    url: "https://example.atlassian.net/browse/PROJ-7",
+    acceptance_criteria: jiraCriteria,
+    acceptance_criteria_source: "description section 'Acceptance criteria'",
+    candidates: [],
+    detail: "Fetched PROJ-7.",
+  };
+  const noIssue = { outcome: "unavailable", issue_key: "", title: "", url: "", acceptance_criteria: "", acceptance_criteria_source: "", candidates: [], detail: "" };
+  let trackerRoot;
+  let trackerSeed;
+  let agentDir;
+  let saved;
+  let steps = 0;
+
+  function call(name, args, { text = "ok", details, isError = false, guarded = true } = {}) {
+    steps += 1;
+    return { id: `call-${steps}`, name, args, text, details, isError, guarded };
+  }
+
+  function gateway(server, tool, args, text) {
+    return call("mcp", { tool: `${server}_${tool}`, args: JSON.stringify(args) }, { text, details: { mode: "call", server, tool, mcpResult: { content: [{ type: "text", text }] } } });
+  }
+
+  function gatewayError(server, tool, args, error, text) {
+    return call("mcp", { tool: `${server}_${tool}`, args: JSON.stringify(args) }, { text, details: { mode: "call", error } });
+  }
+
+  function blockedCall(name, args) {
+    const decision = guard.trackerGuardDecision(name, args);
+    return call(name, args, { text: `goal-select tracker intake is read-only: ${decision.reason}.`, isError: true });
+  }
+
+  const probe = (stage = "goal-select-tracker-intake") =>
+    call(guard.TRACKER_GUARD_TOOL, {}, { text: `goal-select-tracker-guard is active in ${stage}.`, details: { guard: "active", stage, read_tools: guard.TRACKER_READ_TOOLS } });
+  const connect = (server = "atlassian") => call("mcp", { connect: server }, { text: `Connected to ${server}`, details: { mode: "connect", server } });
+  const jiraCheck = () => gateway("atlassian", "getAccessibleAtlassianResources", {}, JSON.stringify([{ id: "cloud-1", url: "https://example.atlassian.net" }]));
+  const jiraFetch = (issue = jiraIssue) =>
+    gateway("atlassian", "getJiraIssue", { cloudId: "cloud-1", issueIdOrKey: issue.key, fields: ["*all"], responseContentFormat: "markdown", updateHistory: false }, JSON.stringify(issue, null, 2));
+  const jiraSteps = () => [connect(), jiraCheck(), jiraFetch()];
+
+  function transcript(stageName, stageSteps) {
+    const file = join(trackerRoot, "sessions", `${stageName}-${randomUUID()}.jsonl`);
+    const lines = [{ type: "session", version: 3, id: randomUUID(), timestamp: new Date().toISOString(), cwd: trackerSeed, internal: true, workflow: { runId: "fixture", stageId: randomUUID(), stageName } }];
+    for (const step of stageSteps) {
+      lines.push({ type: "message", timestamp: new Date().toISOString(), message: { role: "assistant", content: [{ type: "toolCall", id: step.id, name: step.name, arguments: step.args }] } });
+      if (step.guarded) {
+        lines.push({ type: "custom", customType: guard.TRACKER_GUARD_ENTRY, data: { event: "decision", toolCallId: step.id, toolName: step.name, ...(step.decision ?? guard.trackerGuardDecision(step.name, step.args)) } });
+      }
+      lines.push({
+        type: "message",
+        timestamp: "2026-10-01T09:00:00.000Z",
+        message: { role: "toolResult", toolCallId: step.id, toolName: step.name, content: [{ type: "text", text: step.text }], ...(step.details ? { details: step.details } : {}), isError: step.isError },
+      });
+    }
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, `${lines.map((line) => JSON.stringify(line)).join("\n")}\n`);
+    return file;
+  }
+
+  function trackerRun({ cwd = trackerSeed, inputs = {}, stages = {}, ui, review, runId } = {}) {
+    const { ctx, calls } = fakeContext({
+      cwd,
+      runId,
+      ui,
+      review,
+      inputs: { objective: undefined, tracker: "jira", ...inputs },
+      onTask: (name) => {
+        const stage = stages[name] ?? (name === "goal-select-tracker-guard-check" ? { steps: [probe(name)] } : undefined);
+        if (!stage) return {};
+        const stageSteps = name === "goal-select-tracker-guard-check" || stage.probe === false ? stage.steps : [probe(name), ...stage.steps];
+        return { structured: stage.structured, sessionFile: transcript(name, stageSteps) };
+      },
+    });
+    return { outcome: goalSelect.run(ctx), calls, ctx };
+  }
+
+  function recordingUi({ input = [], select = [] } = {}) {
+    const asked = [];
+    return {
+      asked,
+      ui: {
+        async input(message) {
+          asked.push({ kind: "input", message });
+          return input.shift();
+        },
+        async select(message, options) {
+          asked.push({ kind: "select", message, options });
+          const answer = select.shift();
+          return typeof answer === "function" ? answer(options) : answer;
+        },
+      },
+    };
+  }
+
+  const snapshotsIn = (dir) => {
+    const work = join(dir, ".atomic", "goal-select", "work");
+    return existsSync(work) ? readdirSync(work).map((name) => join(work, name)) : [];
+  };
+  const siblings = () => readdirSync(trackerRoot).filter((name) => name.includes(".goal-")).sort();
+  const names = (calls) => calls.map((entry) => entry.name);
+  const stageNames = (calls) => modelStages(calls).map((stage) => stage.name);
+
+  async function assertStopsBeforeGoal(started, pattern) {
+    await assert.rejects(started.outcome, pattern);
+    assert.deepEqual(stageNames(started.calls).filter((name) => !name.startsWith("goal-select-tracker-")), [], "no Goal stage ran");
+    assert.equal(names(started.calls).includes("write-tracker-snapshot"), false);
+    assert.equal(names(started.calls).includes("create-branch-clone"), false);
+    assert.deepEqual(snapshotsIn(trackerSeed), []);
+    assert.deepEqual(siblings(), []);
+  }
+
+  beforeEach(() => {
+    rmSync(join(trackerSeed, ".atomic"), { recursive: true, force: true });
+    for (const name of siblings()) rmSync(join(trackerRoot, name), { recursive: true, force: true });
+  });
+
+  before(() => {
+    trackerRoot = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-tracker-")));
+    saved = {
+      artifacts: process.env.ATOMIC_WORKFLOW_ARTIFACT_DIR,
+      agentDir: process.env.ATOMIC_CODING_AGENT_DIR,
+      piAgentDir: process.env.PI_CODING_AGENT_DIR,
+    };
+    process.env.ATOMIC_WORKFLOW_ARTIFACT_DIR = join(trackerRoot, "artifacts");
+    agentDir = join(trackerRoot, "agent");
+    mkdirSync(join(agentDir, "extensions"), { recursive: true });
+    symlinkSync(guardSource, join(agentDir, "extensions", "goal-select-tracker-guard.ts"));
+    process.env.ATOMIC_CODING_AGENT_DIR = agentDir;
+    delete process.env.PI_CODING_AGENT_DIR;
+    const origin = join(trackerRoot, "server.git");
+    trackerSeed = join(trackerRoot, "tracker seed");
+    git("init", "--quiet", "--bare", origin);
+    git("init", "--quiet", "-b", "main", trackerSeed);
+    writeFileSync(join(trackerSeed, "README.md"), "tracker seed\n");
+    git("-C", trackerSeed, "add", ".");
+    git("-C", trackerSeed, "commit", "--quiet", "-m", "Tracker seed");
+    git("-C", trackerSeed, "remote", "add", "origin", origin);
+    git("-C", trackerSeed, "push", "--quiet", "origin", "main");
+    process.chdir = () => {
+      throw new Error("goal-select must not call process.chdir");
+    };
+  });
+
+  after(() => {
+    process.chdir = originalChdir;
+    for (const [key, name] of [["artifacts", "ATOMIC_WORKFLOW_ARTIFACT_DIR"], ["agentDir", "ATOMIC_CODING_AGENT_DIR"], ["piAgentDir", "PI_CODING_AGENT_DIR"]]) {
+      if (saved[key] === undefined) delete process.env[name];
+      else process.env[name] = saved[key];
+    }
+    rmSync(trackerRoot, { recursive: true, force: true });
+  });
+
+  it("declares tracker inputs as optional, with none as the default and objective no longer forced by the picker", () => {
+    assert.deepEqual(goalSelect.inputs.tracker.anyOf.map((member) => member.const), ["none", "jira", "linear"]);
+    assert.equal(goalSelect.inputs.tracker.default, "none");
+    assert.equal(goalSelect.inputs.tracker_issue.default, undefined);
+    assert.equal(goalSelect.inputs.tracker_mcp_server.default, undefined);
+    const resolved = resolveInputs(goalSelect.inputs, {});
+    assert.equal(resolved.tracker, "none");
+    assert.equal(resolved.objective, undefined);
+  });
+
+  it("keeps the manual path: tracker none needs a typed objective, runs no tracker step and puts the typed text in the ledger", async () => {
+    for (const objective of [undefined, "", "   "]) {
+      for (const resolve_only of [false, true]) {
+        const { ctx, calls } = fakeContext({ cwd: trackerSeed, inputs: { objective, resolve_only, branch_checkout_dir: "" } });
+        await assert.rejects(goalSelect.run(ctx), /goal requires an objective input\./);
+        assert.deepEqual(calls, [], "nothing ran before the objective check");
+      }
+    }
+    const typed = "Fix the typed login bug.";
+    const { ctx, calls } = fakeContext({ cwd: trackerSeed, inputs: { objective: typed, acceptance_criteria: "Typed criteria.", branch_checkout_dir: "", tracker_issue: "PROJ-7" } });
+    const result = await goalSelect.run(ctx);
+    assert.equal(result.status, "complete");
+    assert.equal(result.objective, typed);
+    assert.equal(result.acceptance_criteria, "Typed criteria.");
+    assert.deepEqual(stageNames(calls), ["orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
+    assert.equal(names(calls).some((name) => name?.includes("tracker")), false);
+    const preview = await resolveOnly(trackerSeed, { objective: typed, branch_checkout_dir: "" });
+    assert.equal("tracker" in preview, false);
+  });
+
+  it("stops before any stage or clone when an MCP config file disables the tracker server, and honours a later file that re-enables it", async () => {
+    writeJson(join(agentDir, "mcp.json"), { mcpServers: { atlassian: { disabled: true } } });
+    try {
+      const started = trackerRun({ inputs: { tracker_issue: "PROJ-7" } });
+      await assertStopsBeforeGoal(started, (error) => error.message.includes(`disabled ("disabled": true in ${join(agentDir, "mcp.json")})`) && error.message.includes("No checkout or snapshot was created"));
+      assert.deepEqual(names(started.calls), ["check-tracker-mcp"]);
+      writeJson(join(trackerSeed, ".mcp.json"), { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp" } } });
+      const models = await resolveOnly(trackerSeed, { objective: undefined, tracker: "jira", tracker_issue: "PROJ-7", branch_checkout_dir: "" });
+      assert.equal(models.tracker.config_source, join(trackerSeed, ".mcp.json"));
+    } finally {
+      rmSync(join(agentDir, "mcp.json"), { force: true });
+      rmSync(join(trackerSeed, ".mcp.json"), { force: true });
+    }
+  });
+
+  it("previews tracker intake under resolve_only without an intake stage, clone or snapshot, reporting a server the config files omit as possibly contributed, not absent", async () => {
+    const explicit = trackerRun({ inputs: { tracker_issue: "PROJ-7", branch_checkout_dir: "", resolve_only: true } });
+    const explicitResult = await explicit.outcome;
+    assert.deepEqual(stageNames(explicit.calls), []);
+    assert.match(explicitResult.result, /Resolved models for turn 1\. No Goal stage ran\./);
+    assert.match(explicitResult.result, /Tracker intake \(not run in preview\): Jira issue "PROJ-7"/);
+    assert.match(explicitResult.result, /not in Atomic's MCP config files .*a package or extension may still provide it/);
+    const models = JSON.parse(explicitResult.models);
+    assert.deepEqual(models.tracker, {
+      tracker: "jira",
+      server: "atlassian",
+      config_source: null,
+      guard: join(agentDir, "extensions", "goal-select-tracker-guard.ts"),
+      issue_request: "PROJ-7",
+      intake_ran: false,
+    });
+    const auto = trackerRun({ inputs: { tracker: "linear", tracker_issue: "TUS-5", resolve_only: true } });
+    const autoResult = await auto.outcome;
+    assert.deepEqual(stageNames(auto.calls), []);
+    assert.match(autoResult.result, /Planned clone: .*tracker seed\.goal-tus-5-/);
+    assert.match(autoResult.result, /provisional/);
+    assert.equal(JSON.parse(autoResult.models).tracker.server, "linear");
+    assert.deepEqual(siblings(), []);
+    assert.deepEqual(snapshotsIn(trackerSeed), []);
+  });
+
+  it("refuses tracker intake before any stage when the guard extension is not where Atomic discovers extensions", async () => {
+    const link = join(agentDir, "extensions", "goal-select-tracker-guard.ts");
+    unlinkSync(link);
+    try {
+      const started = trackerRun({ inputs: { tracker_issue: "PROJ-7" } });
+      await assertStopsBeforeGoal(started, /needs the goal-select-tracker-guard\.ts Atomic extension/);
+      assert.deepEqual(names(started.calls), ["check-tracker-mcp"]);
+    } finally {
+      symlinkSync(guardSource, link);
+    }
+  });
+
+  it("fetches an issue the request names, saves a readable snapshot in an existing checkout before Goal starts, and hands it to every agent", async () => {
+    const started = trackerRun({
+      inputs: { tracker_issue: "PROJ-7", branch_checkout_dir: "" },
+      stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: jiraSteps() } },
+    });
+    const result = await started.outcome;
+    assert.equal(result.status, "complete");
+    assert.deepEqual(stageNames(started.calls), ["goal-select-tracker-guard-check", "goal-select-tracker-intake", "orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
+    const order = names(started.calls);
+    assert.deepEqual(order.slice(0, 7), [
+      "check-tracker-mcp",
+      "resolve-branch-checkout",
+      "goal-select-tracker-guard-check",
+      "audit-goal-select-tracker-guard-check",
+      "goal-select-tracker-intake",
+      "audit-goal-select-tracker-intake",
+      "write-tracker-snapshot",
+    ]);
+    const guardCheck = modelStages(started.calls)[0].options;
+    assert.deepEqual(guardCheck.tools, [guard.TRACKER_GUARD_TOOL], "the guard check stage has no MCP access at all");
+    assert.equal(guardCheck.cwd, trackerSeed);
+
+    const intake = modelStages(started.calls)[1].options;
+    assert.equal(intake.cwd, trackerSeed);
+    assert.ok(intake.schema);
+    assert.deepEqual(intake.mcp, { allow: ["atlassian"] });
+    assert.deepEqual(intake.tools.slice(0, 2), [guard.TRACKER_GUARD_TOOL, "mcp"]);
+    assert.ok(intake.tools.includes("atlassian_getJiraIssue"));
+    for (const tool of intake.tools.slice(2)) assert.ok(guard.isTrackerReadTool(tool), tool);
+    assert.match(intake.prompt, /0\. Call goal_select_tracker_guard with no arguments, alone, before any other tool/);
+    assert.match(intake.prompt, /<request>\nPROJ-7\n<\/request>/);
+    assert.match(intake.prompt, /Never create, edit, transition/);
+
+    const [snapshot] = snapshotsIn(trackerSeed);
+    const runHash = createHash("sha256").update(started.ctx.runId).digest("hex").slice(0, 8);
+    assert.equal(snapshot, join(trackerSeed, ".atomic", "goal-select", "work", `jira-proj-7-${runHash}.md`));
+    const text = readFileSync(snapshot, "utf8");
+    assert.match(text, /^# Jira PROJ-7: Fix the login redirect\n/);
+    assert.ok(text.includes("- MCP server: atlassian (not in Atomic's MCP config files; provided by a package or extension)"), text);
+    assert.ok(text.includes("- URL: https://example.atlassian.net/browse/PROJ-7"));
+    assert.ok(text.includes("- Request: PROJ-7"));
+    assert.ok(text.includes("- Fetched: 2026-10-01T09:00:00.000Z"));
+    assert.ok(text.includes("- Successful read calls: getAccessibleAtlassianResources, getJiraIssue"));
+    assert.ok(text.includes(`- Workflow run: ${started.ctx.runId}`));
+    assert.ok(text.includes(`## Description\n\n${jiraIssue.fields.description}\n`));
+    assert.ok(text.includes(`From the issue (description section 'Acceptance criteria'), copied verbatim from the response:\n\n${jiraCriteria}`));
+    assert.ok(text.includes(`~~~\n${JSON.stringify(jiraIssue, null, 2)}\n~~~`));
+    assert.equal(readFileSync(join(trackerSeed, ".atomic", "goal-select", ".gitignore"), "utf8"), "*\n");
+    assert.equal(git("-C", trackerSeed, "status", "--porcelain", "--untracked-files=all"), "", "the snapshot never dirties the checkout");
+
+    assert.ok(result.objective.startsWith("Deliver Jira PROJ-7: Fix the login redirect\n"), result.objective);
+    assert.ok(result.objective.includes(`Work definition: the snapshot ${snapshot}`));
+    assert.ok(result.objective.includes("so no agent needs tracker or MCP access"));
+    assert.equal(result.acceptance_criteria, `Acceptance criteria of Jira PROJ-7 (description section 'Acceptance criteria'), as saved in ${snapshot}:\n${jiraCriteria}`);
+    const ledger = JSON.parse(readFileSync(result.ledger_path, "utf8"));
+    assert.equal(ledger.objective, result.objective);
+    assert.equal(ledger.acceptance_criteria, result.acceptance_criteria);
+    const byName = Object.fromEntries(modelStages(started.calls).map((stage) => [stage.name, stage.options]));
+    assert.ok(byName["orchestrator-1"].reads.includes(result.ledger_path));
+    for (const reviewer of ["completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]) {
+      assert.ok(byName[reviewer].reads.includes(result.ledger_path), `${reviewer} reads the ledger`);
+      assert.equal(byName[reviewer].cwd, trackerSeed);
+    }
+    const reviewRound = started.calls.find((entry) => entry.kind === "parallel");
+    assert.ok(reviewRound.options.task.includes(snapshot), "the reviewers' shared task names the snapshot");
+  });
+
+  it("names the auto clone from the issue key and writes the snapshot into the new clone, not the seed", async () => {
+    const started = trackerRun({
+      inputs: { tracker_issue: "proj-7" },
+      stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: jiraSteps() } },
+    });
+    const result = await started.outcome;
+    assert.equal(result.status, "complete");
+    const order = names(started.calls);
+    assert.ok(order.indexOf("goal-select-tracker-intake") < order.indexOf("plan-branch-clone"), "intake runs before the clone is planned");
+    const clone = started.calls.find((entry) => entry.name === "create-branch-clone").result.checkout;
+    assert.match(basename(clone), /^tracker seed\.goal-proj-7-[0-9a-f]{8}$/);
+    assert.equal(modelStages(started.calls)[1].options.cwd, trackerSeed, "the intake stage runs in the invoking checkout");
+    assert.equal(modelStages(started.calls)[2].options.cwd, clone);
+    assert.deepEqual(snapshotsIn(trackerSeed), []);
+    const [snapshot] = snapshotsIn(clone);
+    assert.ok(snapshot.startsWith(join(clone, ".atomic", "goal-select", "work", "jira-proj-7-")));
+    assert.ok(result.objective.includes(snapshot));
+    assert.equal(git("-C", clone, "status", "--porcelain", "--untracked-files=all"), "");
+  });
+
+  it("offers search matches to choose from, then fetches only the chosen issue in a second read-only stage", async () => {
+    const { ui, asked } = recordingUi({ select: [(options) => options[0]] });
+    const candidates = { ...noIssue, outcome: "candidates", candidates: [{ key: "PROJ-7", title: "Fix the login redirect" }, { key: "PROJ-9", title: "Login copy" }], detail: "Two matches." };
+    const search = gateway("atlassian", "searchJiraIssuesUsingJql", { cloudId: "cloud-1", jql: 'text ~ "login redirect"' }, JSON.stringify({ issues: [{ key: "PROJ-7" }, { key: "PROJ-9" }] }));
+    const started = trackerRun({
+      ui,
+      inputs: { tracker_issue: "login redirect", branch_checkout_dir: "" },
+      stages: {
+        "goal-select-tracker-intake": { structured: candidates, steps: [connect(), jiraCheck(), search] },
+        "goal-select-tracker-fetch": { structured: fetchedJira, steps: jiraSteps() },
+      },
+    });
+    const result = await started.outcome;
+    assert.equal(result.status, "complete");
+    assert.deepEqual(asked, [{ kind: "select", message: "Choose the Jira issue for this run (request: login redirect)", options: ["PROJ-7: Fix the login redirect", "PROJ-9: Login copy", "Stop: none of these"] }]);
+    assert.deepEqual(stageNames(started.calls).slice(0, 3), guard.TRACKER_INTAKE_STAGES);
+    assert.match(modelStages(started.calls)[2].options.prompt, /<request>\nPROJ-7\n<\/request>/);
+    assert.match(modelStages(started.calls)[2].options.prompt, /Fetch exactly the issue PROJ-7/);
+    assert.ok(readFileSync(snapshotsIn(trackerSeed)[0], "utf8").includes("- Request: login redirect"));
+  });
+
+  it("stops truthfully when the choice is stopped, the request is empty, or the fetched issue the request did not name is refused", async () => {
+    const candidates = { ...noIssue, outcome: "candidates", candidates: [{ key: "PROJ-7", title: "Fix the login redirect" }] };
+    const stopped = recordingUi({ select: [STOP_CHOICE_TEXT] });
+    await assertStopsBeforeGoal(
+      trackerRun({ ui: stopped.ui, inputs: { tracker_issue: "login" }, stages: { "goal-select-tracker-intake": { structured: candidates, steps: [connect(), jiraCheck()] } } }),
+      /No Jira issue was chosen for "login"/,
+    );
+
+    const empty = recordingUi({ input: ["   "] });
+    const emptyRun = trackerRun({ ui: empty.ui });
+    await assertStopsBeforeGoal(emptyRun, /No Jira issue was given/);
+    assert.deepEqual(empty.asked, [{ kind: "input", message: "Jira issue key, URL or search words" }]);
+    assert.deepEqual(stageNames(emptyRun.calls), ["goal-select-tracker-guard-check"]);
+
+    const unnamed = recordingUi({ select: [STOP_CHOICE_TEXT] });
+    const unnamedRun = trackerRun({ ui: unnamed.ui, inputs: { tracker_issue: "10007" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: jiraSteps() } } });
+    await assertStopsBeforeGoal(unnamedRun, /No Jira issue was chosen for "10007"/);
+    assert.deepEqual(unnamed.asked[0].options, ["PROJ-7: Fix the login redirect", "Stop: none of these"]);
+  });
+
+  it("asks for the issue when tracker_issue is empty, and confirms a fetched issue the request did not name before using it", async () => {
+    const asked = recordingUi({ input: ["PROJ-7"] });
+    const askedRun = trackerRun({ ui: asked.ui, inputs: { branch_checkout_dir: "" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: jiraSteps() } } });
+    assert.equal((await askedRun.outcome).status, "complete");
+    assert.match(modelStages(askedRun.calls)[1].options.prompt, /<request>\nPROJ-7\n<\/request>/);
+    assert.ok(readFileSync(snapshotsIn(trackerSeed)[0], "utf8").includes("- Request: entered at launch"));
+
+    const confirmed = recordingUi({ select: [(options) => options[0]] });
+    const confirmedRun = trackerRun({ ui: confirmed.ui, inputs: { tracker_issue: "10007", branch_checkout_dir: "" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: jiraSteps() } } });
+    assert.equal((await confirmedRun.outcome).status, "complete");
+    assert.equal(confirmed.asked.length, 1);
+    assert.equal(stageNames(confirmedRun.calls).includes("goal-select-tracker-fetch"), false, "a confirmed issue is not fetched again");
+  });
+
+  it("stops when the tracker is unavailable or the issue is missing, never falling back to the typed objective", async () => {
+    const authError = call("mcp", { connect: "atlassian" }, { text: 'Server "atlassian" requires authentication. Run /mcp-auth atlassian.', details: { mode: "connect", error: "auth_required" } });
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { objective: "Typed fallback that must not run.", tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: { ...noIssue, detail: "atlassian requires authentication." }, steps: [authError] } } }),
+      /Jira through MCP server "atlassian" is unavailable: the getAccessibleAtlassianResources read check did not succeed\. atlassian requires authentication\. Authenticate with \/mcp-auth atlassian/,
+    );
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [connect(), jiraFetch()] } } }),
+      /is unavailable: the getAccessibleAtlassianResources read check did not succeed/,
+    );
+    const missing = gatewayError("atlassian", "getJiraIssue", { cloudId: "cloud-1", issueIdOrKey: "PROJ-404" }, "tool_error", "Error: Issue does not exist or you do not have permission to see it.");
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-404" }, stages: { "goal-select-tracker-intake": { structured: { ...noIssue, outcome: "not_found", detail: "Issue does not exist." }, steps: [connect(), jiraCheck(), missing] } } }),
+      /No Jira issue matched "PROJ-404" through MCP server "atlassian"\. Issue does not exist\./,
+    );
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [connect(), jiraCheck()] } } }),
+      /did not return a Jira issue that a successful getJiraIssue call fetched \(reported "PROJ-7"\)/,
+    );
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { steps: jiraSteps() } } }),
+      /is unavailable|did not return/,
+    );
+  });
+
+  it("stops when the guard blocked a tracker write attempt before it ran, or when any call ran without a guard decision", async () => {
+    const transition = blockedCall("mcp", { tool: "atlassian_transitionJiraIssue", args: JSON.stringify({ cloudId: "cloud-1", issueIdOrKey: "PROJ-7", transition: { id: "31" } }) });
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [connect(), jiraCheck(), transition, jiraFetch()] } } }),
+      /attempted tracker calls outside the read-only allow-list; goal-select-tracker-guard blocked them before they ran: MCP tool "atlassian_transitionJiraIssue" is not an allow-listed tracker read tool/,
+    );
+    const unguardedFetch = { ...jiraFetch(), guarded: false };
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [connect(), jiraCheck(), unguardedFetch] } } }),
+      /goal-select-tracker-guard was not shown active for every call in the goal-select-tracker-intake stage \(unchecked: mcp\)/,
+    );
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, probe: false, steps: jiraSteps() } } }),
+      /not shown active for every call in the goal-select-tracker-intake stage \(goal_select_tracker_guard did not run\)/,
+    );
+  });
+
+  it("refuses before any MCP-capable stage when the guard check stage shows the guard is not loaded", async () => {
+    for (const steps of [[], [call(guard.TRACKER_GUARD_TOOL, {}, { text: "Tool goal_select_tracker_guard not found", isError: true })], [{ ...probe("goal-select-tracker-guard-check"), guarded: false }]]) {
+      const started = trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-guard-check": { steps } } });
+      await assertStopsBeforeGoal(started, /goal-select-tracker-guard did not run in the goal-select-tracker-guard-check stage, so Atomic is not enforcing read-only Jira calls\. No MCP call was made\./);
+      assert.deepEqual(stageNames(started.calls), ["goal-select-tracker-guard-check"]);
+    }
+  });
+
+  it("does not treat reads the guard held back until its probe ran as write attempts", async () => {
+    const heldBack = {
+      ...call("mcp", { connect: "atlassian" }, { text: "goal-select tracker intake is read-only: goal_select_tracker_guard must run before any other call.", isError: true }),
+      decision: guard.trackerGuardDecision("mcp", { connect: "atlassian" }, false),
+    };
+    const started = trackerRun({
+      inputs: { tracker_issue: "PROJ-7", branch_checkout_dir: "" },
+      stages: { "goal-select-tracker-intake": { structured: fetchedJira, probe: false, steps: [heldBack, probe(), connect(), jiraCheck(), jiraFetch()] } },
+    });
+    assert.equal((await started.outcome).status, "complete");
+  });
+
+  it("uses launch acceptance_criteria instead of the issue's and keeps launch objective text, recording both in the snapshot", async () => {
+    const started = trackerRun({
+      inputs: { tracker_issue: "PROJ-7", branch_checkout_dir: "", objective: "Also keep the audit log.", acceptance_criteria: "Typed criteria win." },
+      stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: jiraSteps() } },
+    });
+    const result = await started.outcome;
+    const [snapshot] = snapshotsIn(trackerSeed);
+    assert.equal(result.acceptance_criteria, `Typed criteria win.\n\n(Supplied at launch for Jira PROJ-7; they replace the issue's own criteria, which remain in ${snapshot}.)`);
+    assert.ok(result.objective.endsWith("\n\nAdditional objective text supplied at launch:\nAlso keep the audit log."), result.objective);
+    const text = readFileSync(snapshot, "utf8");
+    assert.ok(text.includes("Supplied at launch through acceptance_criteria; this run uses them instead of the issue's own criteria.\n\nTyped criteria win."));
+    assert.ok(text.includes(`The issue's own criteria, for reference:\n\nFrom the issue (description section 'Acceptance criteria'), copied verbatim from the response:\n\n${jiraCriteria}`));
+  });
+
+  it("fetches a Linear issue through a direct MCP tool on a custom server name and labels criteria it could not find", async () => {
+    const linearIssue = { id: "TUS-5", uuid: "u-5", title: "Complete the token layer", description: "Bring main.css to the full token set.", url: "https://linear.app/acme/issue/TUS-5/complete-the-token-layer" };
+    const direct = (tool, args, text) => call(`work_linear_${tool}`, args, { text, details: { server: "work-linear", tool } });
+    const started = trackerRun({
+      inputs: { tracker: "linear", tracker_issue: "https://linear.app/acme/issue/TUS-5/complete-the-token-layer", tracker_mcp_server: " work-linear ", branch_checkout_dir: "" },
+      stages: {
+        "goal-select-tracker-intake": {
+          structured: { ...fetchedJira, issue_key: "TUS-5", title: "Model title", url: "", acceptance_criteria: "", acceptance_criteria_source: "" },
+          steps: [connect("work-linear"), direct("get_workspace", {}, JSON.stringify({ name: "Acme" })), direct("get_issue", { id: "TUS-5" }, JSON.stringify(linearIssue))],
+        },
+      },
+    });
+    const result = await started.outcome;
+    const intake = modelStages(started.calls)[1].options;
+    assert.deepEqual(intake.mcp, { allow: ["work-linear"] });
+    assert.ok(intake.tools.includes("work_linear_get_issue"));
+    assert.match(intake.prompt, /tool "work_linear_get_issue", args \{"id": "<IDENTIFIER>"\}/);
+    const [snapshot] = snapshotsIn(trackerSeed);
+    assert.match(basename(snapshot), /^linear-tus-5-[0-9a-f]{8}\.md$/);
+    const text = readFileSync(snapshot, "utf8");
+    assert.match(text, /^# Linear TUS-5: Complete the token layer\n/, "the title comes from the tracker response, not the model");
+    assert.ok(text.includes(`- URL: ${linearIssue.url}`));
+    assert.ok(text.includes("- Successful read calls: get_workspace, get_issue"));
+    assert.ok(text.includes("The issue has no separate acceptance criteria, so the whole work definition above is the acceptance contract."));
+    assert.equal(result.acceptance_criteria, `Linear TUS-5 has no separate acceptance criteria; the complete work definition in ${snapshot} is the acceptance contract.`);
+  });
+});
+
+
+
+describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool_call hook contract, not a live session)", () => {
+  const readCalls = [
+    ["mcp", { connect: "atlassian" }],
+    ["mcp", { server: "atlassian" }],
+    ["mcp", { describe: "atlassian_getJiraIssue" }],
+    ["mcp", { search: "jira issue" }],
+    ["mcp", {}],
+    ["mcp", { tool: "atlassian_getAccessibleAtlassianResources", args: "{}" }],
+    ["mcp", { tool: "atlassian_getJiraIssue", args: "{}" }],
+    ["mcp", { tool: "atlassian_searchJiraIssuesUsingJql", args: "{}" }],
+    ["mcp", { tool: "linear_get_workspace", args: "{}" }],
+    ["mcp", { tool: "linear-get-issue", args: "{}" }],
+    ["mcp", { tool: "list_issues", args: "{}" }],
+    ["linear_get_issue", { id: "TUS-5" }],
+    ["structured_output", { state: "done" }],
+  ];
+  const writeTools = [
+    "atlassian_editJiraIssue",
+    "atlassian_createJiraIssue",
+    "atlassian_transitionJiraIssue",
+    "atlassian_addCommentToJiraIssue",
+    "atlassian_addWorklogToJiraIssue",
+    "atlassian_createIssueLink",
+    "atlassian_createConfluencePage",
+    "atlassian_updateConfluencePage",
+    "linear_save_issue",
+    "linear_save_comment",
+    "linear_delete_comment",
+    "linear_create_attachment",
+    "linear_share_issue",
+    "linear_save_project",
+    "linear_mark_notification",
+    "linear_merge_diff",
+    "linear_get_issue_status",
+  ];
+
+  function session(stageName) {
+    const handlers = {};
+    const entries = [];
+    const tools = [];
+    guard.default({
+      on: (event, handler) => {
+        handlers[event] = handler;
+      },
+      appendEntry: (type, data) => entries.push({ type, data }),
+      registerTool: (tool) => tools.push(tool),
+    });
+    assert.deepEqual(Object.keys(handlers).sort(), ["session_start", "tool_call"]);
+    const header = stageName === undefined ? { type: "session" } : { type: "session", workflow: { runId: "r", stageId: "s", stageName } };
+    const ctx = { sessionManager: { getHeader: () => header } };
+    handlers.session_start({ reason: "startup" }, ctx);
+    let id = 0;
+    const fire = (toolName, input) => {
+      id += 1;
+      return handlers.tool_call({ toolName, input, toolCallId: `t${id}` }, ctx);
+    };
+    const runProbe = async () => {
+      assert.equal(fire(guard.TRACKER_GUARD_TOOL, {}), undefined);
+      return tools[0].execute(`t${id}`, {});
+    };
+    return { fire, entries, tools, runProbe };
+  }
+
+  it("does nothing outside goal-select's intake stages: no probe tool, no entries, no blocking", () => {
+    for (const stage of [undefined, "orchestrator-1", "completion-reviewer-1", "tracker-intake"]) {
+      const { fire, entries, tools } = session(stage);
+      assert.equal(fire("mcp", { tool: "atlassian_editJiraIssue" }), undefined, String(stage));
+      assert.equal(fire("bash", { command: "true" }), undefined, String(stage));
+      assert.deepEqual(tools, [], String(stage));
+      assert.deepEqual(entries, [], String(stage));
+    }
+  });
+
+  it("registers its probe tool in each intake stage and holds back every other call until the probe has run", async () => {
+    for (const stage of guard.TRACKER_INTAKE_STAGES) {
+      const { fire, entries, tools, runProbe } = session(stage);
+      assert.deepEqual(tools.map((tool) => tool.name), [guard.TRACKER_GUARD_TOOL]);
+      assert.deepEqual(entries, [{ type: guard.TRACKER_GUARD_ENTRY, data: { event: "loaded", stage } }]);
+      const early = fire("mcp", { connect: "atlassian" });
+      assert.equal(early?.block, true);
+      assert.match(early.reason, /goal_select_tracker_guard must run before any other call/);
+      const result = await runProbe();
+      assert.equal(result.details.guard, "active");
+      assert.equal(result.details.stage, stage);
+      for (const [toolName, input] of readCalls) assert.equal(fire(toolName, input), undefined, `${stage} ${toolName} ${JSON.stringify(input)}`);
+      const decisions = entries.filter((entry) => entry.data.event === "decision");
+      assert.equal(decisions.length, readCalls.length + 2);
+      assert.ok(decisions.slice(1).every((entry) => entry.type === guard.TRACKER_GUARD_ENTRY && entry.data.allowed === true && entry.data.toolCallId));
+    }
+  });
+
+  it("blocks tracker writes, unlisted tracker tools such as get_issue_status, other gateway actions and non-tracker tools before they run", async () => {
+    const { fire, entries, runProbe } = session("goal-select-tracker-intake");
+    await runProbe();
+    const blocked = [
+      ...writeTools.map((tool) => ["mcp", { tool, args: "{}" }]),
+      ...writeTools.map((tool) => [tool, {}]),
+      ["mcp", { action: "ui-messages" }],
+      ["bash", { command: "curl -X POST https://example.atlassian.net" }],
+      ["write", { path: "x", content: "y" }],
+      ["subagent", {}],
+    ];
+    for (const [toolName, input] of blocked) {
+      const outcome = fire(toolName, input);
+      assert.equal(outcome?.block, true, `${toolName} ${JSON.stringify(input)}`);
+      assert.match(outcome.reason, /^goal-select tracker intake is read-only: /);
+    }
+    const decisions = entries.filter((entry) => entry.data.event === "decision").slice(1);
+    assert.equal(decisions.length, blocked.length);
+    assert.ok(decisions.every((entry) => entry.data.allowed === false && entry.data.reason));
   });
 });

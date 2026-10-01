@@ -260,6 +260,46 @@ References: [official setup](https://bastani.ai/),
 [settings](https://docs.bastani.ai/settings), and
 [custom models](https://docs.bastani.ai/models).
 
+#### goal-select workflow
+
+`atomic/.atomic/agent/workflows/goal-select.ts` is the builtin Goal Runner with
+a model choice per role, registered through
+`atomic/.atomic/agent/extensions/workflow/config.json`. By default it works in
+a new `git bc-add` branch clone beside the invoking checkout and rereads a
+JSONC model policy before every turn: `.atomic/goal-select-models.json`, or
+`.atomic/goal-select-models.jsonc` only when the `.json` is absent.
+
+The launch form's model inputs and `max_turns` are prefilled from that default
+policy in the directory Atomic runs in. Atomic has no per-launch default hook:
+input defaults are the values the workflow module computes when Atomic
+discovers workflows, at session start or `/workflow reload`. After editing the
+policy, run `/workflow reload` to refresh the form; turns still reread the
+file. `model_policy_path` does not affect the form, and missing, malformed or
+wrongly typed values keep the built-in defaults.
+
+Set `tracker` to `jira` or `linear` to take the work from one issue instead of
+`objective`. `tracker_issue` takes a key, URL or search words, and
+`tracker_mcp_server` overrides the MCP server (`atlassian` or `linear`).
+Tracker intake needs:
+
+- the tracker's MCP server configured and authenticated with `/mcp-auth`;
+- `atomic/.atomic/agent/extensions/goal-select-tracker-guard.ts`, which Stow
+  links into `~/.atomic/agent/extensions`. In goal-select's intake stages it
+  blocks every call except allow-listed tracker reads before the call runs,
+  and it does nothing in any other session. A stage with no MCP access must
+  show the guard active before an intake stage can reach MCP.
+
+The issue is fetched read-only and saved to
+`<checkout>/.atomic/goal-select/work/<tracker>-<key>-<id>.md`, beside a
+`.gitignore` that keeps it out of Git. The Goal objective and acceptance
+criteria point at that snapshot, so implementing and reviewing agents need no
+tracker access; typed `acceptance_criteria` replace the issue's own. A disabled
+or unreachable server, a missing issue, an inactive guard or a stopped choice
+ends the run before any Goal stage, never falling back to `objective`. Pass a
+key or URL for headless runs: search words and an empty `tracker_issue` wait
+for an answer. `resolve_only` checks only the MCP config files and the guard
+file.
+
 ### Unified Shell Config
 
 The `shell/` package provides configuration sourced from zsh:
