@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { keepContext } from "@bastani/atomic/workflows";
 import { createRequire } from "node:module";
+import { parseModelPolicy } from "./model-policy.js";
 
 // Atomic's bundler renames its content-hashed chunk-*.js files on every
 // release, so each import site below finds its chunk by the names it needs
@@ -275,7 +276,7 @@ function cleanModel(value) {
 }
 function readModelPolicy(path) {
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    const parsed = parseModelPolicy(readFileSync(path, "utf8"));
     const reviewer = cleanModel(parsed.reviewer_model) ?? cleanModel(parsed.reviewer);
     return {
       orchestrator: cleanModel(parsed.orchestrator_model) ?? cleanModel(parsed.orchestrator),

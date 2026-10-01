@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
+import { parseModelPolicy } from "./model-policy.js";
 
 const runFile = promisify(execFile);
 
@@ -268,7 +269,7 @@ export async function createBranchClone(plan, { policyPath, signal, timeoutMs = 
 
 function readPolicy(path) {
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    return parseModelPolicy(readFileSync(path, "utf8"));
   } catch {
     return {};
   }
@@ -402,7 +403,7 @@ export async function previewBranchClonePolicy(plan, policyPath, signal) {
   if (found.entry?.mode?.startsWith("100")) {
     let policy = {};
     try {
-      policy = JSON.parse(await git(["-C", plan.seed, "cat-file", "blob", found.entry.oid], signal));
+      policy = parseModelPolicy(await git(["-C", plan.seed, "cat-file", "blob", found.entry.oid], signal));
     } catch (error) {
       if (signal?.aborted) throw error;
     }

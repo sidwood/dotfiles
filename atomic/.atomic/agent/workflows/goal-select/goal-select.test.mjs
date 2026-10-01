@@ -22,6 +22,7 @@ const root = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-test-")));
 process.env.ATOMIC_WORKFLOW_ARTIFACT_DIR = join(root, "artifacts");
 const { default: goalSelect } = await import(new URL("../goal-select.ts", import.meta.url).href);
 const { branchCloneName, createBranchClone, objectiveSlug, planBranchClone } = await import(new URL("./branch-clone.js", import.meta.url).href);
+const { parseModelPolicy } = await import(new URL("./model-policy.js", import.meta.url).href);
 const { run, workflow } = await import("@bastani/atomic/workflows");
 const { Type } = await import("typebox");
 
@@ -51,6 +52,21 @@ function writeJson(path, value) {
   mkdirSync(join(path, ".."), { recursive: true });
   writeFileSync(path, `${JSON.stringify(value)}\n`);
 }
+
+// A JSONC policy as Sid keeps it: alternatives commented out, trailing
+// commas, and comment markers inside model strings that must survive.
+const jsoncPolicyText = `{
+  // Live choice; the alternatives stay in the file, commented out.
+  "orchestrator_model": "test/jsonc-orchestrator//not-a-comment",
+  // "orchestrator_model": "test/commented-line-orchestrator",
+  /* "orchestrator_model": "test/commented-block-orchestrator",
+     "reviewer_model": "test/commented-block-reviewer", */
+  "reviewer_model": "test/jsonc-reviewer /* not a comment */",
+  "max_turns": 3,
+}
+`;
+const jsoncPolicy = { orchestrator_model: "test/jsonc-orchestrator//not-a-comment", reviewer_model: "test/jsonc-reviewer /* not a comment */", max_turns: 3 };
+const malformedPolicyText = `{ "orchestrator_model": "test/malformed", /* unterminated\n`;
 
 function launchInputs(overrides) {
   const inputs = { objective: "Prove branch checkout routing." };
@@ -216,6 +232,40 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     const absolute = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: absolutePolicy });
     assert.equal(absolute.launch.policyPath, absolutePolicy);
     assert.equal(absolute.policy.orchestrator_model, "test/absolute-orchestrator");
+  });
+
+  it("resolves a JSONC policy for an explicit checkout under resolve_only, and still returns an empty policy for a malformed one", async () => {
+    writeFileSync(join(clone, ".atomic", "jsonc-resolve.json"), jsoncPolicyText);
+    writeFileSync(join(clone, ".atomic", "malformed-resolve.json"), malformedPolicyText);
+    const jsonc = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: ".atomic/jsonc-resolve.json" });
+    assert.equal(jsonc.launch.policyPath, join(clone, ".atomic", "jsonc-resolve.json"));
+    assert.deepEqual(jsonc.policy, jsoncPolicy);
+    const malformed = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: ".atomic/malformed-resolve.json" });
+    assert.deepEqual(malformed.policy, {});
+  });
+
+  it("reads a JSONC policy before every turn, and falls back to the launch inputs on a turn whose policy is malformed", async () => {
+    const policyPath = join(clone, ".atomic", "jsonc-turns.json");
+    writeFileSync(policyPath, jsoncPolicyText);
+    const { ctx, calls } = fakeContext({
+      cwd: seed,
+      inputs: { branch_checkout_dir: clone, model_policy_path: ".atomic/jsonc-turns.json" },
+      onTask: (name) => {
+        if (name === "orchestrator-1") writeFileSync(policyPath, malformedPolicyText);
+        return {};
+      },
+      review: (name) => (name.endsWith("-1") ? keepGoing : approve),
+    });
+    const result = await goalSelect.run(ctx);
+    assert.equal(result.status, "complete");
+    const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
+    assert.equal(byName["orchestrator-1"].model, jsoncPolicy.orchestrator_model);
+    for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, jsoncPolicy.reviewer_model, role);
+    assert.equal(byName["orchestrator-2"].model, goalSelect.inputs.orchestrator_model.default);
+    for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-2`].model, goalSelect.inputs.reviewer_model.default, role);
+    const turnPolicy = (turn) => calls.find((call) => call.name === `resolve-models-${turn}`).result;
+    assert.equal(turnPolicy(1).maxTurns, 3);
+    assert.deepEqual(turnPolicy(2), {});
   });
 
   for (const [label, input, reason] of [
@@ -703,6 +753,43 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     assert.equal(toolArgs(absolute.calls, "resolve-models-1").path, absolutePath);
     assert.equal(modelStages(absolute.calls)[0].options.model, "test/absolute-orchestrator");
     assert.deepEqual(seedState(autoSeed), initialSeed);
+  });
+
+  it("previews committed and uncommitted JSONC policies as the clone reads them, and falls back to launch inputs for malformed ones", async () => {
+    const jsoncSeed = makeRepo(join(autoRoot, "jsonc seed"), { commit: false });
+    writeFileSync(join(jsoncSeed, "committed.json"), jsoncPolicyText);
+    writeFileSync(join(jsoncSeed, "committed-malformed.json"), malformedPolicyText);
+    git("-C", jsoncSeed, "add", ".");
+    git("-C", jsoncSeed, "commit", "--quiet", "-m", "JSONC policies");
+    writeFileSync(join(jsoncSeed, "local.json"), jsoncPolicyText);
+    writeFileSync(join(jsoncSeed, "local-malformed.json"), malformedPolicyText);
+    const jsoncSeedBefore = seedState(jsoncSeed);
+    const head = jsoncSeedBefore.head.slice(0, 12);
+    const committed = (path) => `${path} at seed commit ${head} (the clone gets this committed file)`;
+    const uncommitted = (path) => `${join(jsoncSeed, path)} (not committed; copied into the clone when it is created)`;
+    const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: goalSelect.inputs.reviewer_model.default };
+    const fromJsonc = { orchestrator: jsoncPolicy.orchestrator_model, reviewer: jsoncPolicy.reviewer_model };
+
+    for (const [path, policy, source, models, copied] of [
+      ["committed.json", jsoncPolicy, committed("committed.json"), fromJsonc, null],
+      ["committed-malformed.json", {}, committed("committed-malformed.json"), launch, null],
+      ["local.json", jsoncPolicy, uncommitted("local.json"), fromJsonc, join(jsoncSeed, "local.json")],
+      ["local-malformed.json", {}, uncommitted("local-malformed.json"), launch, join(jsoncSeed, "local-malformed.json")],
+    ]) {
+      const preview = await autoRun({ cwd: jsoncSeed, inputs: { resolve_only: true, model_policy_path: path } });
+      const previewed = JSON.parse(preview.result.models);
+      assert.deepEqual(previewed.policy, policy, path);
+      assert.equal(previewed.policy_source, source, path);
+      assert.equal(existsSync(previewed.planned_checkout.path), false, `${path} preview creates no clone`);
+
+      const actual = await autoRun({ cwd: jsoncSeed, inputs: { model_policy_path: path } });
+      assert.equal(created(actual.calls).policy_copied_from, copied, path);
+      assert.equal(readFileSync(join(actual.target, path), "utf8"), readFileSync(join(jsoncSeed, path), "utf8"), `${path} reaches the clone verbatim`);
+      const byName = Object.fromEntries(modelStages(actual.calls).map((stage) => [stage.name, stage.options]));
+      assert.equal(byName["orchestrator-1"].model, models.orchestrator, `${path} preview matches the run`);
+      assert.equal(byName["completion-reviewer-1"].model, models.reviewer, path);
+    }
+    assert.deepEqual(seedState(jsoncSeed), jsoncSeedBefore);
   });
 
   it("previews the policy that committed symlinks lead to, as the clone reads it, without creating a clone", async () => {
@@ -1262,5 +1349,77 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     assert.match(initialSeed.status, /^ M notes\.txt$/m);
     assert.match(initialSeed.status, /^\?\? scratch\.txt$/m);
     assert.equal(process.cwd(), startCwd);
+  });
+});
+
+describe("goal-select model policy parser (JSONC)", () => {
+  it("parses strict JSON exactly as JSON.parse does", () => {
+    for (const text of [
+      '{"orchestrator_model":"a/b","max_turns":4}',
+      '{\n  "nested": {"list": [1, -2.5e3, true, false, null, "x"]},\n  "escapes": "quote \\" backslash \\\\ slash \\/ tab \\t unicode \\u00e9"\n}',
+      "[]",
+      '"text"',
+      "0",
+      " \t\r\n{ } \n",
+    ]) {
+      assert.deepEqual(parseModelPolicy(text), JSON.parse(text), text);
+    }
+  });
+
+  it("ignores line and block comments, including commented-out duplicate role entries", () => {
+    assert.deepEqual(parseModelPolicy(jsoncPolicyText), jsoncPolicy);
+    assert.deepEqual(parseModelPolicy('{"a"/* c */:/* c */1// end\n}// after'), { a: 1 });
+    assert.deepEqual(parseModelPolicy('/** header\n * "orchestrator_model": "x",\n */{"b": 2}'), { b: 2 });
+    assert.deepEqual(parseModelPolicy('{\r\n  // "a": 0,\r\n  "a": 1\r\n}'), { a: 1 });
+    assert.deepEqual(
+      parseModelPolicy('{\r// alternative\r"orchestrator_model":"active",\r}'),
+      { orchestrator_model: "active" },
+    );
+  });
+
+  it("accepts trailing commas in objects and arrays, with whitespace or comments before the closer", () => {
+    assert.deepEqual(parseModelPolicy('{"a": [1, 2,], "b": {"c": 3,},}'), { a: [1, 2], b: { c: 3 } });
+    assert.deepEqual(parseModelPolicy('{"a": 1, // last\n /* gone */ }'), { a: 1 });
+  });
+
+  it("keeps comment markers, commas and escapes inside strings verbatim", () => {
+    const text = String.raw`{"url": "https://example.com//path", "block": "a /* b */ c", "line": "// not a comment", "escaped": "say \"//\" then \"/*\"", "comma": ",}", "slash": "\\", "//": "key", "after": "x"}`;
+    assert.deepEqual(parseModelPolicy(text), {
+      url: "https://example.com//path",
+      block: "a /* b */ c",
+      line: "// not a comment",
+      escaped: 'say "//" then "/*"',
+      comma: ",}",
+      slash: "\\",
+      "//": "key",
+      after: "x",
+    });
+  });
+
+  it("rejects malformed input with a SyntaxError", () => {
+    for (const text of [
+      "",
+      "   ",
+      "// only a comment",
+      "/* only a comment */",
+      malformedPolicyText,
+      '{"a": 1',
+      '{"a": 1,,}',
+      "[,]",
+      "{,}",
+      "[1,,2]",
+      '{"a": 1}, ',
+      '{"a": 1} /',
+      '{"a": 1/**/2}',
+      "1/**/2",
+      '{"a" 1}',
+      "{'a': 1}",
+      "{a: 1}",
+      '{"a": "unterminated}',
+      '{"a": 1} {"b": 2}',
+      '\uFEFF{"a": 1}',
+    ]) {
+      assert.throws(() => parseModelPolicy(text), SyntaxError, JSON.stringify(text));
+    }
   });
 });

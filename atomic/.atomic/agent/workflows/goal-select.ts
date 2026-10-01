@@ -11,6 +11,7 @@ import {
   previewBranchClonePolicy,
 } from "./goal-select/branch-clone.js";
 import { runGoalWorkflow } from "./goal-select/goal-engine.js";
+import { parseModelPolicy } from "./goal-select/model-policy.js";
 
 function cleanModel(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
@@ -20,7 +21,7 @@ function cleanModel(value: string | undefined): string | undefined {
 export default workflow({
   name: "goal-select",
   description:
-    "Builtin Goal Runner, including its ledger, three reviewer roles, quorum of 2, and reducer, with a model choice for the orchestrator, each reviewer, and the implementation agent. By default every stage works in a new objective-named git bc-add branch clone beside the invoking checkout. A policy file is read before every turn for models and max_turns. A stage that has already started keeps its model.",
+    "Builtin Goal Runner, including its ledger, three reviewer roles, quorum of 2, and reducer, with a model choice for the orchestrator, each reviewer, and the implementation agent. By default every stage works in a new objective-named git bc-add branch clone beside the invoking checkout. A JSONC policy file is read before every turn for models and max_turns. A stage that has already started keeps its model.",
   heartbeatIntervalMinutes: 15,
   inputs: {
     objective: Type.String({
@@ -85,7 +86,7 @@ export default workflow({
     model_policy_path: Type.String({
       default: ".atomic/goal-select-models.json",
       description:
-        "JSON file read before every turn. A relative path resolves from the selected checkout; in auto mode a relative file the new clone lacks is copied from the seed once, when the clone is created. Model keys: orchestrator_model, reviewer_model, completion_reviewer_model, evidence_reviewer_model, risk_reviewer_model, writer_model. A present model key replaces the launch input for that turn. A positive max_turns replaces the turn cap before the next turn starts; omit it to keep the current cap.",
+        "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas, so alternative models can stay in it commented out. The file keeps its .json name, so the default path is unchanged and an existing policy needs no rename. A relative path resolves from the selected checkout; in auto mode a relative file the new clone lacks is copied from the seed once, when the clone is created. Model keys: orchestrator_model, reviewer_model, completion_reviewer_model, evidence_reviewer_model, risk_reviewer_model, writer_model. A present model key replaces the launch input for that turn. A positive max_turns replaces the turn cap before the next turn starts; omit it to keep the current cap.",
     }),
     resolve_only: Type.Boolean({
       default: false,
@@ -194,7 +195,7 @@ export default workflow({
         async () => {
           const { readFileSync } = await import("node:fs");
           try {
-            return JSON.parse(readFileSync(selection.policyPath, "utf8"));
+            return parseModelPolicy(readFileSync(selection.policyPath, "utf8"));
           } catch {
             return {};
           }
