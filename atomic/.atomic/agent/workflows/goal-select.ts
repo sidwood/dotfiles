@@ -12,7 +12,7 @@ import {
   previewBranchClonePolicy,
 } from "./goal-select/branch-clone.js";
 import { runGoalWorkflow } from "./goal-select/goal-engine.js";
-import { launchDefaults, modelPolicyPaths, readModelPolicyFile } from "./goal-select/model-policy.js";
+import { defaultPolicyPath, launchDefaults, modelPolicyPaths, readModelPolicyFile } from "./goal-select/model-policy.js";
 import {
   STOP_CHOICE,
   auditGuardCheck,
@@ -32,7 +32,7 @@ import {
   writeTrackerSnapshot,
 } from "./goal-select/tracker-intake.js";
 
-const prefill = launchDefaults(process.cwd());
+const prefill = launchDefaults();
 
 function cleanModel(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
@@ -108,7 +108,7 @@ async function intakeTrackerIssue(ctx: any, intake: TrackerIntake) {
 export default workflow({
   name: "goal-select",
   description:
-    "Builtin Goal Runner, including its ledger, three reviewer roles, quorum of 2, and reducer, with a model choice for the orchestrator, each reviewer, and the implementation agent. By default every stage works in a new objective-named git bc-add branch clone beside the invoking checkout. A JSONC policy file, by default .atomic/goal-select-models.json or else .atomic/goal-select-models.jsonc, is read before every turn for models and max_turns. A stage that has already started keeps its model. The launch form's model and max_turns defaults are prefilled from that default policy in Atomic's working directory, read when Atomic discovers workflows (session start or /workflow reload). Optionally, the work comes from a Jira or Linear issue fetched read-only through MCP and saved as a snapshot in the checkout's .atomic directory; tracker intake requires the goal-select-tracker-guard Atomic extension (atomic/.atomic/agent/extensions/goal-select-tracker-guard.ts in the dotfiles), which must prove itself active before any MCP call.",
+    "Builtin Goal Runner, including its ledger, three reviewer roles, quorum of 2, and reducer, with a model choice for the orchestrator, each reviewer, and the implementation agent. By default every stage works in a new objective-named git bc-add branch clone beside the invoking checkout. A JSONC policy file is read before every turn for models and max_turns; by default that is the shared preset ~/.config/atomic/goal-select-models/sol-astra.json, installed by the dotfiles Stow package and shown as the launch form's model_policy_path default, so every checkout and branch clone reads the same file. Pick another preset by editing the filename in that field; add one by dropping another JSON or JSONC file in that directory. A stage that has already started keeps its model. The launch form's model and max_turns defaults are prefilled from the shared default preset, read when Atomic discovers workflows (session start or /workflow reload). Optionally, the work comes from a Jira or Linear issue fetched read-only through MCP and saved as a snapshot in the checkout's .atomic directory; tracker intake requires the goal-select-tracker-guard Atomic extension (atomic/.atomic/agent/extensions/goal-select-tracker-guard.ts in the dotfiles), which must prove itself active before any MCP call.",
   heartbeatIntervalMinutes: 15,
   inputs: {
     objective: Type.Optional(
@@ -142,7 +142,7 @@ export default workflow({
     ),
     max_turns: Type.Number({
       default: prefill.max_turns ?? 10,
-      description: "Launch cap on orchestrator/review turns before Goal Runner stops as needs_human. Prefilled from a positive max_turns in the default policy file, otherwise 10. A positive max_turns in the policy file replaces this before each later turn.",
+      description: "Launch cap on orchestrator/review turns before Goal Runner stops as needs_human. Prefilled from a positive max_turns in the shared default preset, otherwise 10. A positive max_turns in the policy file replaces this before each later turn.",
     }),
     base_branch: Type.String({
       default: "origin/main",
@@ -161,42 +161,43 @@ export default workflow({
     orchestrator_model: Type.String({
       default: prefill.orchestrator_model ?? "openai-codex/gpt-6-astra:medium",
       description:
-        "Orchestrator model, with an optional :thinking suffix. Prefilled from the default policy file's orchestrator_model; otherwise the builtin Goal default, openai-codex/gpt-6-astra:medium. A policy-file orchestrator_model replaces this before the turn.",
+        "Orchestrator model, with an optional :thinking suffix. Prefilled from the shared default preset's orchestrator_model; otherwise the builtin Goal default, openai-codex/gpt-6-astra:medium. A policy-file orchestrator_model replaces this before the turn.",
     }),
     reviewer_model: Type.String({
       default: prefill.reviewer_model ?? "openai-codex/gpt-6-astra:high",
       description:
-        "Model for any reviewer role that does not have its own model. Prefilled from the default policy file's reviewer_model; otherwise the builtin Goal default, openai-codex/gpt-6-astra:high. A policy-file reviewer_model replaces this before the turn.",
+        "Model for any reviewer role that does not have its own model. Prefilled from the shared default preset's reviewer_model; otherwise the builtin Goal default, openai-codex/gpt-6-astra:high. A policy-file reviewer_model replaces this before the turn.",
     }),
     completion_reviewer_model: Type.Optional(
       Type.String({
         ...prefilled(prefill.completion_reviewer_model),
-        description: "Completion reviewer model. Overrides reviewer_model for that role. Prefilled from the default policy file's completion_reviewer_model when it has one.",
+        description: "Completion reviewer model. Overrides reviewer_model for that role. Prefilled from the shared default preset's completion_reviewer_model when it has one.",
       }),
     ),
     evidence_reviewer_model: Type.Optional(
       Type.String({
         ...prefilled(prefill.evidence_reviewer_model),
-        description: "Evidence reviewer model. Overrides reviewer_model for that role. Prefilled from the default policy file's evidence_reviewer_model when it has one.",
+        description: "Evidence reviewer model. Overrides reviewer_model for that role. Prefilled from the shared default preset's evidence_reviewer_model when it has one.",
       }),
     ),
     risk_reviewer_model: Type.Optional(
       Type.String({
         ...prefilled(prefill.risk_reviewer_model),
-        description: "Risk reviewer model. Overrides reviewer_model for that role. Prefilled from the default policy file's risk_reviewer_model when it has one.",
+        description: "Risk reviewer model. Overrides reviewer_model for that role. Prefilled from the shared default preset's risk_reviewer_model when it has one.",
       }),
     ),
     writer_model: Type.Optional(
       Type.String({
         ...prefilled(prefill.writer_model),
         description:
-          "Model the orchestrator must pass when it delegates implementation. Empty leaves the builtin worker pin unchanged. Prefilled from the default policy file's writer_model when it has one.",
+          "Model the orchestrator must pass when it delegates implementation. Empty leaves the builtin worker pin unchanged. Prefilled from the shared default preset's writer_model when it has one.",
       }),
     ),
     model_policy_path: Type.Optional(
       Type.String({
+        default: defaultPolicyPath(),
         description:
-          "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas, so alternative models can stay in it commented out. Omitted selects the default policy, chosen again before every read: .atomic/goal-select-models.json when it exists, and .atomic/goal-select-models.jsonc only when .json is absent. A malformed .json is not skipped for the .jsonc; that turn uses the launch inputs. Any supplied path, including an empty or whitespace string and .atomic/goal-select-models.json, is read exactly as given, with no .jsonc fallback. A relative path resolves from the selected checkout; in auto mode a relative file the new clone lacks is copied from the seed once, when the clone is created, and for the default policy only the one file the clone will read is copied. Model keys: orchestrator_model, reviewer_model, completion_reviewer_model, evidence_reviewer_model, risk_reviewer_model, writer_model. A present model key replaces the launch input for that turn. A positive max_turns replaces the turn cap before the next turn starts; omit it to keep the current cap. Launch-form prefill always reads the default policy in Atomic's working directory, not this path.",
+          "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas, so alternative models can stay in it commented out. The default is the shared preset library's sol-astra.json at ~/.config/atomic/goal-select-models/sol-astra.json, an absolute path every checkout and auto-created branch clone reads in place, so no project file is chosen and nothing is copied. Pick another preset by editing only the filename in this field (kimi-astra.json, grok-opus.json, glm-grock.json, sol-opus-astra.json); add one by dropping another JSON or JSONC file into that directory, with no list to update. A missing or malformed shared file is not skipped for another file; that turn uses the launch inputs. Any supplied path, including an empty or whitespace string and a legacy project-local path such as .atomic/goal-select-models.json or .atomic/goal-select-models.jsonc, is read exactly as given. A relative path resolves from the selected checkout; in auto mode a relative file the new clone lacks is copied from the seed once, when the clone is created. Model keys: orchestrator_model, reviewer_model, completion_reviewer_model, evidence_reviewer_model, risk_reviewer_model, writer_model. A present model key replaces the launch input for that turn. A positive max_turns replaces the turn cap before the next turn starts; omit it to keep the current cap. Launch-form prefill always reads the shared default preset when Atomic discovers workflows, not this path.",
       }),
     ),
     resolve_only: Type.Boolean({

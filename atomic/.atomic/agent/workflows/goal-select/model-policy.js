@@ -1,11 +1,20 @@
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
-const DEFAULT_POLICY_PATH = ".atomic/goal-select-models.json";
-const DEFAULT_POLICY_FALLBACK_PATH = ".atomic/goal-select-models.jsonc";
+const SHARED_POLICY_DIR = [".config", "atomic", "goal-select-models"];
+const SHARED_DEFAULT_PRESET = "sol-astra.json";
+
+export function sharedPolicyDir() {
+  return join(homedir(), ...SHARED_POLICY_DIR);
+}
+
+export function defaultPolicyPath() {
+  return join(sharedPolicyDir(), SHARED_DEFAULT_PRESET);
+}
 
 export function modelPolicyPaths(input) {
-  return input === undefined ? [DEFAULT_POLICY_PATH, DEFAULT_POLICY_FALLBACK_PATH] : [input];
+  return input === undefined ? [defaultPolicyPath()] : [input];
 }
 
 export function modelPolicyFile(policyPath, fallbackPath) {
@@ -31,9 +40,9 @@ const LAUNCH_MODEL_KEYS = [
   ["writer_model", "writer"],
 ];
 
-export function launchDefaults(dir) {
-  const [policyPath, fallbackPath] = modelPolicyPaths(undefined).map((path) => resolve(dir, path));
-  const { policy } = readModelPolicyFile(policyPath, fallbackPath);
+export function launchDefaults() {
+  const [policyPath] = modelPolicyPaths(undefined);
+  const { policy } = readModelPolicyFile(policyPath);
   const defaults = {};
   for (const [key, alias] of LAUNCH_MODEL_KEYS) {
     const model = policyModel(policy?.[key]) ?? policyModel(policy?.[alias]);

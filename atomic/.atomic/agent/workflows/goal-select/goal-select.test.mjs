@@ -20,6 +20,64 @@ registerHooks({
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-test-")));
 process.env.ATOMIC_WORKFLOW_ARTIFACT_DIR = join(root, "artifacts");
+
+const home = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-home-")));
+const sharedDir = join(home, ".config", "atomic", "goal-select-models");
+const sharedDefaultPath = join(sharedDir, "sol-astra.json");
+const solAstra = {
+  orchestrator_model: "openai-codex/gpt-6.1-sol:medium",
+  reviewer_model: "openai-codex/gpt-6-astra:high",
+  completion_reviewer_model: "openai-codex/gpt-6-astra:high",
+  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
+  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  writer_model: "openai-codex/gpt-6.1-sol:high",
+  max_turns: 10,
+};
+const kimiAstra = {
+  orchestrator_model: "kimi-coding/k3:high",
+  reviewer_model: "openai-codex/gpt-6-astra:high",
+  completion_reviewer_model: "openai-codex/gpt-6-astra:high",
+  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
+  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  writer_model: "kimi-coding/k3:high",
+  max_turns: 10,
+};
+const grokOpus = {
+  orchestrator_model: "xai/grok-4.7:high",
+  reviewer_model: "anthropic/claude-opus-5-5:high",
+  completion_reviewer_model: "anthropic/claude-opus-5-5:high",
+  evidence_reviewer_model: "anthropic/claude-opus-5-5:high",
+  risk_reviewer_model: "anthropic/claude-opus-5-5:xhigh",
+  writer_model: "xai/grok-4.7:high",
+  max_turns: 10,
+};
+const glmGrock = {
+  orchestrator_model: "zai/glm-5.3:high",
+  reviewer_model: "xai/grok-4.7-fast:high",
+  completion_reviewer_model: "xai/grok-4.7-fast:high",
+  evidence_reviewer_model: "xai/grok-4.7-fast:high",
+  risk_reviewer_model: "xai/grok-4.7-fast:xhigh",
+  writer_model: "zai/glm-5.3:high",
+  max_turns: 10,
+};
+const solOpusAstra = {
+  orchestrator_model: "openai-codex/gpt-6.1-sol:high",
+  reviewer_model: "openai-codex/gpt-6-astra:high",
+  completion_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
+  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  writer_model: "anthropic/claude-opus-5-5:xhigh",
+  max_turns: 10,
+};
+const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "sol-opus-astra.json": solOpusAstra };
+const savedHome = process.env.HOME;
+process.env.HOME = home;
+after(() => {
+  if (savedHome === undefined) delete process.env.HOME;
+  else process.env.HOME = savedHome;
+  rmSync(home, { recursive: true, force: true });
+});
+for (const [name, preset] of Object.entries(presets)) writeJson(join(sharedDir, name), preset);
 const { resolveInputs, run, workflow } = await import("@bastani/atomic/workflows");
 const originalChdir = process.chdir;
 const startCwd = process.cwd();
@@ -36,7 +94,7 @@ async function loadGoalSelectFrom(dir) {
 }
 const goalSelect = await loadGoalSelectFrom(root);
 const { branchCloneName, createBranchClone, objectiveSlug, planBranchClone } = await import(new URL("./branch-clone.js", import.meta.url).href);
-const { parseModelPolicy } = await import(new URL("./model-policy.js", import.meta.url).href);
+const { defaultPolicyPath, modelPolicyPaths, parseModelPolicy } = await import(new URL("./model-policy.js", import.meta.url).href);
 const { Type } = await import("typebox");
 const guard = await import(new URL("../../extensions/goal-select-tracker-guard.ts", import.meta.url).href);
 const { STOP_CHOICE: STOP_CHOICE_TEXT } = await import(new URL("./tracker-intake.js", import.meta.url).href);
@@ -210,9 +268,9 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.equal(goalSelect.inputBindings, undefined);
   });
 
-  it("uses the invoking checkout when branch_checkout_dir is blank", async () => {
+  it("uses the invoking checkout when branch_checkout_dir is blank, reading an explicit legacy project-local policy there", async () => {
     for (const blank of ["", "   "]) {
-      const models = await resolveOnly(seed, { branch_checkout_dir: blank });
+      const models = await resolveOnly(seed, { branch_checkout_dir: blank, model_policy_path: defaultJson });
       assert.equal(models.checkout, seed);
       assert.equal(models.launch.policyPath, join(seed, ".atomic", "goal-select-models.json"));
       assert.equal(models.policy.orchestrator_model, "test/seed-orchestrator");
@@ -225,8 +283,8 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.equal((await resolveOnly(clone, { branch_checkout_dir: "seed" })).checkout, seed);
   });
 
-  it("accepts a git bc-add branch clone by absolute path containing spaces", async () => {
-    const models = await resolveOnly(seed, { branch_checkout_dir: clone });
+  it("accepts a git bc-add branch clone by absolute path containing spaces, reading an explicit legacy project-local policy there", async () => {
+    const models = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: defaultJson });
     assert.equal(models.checkout, clone);
     assert.equal(models.policy.orchestrator_model, "test/clone-orchestrator");
   });
@@ -300,70 +358,101 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
   const launchOrchestrator = () => goalSelect.inputs.orchestrator_model.default;
   const launchReviewer = () => goalSelect.inputs.reviewer_model.default;
 
-  it("declares model_policy_path as optional, so an omitted path selects the default .json then .jsonc policy", () => {
+  it("defaults model_policy_path to the shared sol-astra.json preset, so an omitted path selects the shared library", () => {
     const input = goalSelect.inputs.model_policy_path;
-    assert.equal(input.default, undefined);
-    assert.equal(launchInputs({}).model_policy_path, undefined);
+    assert.equal(input.default, sharedDefaultPath);
+    assert.equal(launchInputs({}).model_policy_path, sharedDefaultPath);
+    assert.deepEqual(modelPolicyPaths(undefined), [sharedDefaultPath]);
+    assert.deepEqual(modelPolicyPaths(defaultJson), [defaultJson]);
+    assert.equal(defaultPolicyPath(), sharedDefaultPath);
+    assert.match(input.description, /~\/\.config\/atomic\/goal-select-models\/sol-astra\.json/);
+    assert.match(input.description, /kimi-astra\.json, grok-opus\.json, glm-grock\.json, sol-opus-astra\.json/);
+    assert.match(input.description, /dropping another JSON or JSONC file into that directory/);
+    assert.match(input.description, /including an empty or whitespace string/);
     assert.ok(input.description.includes(defaultJson), input.description);
     assert.ok(input.description.includes(defaultJsonc), input.description);
-    assert.match(input.description, /only when .*\.json is absent/);
-    assert.match(input.description, /Omitted selects the default policy/);
-    assert.match(input.description, /including an empty or whitespace string/);
     assert.doesNotMatch(input.description, /blank/i);
-    assert.match(goalSelect.description, /goal-select-models\.jsonc/);
+    assert.match(goalSelect.description, /goal-select-models\/sol-astra\.json/);
   });
 
-  it("resolves the default policy as .json when present and .jsonc only when .json is absent, under resolve_only and on a real turn 1", async () => {
-    const malformedJson = malformedPolicyText;
-    for (const [label, files, policy, source, models] of [
-      ["only .jsonc", { [defaultJsonc]: jsoncPolicyText }, jsoncPolicy, defaultJsonc, { orchestrator: jsoncPolicy.orchestrator_model, reviewer: jsoncPolicy.reviewer_model }],
-      ["both", { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText }, { orchestrator_model: "test/json-orchestrator" }, defaultJson, { orchestrator: "test/json-orchestrator", reviewer: launchReviewer() }],
-      ["malformed .json beside a valid .jsonc", { [defaultJson]: malformedJson, [defaultJsonc]: jsoncPolicyText }, {}, defaultJson, { orchestrator: launchOrchestrator(), reviewer: launchReviewer() }],
-      ["neither", {}, {}, null, { orchestrator: launchOrchestrator(), reviewer: launchReviewer() }],
+  it("resolves an omitted model_policy_path to the shared sol-astra preset under resolve_only and on a real turn 1, reading no project file", async () => {
+    for (const [label, files] of [
+      ["no project policy", {}],
+      ["project .atomic policies present", { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText }],
     ]) {
-      const dir = policyCheckout(`default policy ${label}`, files);
-      const resolved = await resolveOnly(seed, { branch_checkout_dir: dir });
+      const dir = policyCheckout(`omitted policy ${label}`, files);
+      const resolved = await resolveOnly(seed, { branch_checkout_dir: dir, model_policy_path: undefined });
       assert.equal(resolved.checkout, dir, label);
-      assert.equal(resolved.launch.policyPath, join(dir, defaultJson), label);
-      assert.equal(resolved.launch.policyFallbackPath, join(dir, defaultJsonc), label);
-      assert.deepEqual(resolved.policy, policy, label);
-      assert.equal(resolved.policy_source, source === null ? null : join(dir, source), label);
+      assert.equal(resolved.launch.policyPath, sharedDefaultPath, label);
+      assert.equal("policyFallbackPath" in resolved.launch, false, label);
+      assert.deepEqual(resolved.policy, solAstra, label);
+      assert.equal(resolved.policy_source, sharedDefaultPath, label);
 
-      const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir } });
+      const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir, model_policy_path: undefined } });
       assert.equal((await goalSelect.run(ctx)).status, "complete", label);
       const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
-      assert.equal(byName["orchestrator-1"].model, models.orchestrator, `${label}: turn 1 matches resolve_only`);
-      for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, models.reviewer, `${label} ${role}`);
-      assert.deepEqual(toolArgs(calls, "resolve-models-1"), { path: join(dir, defaultJson), fallback_path: join(dir, defaultJsonc), turn: 1 }, label);
+      assert.equal(byName["orchestrator-1"].model, solAstra.orchestrator_model, `${label}: turn 1 matches resolve_only`);
+      for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, solAstra[`${role}_reviewer_model`], `${label} ${role}`);
+      assert.deepEqual(toolArgs(calls, "resolve-models-1"), { path: sharedDefaultPath, turn: 1 }, label);
       assert.deepEqual(readdirSync(join(dir, ".atomic")).sort(), Object.keys(files).map((path) => basename(path)).sort(), `${label}: nothing written`);
     }
   });
 
-  it("re-resolves the default policy before every turn: .jsonc, then a .json that appears, then .jsonc again once it is gone", async () => {
-    const dir = policyCheckout("default policy turns", { [defaultJsonc]: jsoncPolicyText });
-    const json = join(dir, defaultJson);
+  it("falls back to the launch inputs on a turn whose shared preset is missing or malformed, with no substitute file", async () => {
+    const dir = policyCheckout("omitted policy shared unreadable", {});
+    for (const [label, setup] of [
+      ["missing", (shared) => mkdirSync(dirname(shared), { recursive: true })],
+      ["malformed", (shared) => writeJsonText(shared, malformedPolicyText)],
+    ]) {
+      const altShared = join(root, `home ${label}`, ".config", "atomic", "goal-select-models", "sol-astra.json");
+      setup(altShared);
+      process.env.HOME = join(root, `home ${label}`);
+      try {
+        const resolved = await resolveOnly(seed, { branch_checkout_dir: dir, model_policy_path: undefined });
+        assert.equal(resolved.launch.policyPath, altShared, label);
+        assert.equal("policyFallbackPath" in resolved.launch, false, label);
+        assert.deepEqual(resolved.policy, {}, label);
+        assert.equal(resolved.policy_source, label === "missing" ? null : altShared, label);
+
+        const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir, model_policy_path: undefined } });
+        assert.equal((await goalSelect.run(ctx)).status, "complete", label);
+        assert.equal(modelStages(calls)[0].options.model, launchOrchestrator(), `${label}: the prefilled launch input applies`);
+        assert.deepEqual(toolArgs(calls, "resolve-models-1"), { path: altShared, turn: 1 }, label);
+        assert.deepEqual(readdirSync(join(dir, ".atomic")), [], `${label}: nothing written`);
+      } finally {
+        process.env.HOME = home;
+      }
+    }
+  });
+
+  it("re-resolves the shared preset before every turn: sol-astra, then kimi-astra, then sol-astra again", async () => {
+    const dir = policyCheckout("shared policy turns", {});
     const { ctx, calls } = fakeContext({
       cwd: seed,
-      inputs: { branch_checkout_dir: dir },
+      inputs: { branch_checkout_dir: dir, model_policy_path: undefined },
       onTask: (name) => {
-        if (name === "orchestrator-1") writeFileSync(json, jsonPolicyText);
-        if (name === "orchestrator-2") rmSync(json);
+        if (name === "orchestrator-1") writeJson(sharedDefaultPath, kimiAstra);
+        if (name === "orchestrator-2") writeJson(sharedDefaultPath, solAstra);
         return {};
       },
       review: (name) => (name.endsWith("-3") ? approve : keepGoing),
     });
-    const result = await goalSelect.run(ctx);
-    assert.equal(result.status, "complete");
-    const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
-    assert.equal(byName["orchestrator-1"].model, jsoncPolicy.orchestrator_model);
-    assert.equal(byName["completion-reviewer-1"].model, jsoncPolicy.reviewer_model);
-    assert.equal(byName["orchestrator-2"].model, "test/json-orchestrator");
-    assert.equal(byName["completion-reviewer-2"].model, launchReviewer(), ".json wins whole, without merging .jsonc keys");
-    assert.equal(byName["orchestrator-3"].model, jsoncPolicy.orchestrator_model);
-    assert.equal(byName["completion-reviewer-3"].model, jsoncPolicy.reviewer_model);
-    const turnPolicy = (turn) => calls.find((call) => call.name === `resolve-models-${turn}`).result;
-    assert.equal(turnPolicy(1).maxTurns, 3, "max_turns comes from .jsonc on turn 1");
-    for (const turn of [1, 2, 3]) assert.deepEqual(toolArgs(calls, `resolve-models-${turn}`), { path: json, fallback_path: join(dir, defaultJsonc), turn });
+    try {
+      const result = await goalSelect.run(ctx);
+      assert.equal(result.status, "complete");
+      const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
+      assert.equal(byName["orchestrator-1"].model, solAstra.orchestrator_model);
+      assert.equal(byName["completion-reviewer-1"].model, solAstra.reviewer_model);
+      assert.equal(byName["orchestrator-2"].model, kimiAstra.orchestrator_model);
+      assert.equal(byName["completion-reviewer-2"].model, kimiAstra.reviewer_model, "the whole preset is replaced, without merging");
+      assert.equal(byName["orchestrator-3"].model, solAstra.orchestrator_model);
+      assert.equal(byName["completion-reviewer-3"].model, solAstra.reviewer_model);
+      const turnPolicy = (turn) => calls.find((call) => call.name === `resolve-models-${turn}`).result;
+      assert.equal(turnPolicy(1).maxTurns, 10, "max_turns comes from the shared preset on turn 1");
+      for (const turn of [1, 2, 3]) assert.deepEqual(toolArgs(calls, `resolve-models-${turn}`), { path: sharedDefaultPath, turn });
+    } finally {
+      writeJson(sharedDefaultPath, solAstra);
+    }
   });
 
   it("keeps explicit policy paths exact, including the default .json name, with no .jsonc fallback", async () => {
@@ -411,19 +500,73 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.deepEqual(toolArgs(namedRun.calls, "resolve-models-1"), { path: join(dir, spaces), turn: 1 });
   });
 
-  it("Atomic's runtime accepts an omitted model_policy_path and resolves the default .jsonc policy, under resolve_only and on turn 1", async () => {
-    const dir = policyCheckout("runtime default jsonc", { [defaultJsonc]: jsoncPolicyText });
+  it("Atomic's runtime accepts an omitted model_policy_path and resolves the shared sol-astra preset, under resolve_only and on turn 1", async () => {
+    const dir = policyCheckout("runtime omitted policy", { [defaultJsonc]: jsoncPolicyText });
     const seen = [];
     const adapters = { prompt: { prompt: async (_text, meta) => (seen.push([meta.stageName, meta.stageOptions?.cwd, meta.stageOptions?.model]), "done") } };
     const options = { durability: { mode: "memory" }, cwd: seed, adapters };
     const resolved = await run(goalSelect, { objective: "probe", branch_checkout_dir: dir, resolve_only: true }, options);
     assert.equal(resolved.status, "completed");
     const models = JSON.parse(resolved.result.models);
-    assert.deepEqual(models.policy, jsoncPolicy);
-    assert.equal(models.policy_source, join(dir, defaultJsonc));
+    assert.deepEqual(models.policy, solAstra);
+    assert.equal(models.policy_source, sharedDefaultPath);
     assert.deepEqual(seen, []);
     await run(goalSelect, { objective: "probe", branch_checkout_dir: dir }, options);
-    assert.deepEqual(seen[0], ["orchestrator-1", dir, jsoncPolicy.orchestrator_model]);
+    assert.deepEqual(seen[0], ["orchestrator-1", dir, solAstra.orchestrator_model]);
+  });
+
+  it("ships strict-JSON presets with the configured role models, each selectable by its absolute path", async () => {
+    const repoLibrary = fileURLToPath(new URL("../../../../.config/atomic/goal-select-models/", import.meta.url));
+    const shipped = readdirSync(repoLibrary);
+    for (const name of Object.keys(presets)) assert.ok(shipped.includes(name), `${name} is shipped in the shared library`);
+    assert.equal(shipped.includes("grok-kimi.json"), false, "grok-opus fully replaces the retired grok-kimi preset");
+    for (const [name, preset] of Object.entries(presets)) {
+      const path = join(repoLibrary, name);
+      const text = readFileSync(path, "utf8");
+      assert.deepEqual(JSON.parse(text), preset, `${name} is strict JSON matching its configured role models`);
+      assert.deepEqual(parseModelPolicy(text), preset, `${name} parses through the workflow's JSONC parser`);
+      const resolved = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: path });
+      assert.deepEqual(resolved.policy, preset, `${name} selected by editing the filename to it`);
+      assert.equal(resolved.policy_source, path);
+    }
+  });
+
+  it("keeps preset parity when an extra preset file joins the library, mutating only an isolated copy", async () => {
+    const repoLibrary = fileURLToPath(new URL("../../../../.config/atomic/goal-select-models/", import.meta.url));
+    const digest = (dir) => Object.fromEntries(readdirSync(dir).sort().map((name) => [name, createHash("sha256").update(readFileSync(join(dir, name))).digest("hex")]));
+    const shippedBefore = digest(repoLibrary);
+    const libraryCopy = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-library-")));
+    try {
+      for (const name of readdirSync(repoLibrary)) writeFileSync(join(libraryCopy, name), readFileSync(join(repoLibrary, name)));
+      const customText = `${JSON.stringify({ orchestrator_model: "test/pre-existing-custom", max_turns: 3 }, null, 2)}\n`;
+      const custom = join(libraryCopy, "team-custom.json");
+      writeFileSync(custom, customText);
+      const shipped = readdirSync(libraryCopy);
+      for (const [name, preset] of Object.entries(presets)) {
+        assert.ok(shipped.includes(name), `${name} is still present alongside the extra preset`);
+        assert.deepEqual(parseModelPolicy(readFileSync(join(libraryCopy, name), "utf8")), preset, `${name} parity holds alongside the extra preset`);
+      }
+      const resolved = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: custom });
+      assert.deepEqual(resolved.policy, { orchestrator_model: "test/pre-existing-custom", max_turns: 3 }, "the extra preset is selectable without registration");
+      assert.equal(readFileSync(custom, "utf8"), customText, "the extra preset's bytes survive the run untouched");
+    } finally {
+      rmSync(libraryCopy, { recursive: true, force: true });
+    }
+    assert.deepEqual(digest(repoLibrary), shippedBefore, "the shipped library's filenames and bytes are untouched by the suite");
+  });
+
+  it("selects a preset dropped into the library directory by editing only the filename, with no registration", async () => {
+    const dropped = join(sharedDir, "ora-tempo.json");
+    writeJson(dropped, { orchestrator_model: "test/dropped-preset", max_turns: 7 });
+    try {
+      const resolved = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: dropped });
+      assert.deepEqual(resolved.policy, { orchestrator_model: "test/dropped-preset", max_turns: 7 });
+      const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, model_policy_path: dropped } });
+      assert.equal((await goalSelect.run(ctx)).status, "complete");
+      assert.equal(modelStages(calls)[0].options.model, "test/dropped-preset");
+    } finally {
+      rmSync(dropped, { force: true });
+    }
   });
 
   for (const [label, input, reason] of [
@@ -569,7 +712,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.match(failed.error ?? "", /does not exist/);
     assert.deepEqual(seen, []);
 
-    await run(goalSelect, { objective: "probe", branch_checkout_dir: "seed feature" }, { durability: { mode: "memory" }, cwd: seed, adapters });
+    await run(goalSelect, { objective: "probe", branch_checkout_dir: "seed feature", model_policy_path: defaultJson }, { durability: { mode: "memory" }, cwd: seed, adapters });
     assert.deepEqual(seen, [["orchestrator-1", clone, "test/clone-orchestrator"]]);
   });
 
@@ -839,9 +982,9 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     const byName = Object.fromEntries(stages.map((stage) => [stage.name, stage.options]));
     assert.ok(byName["orchestrator-1"].prompt.includes(`Current working directory: ${target}`));
     assert.ok(byName["pull-request"].prompt.includes(`Current working directory: ${target}`));
-    assert.equal(byName["orchestrator-1"].model, "test/committed-orchestrator");
-    assert.equal(byName["completion-reviewer-1"].model, "test/committed-reviewer");
-    assert.equal(toolArgs(calls, "resolve-models-1").path, join(target, ".atomic", "goal-select-models.json"));
+    assert.equal(byName["orchestrator-1"].model, solAstra.orchestrator_model, "the shared preset wins over the clone's committed project-local policy");
+    assert.equal(byName["completion-reviewer-1"].model, solAstra.reviewer_model);
+    assert.equal(toolArgs(calls, "resolve-models-1").path, sharedDefaultPath);
     assert.deepEqual(seedState(autoSeed), initialSeed);
     assert.equal(process.cwd(), startCwd);
   });
@@ -866,9 +1009,10 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
       const models = JSON.parse(result.models);
       assert.equal(models.checkout, null);
       assert.deepEqual(models.planned_checkout, { path: target, branch: "goal-fix-login-redirect-loop-b9d17232", seed: autoSeed, seed_head: seedHead, created: false });
-      assert.equal(models.launch.policyPath, join(target, ".atomic", "goal-select-models.json"));
-      assert.deepEqual(models.policy, committedPolicy);
-      assert.equal(models.policy_source, `.atomic/goal-select-models.json at seed commit ${seedHead.slice(0, 12)} (the clone gets this committed file)`);
+      assert.equal(models.launch.policyPath, sharedDefaultPath);
+      assert.equal("policyFallbackPath" in models.launch, false);
+      assert.deepEqual(models.policy, solAstra);
+      assert.equal(models.policy_source, sharedDefaultPath, "the shared absolute preset is previewed as-is, never copied");
       assert.ok(result.result.startsWith("- Preview only: no branch clone was created and no Goal stage ran."), result.result);
       assert.ok(result.result.includes(`- Planned clone: ${target}`), result.result);
       assert.equal(existsSync(target), false);
@@ -950,24 +1094,22 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     assert.deepEqual(seedState(jsoncSeed), jsoncSeedBefore);
   });
 
-  it("hands the default policy to a new clone as the clone reads it: .json first, .jsonc only when .json is absent, matched by the preview", async () => {
+  it("hands an explicit project-local policy to a new clone as the clone reads it, matched by the preview", async () => {
     const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: goalSelect.inputs.reviewer_model.default };
     const fromJsonc = { orchestrator: jsoncPolicy.orchestrator_model, reviewer: jsoncPolicy.reviewer_model };
     const fromJson = { orchestrator: "test/json-orchestrator", reviewer: launch.reviewer };
     const committedFile = (path, head) => `${path} at seed commit ${head} (the clone gets this committed file)`;
     const uncommittedFile = (dir, path) => `${join(dir, path)} (not committed; copied into the clone when it is created)`;
-    for (const [label, committed, untracked, expected, inputs = {}] of [
+    for (const [label, committed, untracked, expected] of [
       ["untracked .jsonc only", {}, { [defaultJsonc]: jsoncPolicyText }, { policy: jsoncPolicy, source: "uncommitted", path: defaultJsonc, copied: defaultJsonc, models: fromJsonc }],
       ["committed .jsonc only", { [defaultJsonc]: jsoncPolicyText }, {}, { policy: jsoncPolicy, source: "committed", path: defaultJsonc, copied: null, models: fromJsonc }],
       ["untracked .json and .jsonc", {}, { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText }, { policy: { orchestrator_model: "test/json-orchestrator" }, source: "uncommitted", path: defaultJson, copied: defaultJson, models: fromJson }],
       ["committed .json, untracked .jsonc", { [defaultJson]: jsonPolicyText }, { [defaultJsonc]: jsoncPolicyText }, { policy: { orchestrator_model: "test/json-orchestrator" }, source: "committed", path: defaultJson, copied: null, models: fromJson }],
-      ["committed .jsonc, untracked .json", { [defaultJsonc]: jsoncPolicyText }, { [defaultJson]: jsonPolicyText }, { policy: { orchestrator_model: "test/json-orchestrator" }, source: "uncommitted", path: defaultJson, copied: defaultJson, models: fromJson }],
       ["untracked malformed .json beside a valid .jsonc", {}, { [defaultJson]: malformedPolicyText, [defaultJsonc]: jsoncPolicyText }, { policy: {}, source: "uncommitted", path: defaultJson, copied: defaultJson, models: launch }],
       ["committed malformed .json beside a committed .jsonc", { [defaultJson]: malformedPolicyText, [defaultJsonc]: jsoncPolicyText }, {}, { policy: {}, source: "committed", path: defaultJson, copied: null, models: launch }],
-      ["neither", {}, {}, { policy: {}, source: null, path: null, copied: null, models: launch }],
-      ["explicit default .json name beside an untracked .jsonc", {}, { [defaultJsonc]: jsoncPolicyText }, { policy: {}, source: null, path: null, copied: null, models: launch, explicit: true }, { model_policy_path: defaultJson }],
+      ["missing", {}, {}, { policy: {}, source: null, path: defaultJson, copied: null, models: launch }],
     ]) {
-      const dir = makeRepo(join(autoRoot, `default policy ${label}`), { commit: false });
+      const dir = makeRepo(join(autoRoot, `explicit policy ${label}`), { commit: false });
       for (const [path, text] of Object.entries(committed)) writeJsonText(join(dir, path), text);
       git("-C", dir, "add", ".");
       git("-C", dir, "commit", "--quiet", "--allow-empty", "-m", "Policies");
@@ -976,18 +1118,18 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
       const head = before.head.slice(0, 12);
       const source = expected.source === "committed" ? committedFile(expected.path, head) : expected.source === "uncommitted" ? uncommittedFile(dir, expected.path) : null;
 
-      const preview = await autoRun({ cwd: dir, inputs: { ...inputs, resolve_only: true } });
+      const preview = await autoRun({ cwd: dir, inputs: { model_policy_path: expected.path, resolve_only: true } });
       assert.deepEqual(modelStages(preview.calls), [], label);
       const previewed = JSON.parse(preview.result.models);
       assert.deepEqual(previewed.policy, expected.policy, label);
       assert.equal(previewed.policy_source, source, label);
-      assert.equal(previewed.launch.policyPath, join(preview.target, defaultJson), label);
-      assert.equal(previewed.launch.policyFallbackPath, expected.explicit ? undefined : join(preview.target, defaultJsonc), label);
+      assert.equal(previewed.launch.policyPath, join(preview.target, expected.path), label);
+      assert.equal("policyFallbackPath" in previewed.launch, false, label);
       assert.ok(preview.result.result.includes(`- Turn-1 model policy: ${source ?? "no policy file found; launch inputs apply"}`), `${label}: ${preview.result.result}`);
       assert.equal(existsSync(preview.target), false, `${label}: preview creates no clone`);
       assert.deepEqual(seedState(dir), before, `${label}: preview leaves the seed alone`);
 
-      const actual = await autoRun({ cwd: dir, inputs });
+      const actual = await autoRun({ cwd: dir, inputs: { model_policy_path: expected.path } });
       assert.equal(actual.result.status, "complete", label);
       assert.equal(created(actual.calls).policy_copied_from, expected.copied === null ? null : join(dir, expected.copied), label);
       const cloned = existsSync(join(actual.target, ".atomic")) ? readdirSync(join(actual.target, ".atomic")).sort() : [];
@@ -1002,27 +1144,27 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     }
   });
 
-  it("falls back to .jsonc in the clone when the committed default .json is a dangling symlink, in the preview and the run alike", async () => {
-    const dir = makeRepo(join(autoRoot, "default policy dangling json"), { commit: false });
+  it("reads a committed dangling policy symlink in the clone as no policy, in the preview and the run alike", async () => {
+    const dir = makeRepo(join(autoRoot, "explicit policy dangling json"), { commit: false });
     mkdirSync(join(dir, ".atomic"));
     symlinkSync("missing-models.json", join(dir, defaultJson));
     git("-C", dir, "add", ".");
     git("-C", dir, "commit", "--quiet", "-m", "Dangling policy link");
-    writeFileSync(join(dir, defaultJsonc), jsoncPolicyText);
     const before = seedState(dir);
+    const head = before.head.slice(0, 12);
 
-    const preview = JSON.parse((await autoRun({ cwd: dir, inputs: { resolve_only: true } })).result.models);
-    assert.deepEqual(preview.policy, jsoncPolicy);
-    assert.equal(preview.policy_source, `${join(dir, defaultJsonc)} (not committed; copied into the clone when it is created)`);
+    const preview = JSON.parse((await autoRun({ cwd: dir, inputs: { resolve_only: true, model_policy_path: defaultJson } })).result.models);
+    assert.deepEqual(preview.policy, {});
+    assert.equal(preview.policy_source, `${defaultJson} at seed commit ${head}, resolved through committed symlinks to .atomic/missing-models.json, which is not committed, so the clone reads no policy there`);
 
-    const actual = await autoRun({ cwd: dir });
-    assert.equal(created(actual.calls).policy_copied_from, join(dir, defaultJsonc));
+    const actual = await autoRun({ cwd: dir, inputs: { model_policy_path: defaultJson } });
+    assert.equal(created(actual.calls).policy_copied_from, null);
     assert.equal(lstatSync(join(actual.target, defaultJson)).isSymbolicLink(), true);
-    assert.equal(modelStages(actual.calls)[0].options.model, jsoncPolicy.orchestrator_model);
+    assert.equal(modelStages(actual.calls)[0].options.model, goalSelect.inputs.orchestrator_model.default);
     assert.deepEqual(seedState(dir), before);
   });
 
-  it("Atomic's runtime previews and runs the default .jsonc policy in a new branch clone of a seed that has only an ignored .jsonc", async () => {
+  it("Atomic's runtime previews and runs an explicit ignored .jsonc policy in a new branch clone", async () => {
     const dir = makeRepo(join(autoRoot, "runtime jsonc seed"), { commit: false });
     writeFileSync(join(dir, ".gitignore"), ".atomic/\n");
     git("-C", dir, "add", ".");
@@ -1033,7 +1175,7 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     const adapters = { prompt: { prompt: async (_text, meta) => (seen.push([meta.stageName, meta.stageOptions?.cwd, meta.stageOptions?.model]), "done") } };
     const options = (runId) => ({ durability: { mode: "memory" }, cwd: dir, adapters, runId });
 
-    const preview = await run(goalSelect, { objective, resolve_only: true }, options(randomUUID()));
+    const preview = await run(goalSelect, { objective, resolve_only: true, model_policy_path: defaultJsonc }, options(randomUUID()));
     assert.equal(preview.status, "completed");
     const models = JSON.parse(preview.result.models);
     assert.deepEqual(models.policy, jsoncPolicy);
@@ -1043,7 +1185,7 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
 
     const runId = randomUUID();
     const target = join(autoRoot, `runtime jsonc seed.goal-${slug}-${idFor(runId)}`);
-    await run(goalSelect, { objective }, options(runId));
+    await run(goalSelect, { objective, model_policy_path: defaultJsonc }, options(runId));
     assert.deepEqual(seen[0], ["orchestrator-1", target, jsoncPolicy.orchestrator_model]);
     assert.equal(readFileSync(join(target, defaultJsonc), "utf8"), jsoncPolicyText);
     assert.equal(existsSync(join(target, defaultJson)), false);
@@ -1586,14 +1728,14 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     assert.equal(existsSync(models.planned_checkout.path), false);
     assert.deepEqual(seen, []);
 
-    await run(goalSelect, { objective }, options(runId));
+    await run(goalSelect, { objective, model_policy_path: defaultJson }, options(runId));
     assert.deepEqual(seen, [["orchestrator-1", target, "test/committed-orchestrator"]]);
     assert.equal(git("-C", target, "branch", "--show-current"), `goal-${slug}-${idFor(runId)}`);
     assert.equal(git("-C", target, "config", "--local", "goal-select.completed-run"), runId);
     assert.equal(git("-C", target, "config", "bc.source"), autoSeed);
     const siblingsAfterFirst = siblings();
 
-    await run(goalSelect, { objective }, options(runId));
+    await run(goalSelect, { objective, model_policy_path: defaultJson }, options(runId));
     assert.deepEqual(seen.at(-1), ["orchestrator-1", target, "test/committed-orchestrator"]);
     assert.deepEqual(siblings(), siblingsAfterFirst);
     assert.deepEqual(seedState(autoSeed), initialSeed);
@@ -1682,20 +1824,22 @@ describe("goal-select model policy parser (JSONC)", () => {
   });
 });
 
-describe("goal-select launch-form prefill (module evaluated in each directory, as Atomic discovery does)", () => {
+describe("goal-select launch-form prefill (module evaluated as Atomic discovery does, reading the shared default preset)", () => {
   const builtin = { orchestrator_model: "openai-codex/gpt-6-astra:medium", reviewer_model: "openai-codex/gpt-6-astra:high", max_turns: 10 };
   const roleKeys = ["completion_reviewer_model", "evidence_reviewer_model", "risk_reviewer_model", "writer_model"];
+  const sharedPreset = join(".config", "atomic", "goal-select-models", "sol-astra.json");
   let prefillRoot;
+  let prefillCwd;
 
-  function checkoutWith(name, files) {
-    const dir = join(prefillRoot, name);
-    mkdirSync(dir, { recursive: true });
-    for (const [path, text] of Object.entries(files)) writeJsonText(join(dir, path), text);
-    return dir;
-  }
-
-  function defaults(definition) {
-    return Object.fromEntries(Object.entries(definition.inputs).flatMap(([key, schema]) => (schema.default === undefined ? [] : [[key, schema.default]])));
+  async function loadWithHome(name, files) {
+    const homeDir = join(prefillRoot, name);
+    for (const [path, text] of Object.entries(files)) writeJsonText(join(homeDir, path), text);
+    process.env.HOME = homeDir;
+    try {
+      return await loadGoalSelectFrom(prefillCwd);
+    } finally {
+      process.env.HOME = home;
+    }
   }
 
   function assertBuiltinDefaults(definition, label) {
@@ -1705,16 +1849,17 @@ describe("goal-select launch-form prefill (module evaluated in each directory, a
 
   before(() => {
     prefillRoot = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-prefill-")));
+    prefillCwd = join(prefillRoot, "cwd");
+    writeJsonText(join(prefillCwd, defaultJson), jsonPolicyText);
   });
 
   after(() => {
     rmSync(prefillRoot, { recursive: true, force: true });
   });
 
-  it("keeps the current defaults when no policy file exists, and Atomic's input resolution accepts the definition", async () => {
-    const definition = await loadGoalSelectFrom(checkoutWith("absent", {}));
+  it("keeps the builtin defaults when the shared preset is absent, never reading a project-local policy where Atomic runs, and Atomic's input resolution accepts the definition", async () => {
+    const definition = await loadWithHome("absent", {});
     assertBuiltinDefaults(definition, "absent");
-    assert.deepEqual(defaults(definition), defaults(goalSelect));
     const resolved = resolveInputs(definition.inputs, { objective: "probe" });
     assert.equal(resolved.orchestrator_model, builtin.orchestrator_model);
     assert.equal(resolved.max_turns, 10);
@@ -1722,7 +1867,14 @@ describe("goal-select launch-form prefill (module evaluated in each directory, a
     assert.equal("completion_reviewer_model" in resolved, false);
   });
 
-  it("prefills every supported key from .atomic/goal-select-models.json as real launch-form defaults that Atomic applies", async () => {
+  it("defaults model_policy_path to the home-derived shared sol-astra.json, whatever directory Atomic discovers in", async () => {
+    const definition = await loadWithHome("default path", {});
+    const expected = join(prefillRoot, "default path", sharedPreset);
+    assert.equal(definition.inputs.model_policy_path.default, expected);
+    assert.equal(resolveInputs(definition.inputs, { objective: "probe" }).model_policy_path, expected);
+  });
+
+  it("prefills every supported key from the shared sol-astra.json as real launch-form defaults that Atomic applies", async () => {
     const policy = {
       orchestrator_model: "  test/prefill-orchestrator  ",
       reviewer_model: "test/prefill-reviewer",
@@ -1732,7 +1884,7 @@ describe("goal-select launch-form prefill (module evaluated in each directory, a
       writer_model: "test/prefill-writer",
       max_turns: 4.7,
     };
-    const definition = await loadGoalSelectFrom(checkoutWith("json", { [defaultJson]: JSON.stringify(policy) }));
+    const definition = await loadWithHome("json", { [sharedPreset]: JSON.stringify(policy) });
     const expected = {
       orchestrator_model: "test/prefill-orchestrator",
       reviewer_model: "test/prefill-reviewer",
@@ -1747,34 +1899,30 @@ describe("goal-select launch-form prefill (module evaluated in each directory, a
     for (const [key, value] of Object.entries(expected)) assert.equal(resolved[key], value, `resolved ${key}`);
     assert.equal(resolveInputs(definition.inputs, { objective: "probe", orchestrator_model: "test/typed" }).orchestrator_model, "test/typed");
     assert.equal(resolveInputs(definition.inputs, { objective: "probe", writer_model: "" }).writer_model, "");
-    assert.equal(goalSelect.inputs.orchestrator_model.default, builtin.orchestrator_model, "other directories keep their own prefill");
+    assert.equal(goalSelect.inputs.orchestrator_model.default, solAstra.orchestrator_model, "other homes keep their own prefill");
   });
 
-  it("prefills from .jsonc, comments and trailing commas included, only when .json is absent", async () => {
-    const definition = await loadGoalSelectFrom(checkoutWith("jsonc", { [defaultJsonc]: jsoncPolicyText }));
+  it("prefills from a JSONC shared preset, comments and trailing commas included", async () => {
+    const definition = await loadWithHome("jsonc", { [sharedPreset]: jsoncPolicyText });
     assert.equal(definition.inputs.orchestrator_model.default, jsoncPolicy.orchestrator_model);
     assert.equal(definition.inputs.reviewer_model.default, jsoncPolicy.reviewer_model);
     assert.equal(definition.inputs.max_turns.default, 3);
   });
 
-  it("uses .json over .jsonc when both exist, without merging keys from the .jsonc", async () => {
-    const definition = await loadGoalSelectFrom(checkoutWith("both", { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText }));
-    assert.equal(definition.inputs.orchestrator_model.default, "test/json-orchestrator");
-    assert.equal(definition.inputs.reviewer_model.default, builtin.reviewer_model);
-    assert.equal(definition.inputs.max_turns.default, 10);
+  it("reads only sol-astra.json from the library: another preset file there changes no prefill", async () => {
+    const definition = await loadWithHome("other preset", { [join(".config", "atomic", "goal-select-models", "kimi-astra.json")]: jsonPolicyText });
+    assertBuiltinDefaults(definition, "other preset");
   });
 
-  it("keeps every current default for a malformed .json, without falling back to .jsonc", async () => {
-    const definition = await loadGoalSelectFrom(checkoutWith("malformed", { [defaultJson]: malformedPolicyText, [defaultJsonc]: jsoncPolicyText }));
+  it("keeps every current default for a malformed shared preset", async () => {
+    const definition = await loadWithHome("malformed", { [sharedPreset]: malformedPolicyText });
     assertBuiltinDefaults(definition, "malformed");
   });
 
-  it("ignores missing keys and wrong-typed values key by key, and non-object or unreadable policies entirely", async () => {
-    const mixed = await loadGoalSelectFrom(
-      checkoutWith("mixed", {
-        [defaultJson]: JSON.stringify({ orchestrator_model: 42, reviewer_model: "   ", completion_reviewer_model: null, writer_model: ["x"], risk_reviewer_model: "test/only-risk", max_turns: "5" }),
-      }),
-    );
+  it("ignores missing keys and wrong-typed values key by key, and non-object or unreadable shared presets entirely", async () => {
+    const mixed = await loadWithHome("mixed", {
+      [sharedPreset]: JSON.stringify({ orchestrator_model: 42, reviewer_model: "   ", completion_reviewer_model: null, writer_model: ["x"], risk_reviewer_model: "test/only-risk", max_turns: "5" }),
+    });
     assert.equal(mixed.inputs.orchestrator_model.default, builtin.orchestrator_model);
     assert.equal(mixed.inputs.reviewer_model.default, builtin.reviewer_model);
     assert.equal(mixed.inputs.completion_reviewer_model.default, undefined);
@@ -1782,33 +1930,35 @@ describe("goal-select launch-form prefill (module evaluated in each directory, a
     assert.equal(mixed.inputs.risk_reviewer_model.default, "test/only-risk");
     assert.equal(mixed.inputs.max_turns.default, 10);
     for (const [name, maxTurns] of [["zero", 0], ["negative", -3], ["fraction", 0.5]]) {
-      const definition = await loadGoalSelectFrom(checkoutWith(name, { [defaultJson]: JSON.stringify({ max_turns: maxTurns }) }));
+      const definition = await loadWithHome(name, { [sharedPreset]: JSON.stringify({ max_turns: maxTurns }) });
       assert.equal(definition.inputs.max_turns.default, 10, name);
     }
     for (const [name, text] of [["array", "[1, 2]"], ["string", '"test/x"'], ["null", "null"]]) {
-      assertBuiltinDefaults(await loadGoalSelectFrom(checkoutWith(name, { [defaultJson]: text })), name);
+      assertBuiltinDefaults(await loadWithHome(name, { [sharedPreset]: text }), name);
     }
-    const unreadable = checkoutWith("unreadable", {});
-    mkdirSync(join(unreadable, defaultJson), { recursive: true });
-    assertBuiltinDefaults(await loadGoalSelectFrom(unreadable), "unreadable");
+    const unreadable = join(prefillRoot, "unreadable", sharedPreset);
+    mkdirSync(unreadable, { recursive: true });
+    assertBuiltinDefaults(await loadWithHome("unreadable", {}), "unreadable");
   });
 
   it("still re-reads the policy before every turn: prefilled launch values are only the fallback", async () => {
-    const dir = checkoutWith("refresh", { [defaultJson]: JSON.stringify({ orchestrator_model: "test/prefill-orchestrator", reviewer_model: "test/prefill-reviewer", max_turns: 3 }) });
+    const definition = await loadWithHome("refresh", { [sharedPreset]: JSON.stringify({ orchestrator_model: "test/prefill-orchestrator", reviewer_model: "test/prefill-reviewer", max_turns: 3 }) });
+    const sharedFile = join(prefillRoot, "refresh", sharedPreset);
+    const dir = join(prefillRoot, "refresh cwd");
     git("init", "--quiet", "-b", "main", dir);
     git("-C", dir, "commit", "--quiet", "--allow-empty", "-m", "Prefill commit");
-    const definition = await loadGoalSelectFrom(dir);
     const { ctx, calls } = fakeContext({
       cwd: dir,
       definition,
       inputs: { branch_checkout_dir: "" },
       onTask: (name) => {
-        if (name === "orchestrator-1") writeJson(join(dir, defaultJson), { orchestrator_model: "test/turn-2-orchestrator" });
+        if (name === "orchestrator-1") writeJson(sharedFile, { orchestrator_model: "test/turn-2-orchestrator" });
         return {};
       },
       review: (name) => (name.endsWith("-1") ? keepGoing : approve),
     });
     assert.equal(ctx.inputs.max_turns, 3);
+    assert.equal(ctx.inputs.model_policy_path, sharedFile);
     const result = await definition.run(ctx);
     assert.equal(result.status, "complete");
     const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));

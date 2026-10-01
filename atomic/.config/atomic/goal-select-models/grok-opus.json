@@ -1,0 +1,9 @@
+{
+  "orchestrator_model": "xai/grok-4.7:high",
+  "reviewer_model": "anthropic/claude-opus-5-5:high",
+  "completion_reviewer_model": "anthropic/claude-opus-5-5:high",
+  "evidence_reviewer_model": "anthropic/claude-opus-5-5:high",
+  "risk_reviewer_model": "anthropic/claude-opus-5-5:xhigh",
+  "writer_model": "xai/grok-4.7:high",
+  "max_turns": 10
+}

@@ -266,15 +266,33 @@ References: [official setup](https://bastani.ai/),
 a model choice per role, registered through
 `atomic/.atomic/agent/extensions/workflow/config.json`. By default it works in
 a new `git bc-add` branch clone beside the invoking checkout and rereads a
-JSONC model policy before every turn: `.atomic/goal-select-models.json`, or
-`.atomic/goal-select-models.jsonc` only when the `.json` is absent.
+JSONC model policy before every turn.
 
-The launch form's model inputs and `max_turns` are prefilled from that default
-policy in the directory Atomic runs in. Atomic has no per-launch default hook:
-input defaults are the values the workflow module computes when Atomic
-discovers workflows, at session start or `/workflow reload`. After editing the
-policy, run `/workflow reload` to refresh the form; turns still reread the
-file. `model_policy_path` does not affect the form, and missing, malformed or
+The policy is a preset from the shared library at
+`~/.config/atomic/goal-select-models/`, stowed from this repo and shared by
+every project, checkout and branch clone: `sol-astra.json` (the default),
+`kimi-astra.json`, `grok-opus.json`, `glm-grock.json` and
+`sol-opus-astra.json`. Each preset pins the six role models and `max_turns: 10`.
+The launch form's `model_policy_path`
+defaults to the installed `sol-astra.json` path; pick another preset by
+editing only the filename in that field, and add one by dropping another JSON
+or JSONC file into the directory — no list to update. An explicit absolute or
+relative path, including a legacy project-local
+`.atomic/goal-select-models.json` or `.jsonc`, is still read exactly as
+given.
+
+`grok-opus.json` replaces the former `grok-kimi.json`: Grok 4.7 implements
+and orchestrates at high effort, with Opus 5.5 reviewing at high effort and
+xhigh for risk. `sol-opus-astra.json` is for complicated work: Sol 6.1
+orchestrates at high, Opus 5.5 implements at xhigh, and Astra reviews at xhigh
+for completion and risk, with high for evidence and the shared reviewer fallback.
+
+The launch form's model inputs and `max_turns` are prefilled from the shared
+default preset. Atomic has no per-launch default hook: input defaults are the
+values the workflow module computes when Atomic discovers workflows, at
+session start or `/workflow reload`. After editing the preset, run
+`/workflow reload` to refresh the form; turns still reread the file.
+`model_policy_path` does not affect the form, and missing, malformed or
 wrongly typed values keep the built-in defaults.
 
 Set `tracker` to `jira` or `linear` to take the work from one issue instead of
