@@ -296,6 +296,14 @@ session start or `/workflow reload`. After editing the preset, run
 `model_policy_path` does not affect the form, and missing, malformed or
 wrongly typed values keep the built-in defaults.
 
+Atomic starts workflow stages without switching on its `codemode` MCP
+discovery tool, so a stage cannot reach MCP tools that ordinary sessions
+reach. `atomic/.atomic/agent/extensions/goal-select-mcp-discovery.ts` turns
+`codemode` on in goal-select's own stages, including delegated agents without
+a tool allowlist, when a configured server uses `codemode` exposure. Explicit
+exclusions, allowlists, `-builtin:codemode` and `"autoEnableCodemode": false`
+still win, and other workflows are unaffected.
+
 Set `tracker` to `jira` or `linear` to take the work from one issue instead of
 `objective`. `tracker_issue` takes a key, URL or search words, and
 `tracker_mcp_server` overrides the MCP server (`atlassian` or `linear`).

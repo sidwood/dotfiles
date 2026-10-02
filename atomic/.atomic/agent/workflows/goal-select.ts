@@ -2,6 +2,7 @@ import { homedir } from "node:os";
 import { workflow } from "@bastani/atomic/workflows";
 import { Type } from "typebox";
 import { withSteeringPropagationContext } from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/steering-context.js";
+import { markGoalSelectRun } from "../extensions/goal-select-mcp-discovery.ts";
 import { resolveBranchCheckout, resolvePolicyPath } from "./goal-select/branch-checkout.js";
 import {
   CLONE_TIMEOUT_MS,
@@ -240,6 +241,7 @@ export default workflow({
   },
   run: async (ctx) => {
     const invocationCwd = ctx.cwd ?? process.cwd();
+    markGoalSelectRun(ctx.runId);
     const intake = trackerIntake(ctx.inputs, invocationCwd);
     if (!intake && !ctx.inputs.objective?.trim()) throw new Error("goal requires an objective input.");
     const trackerConfig = intake

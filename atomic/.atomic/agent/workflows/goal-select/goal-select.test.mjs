@@ -134,6 +134,7 @@ const { defaultPolicyPath, modelPolicyPaths, parseModelPolicy } = await import(n
 const { Type } = await import("typebox");
 const guard = await import(new URL("../../extensions/goal-select-tracker-guard.ts", import.meta.url).href);
 const { STOP_CHOICE: STOP_CHOICE_TEXT } = await import(new URL("./tracker-intake.js", import.meta.url).href);
+const discovery = await import(new URL("../../extensions/goal-select-mcp-discovery.ts", import.meta.url).href);
 
 const server = join(root, "server.git");
 const seed = join(root, "seed");
@@ -750,6 +751,24 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
 
     await run(goalSelect, { objective: "probe", branch_checkout_dir: "seed feature", model_policy_path: defaultJson }, { durability: { mode: "memory" }, cwd: seed, adapters });
     assert.deepEqual(seen, [["orchestrator-1", clone, "test/clone-orchestrator"]]);
+  });
+
+  it("Atomic's runtime marks the run that owns goal-select's stages, so its MCP discovery extension can recognise them", async () => {
+    const seen = [];
+    const adapters = {
+      prompt: {
+        prompt: async (_text, meta) => {
+          seen.push(meta.runId);
+          return "done";
+        },
+      },
+    };
+    const runId = `goal-select-mark-${randomUUID()}`;
+    assert.equal(discovery.isGoalSelectRun(runId), false);
+    await run(goalSelect, { objective: "probe", branch_checkout_dir: "seed feature", model_policy_path: defaultJson }, { durability: { mode: "memory" }, cwd: seed, adapters, runId });
+    assert.ok(seen.length > 0);
+    assert.ok(seen.every((stageRunId) => stageRunId === runId && discovery.isGoalSelectRun(stageRunId)), JSON.stringify(seen));
+    assert.equal(discovery.isGoalSelectRun("some-other-workflow-run"), false);
   });
 
   it("leaves Git state alone: no worktrees, no branch switches, no process.chdir", () => {
