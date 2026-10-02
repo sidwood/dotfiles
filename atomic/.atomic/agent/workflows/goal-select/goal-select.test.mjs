@@ -60,6 +60,15 @@ const glmGrock = {
   writer_model: "zai/glm-5.3:high",
   max_turns: 10,
 };
+const glmSol = {
+  orchestrator_model: "zai/glm-5.3:high",
+  reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  completion_reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
+  writer_model: "zai/glm-5.3:max",
+  max_turns: 10,
+};
 const solOpusAstra = {
   orchestrator_model: "openai-codex/gpt-6.1-sol:high",
   reviewer_model: "openai-codex/gpt-6-astra:high",
@@ -69,7 +78,7 @@ const solOpusAstra = {
   writer_model: "anthropic/claude-opus-5-5:xhigh",
   max_turns: 10,
 };
-const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "sol-opus-astra.json": solOpusAstra };
+const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "glm-sol.json": glmSol, "sol-opus-astra.json": solOpusAstra };
 const savedHome = process.env.HOME;
 process.env.HOME = home;
 after(() => {
@@ -366,7 +375,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.deepEqual(modelPolicyPaths(defaultJson), [defaultJson]);
     assert.equal(defaultPolicyPath(), sharedDefaultPath);
     assert.match(input.description, /~\/\.config\/atomic\/goal-select-models\/sol-astra\.json/);
-    assert.match(input.description, /kimi-astra\.json, grok-opus\.json, glm-grock\.json, sol-opus-astra\.json/);
+    assert.match(input.description, /kimi-astra\.json, grok-opus\.json, glm-grock\.json, glm-sol\.json, sol-opus-astra\.json/);
     assert.match(input.description, /dropping another JSON or JSONC file into that directory/);
     assert.match(input.description, /including an empty or whitespace string/);
     assert.ok(input.description.includes(defaultJson), input.description);

@@ -1,0 +1,9 @@
+{
+  "orchestrator_model": "zai/glm-5.3:high",
+  "reviewer_model": "openai-codex/gpt-6.1-sol:high",
+  "completion_reviewer_model": "openai-codex/gpt-6.1-sol:high",
+  "evidence_reviewer_model": "openai-codex/gpt-6.1-sol:high",
+  "risk_reviewer_model": "openai-codex/gpt-6.1-sol:xhigh",
+  "writer_model": "zai/glm-5.3:max",
+  "max_turns": 10
+}
