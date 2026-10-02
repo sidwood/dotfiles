@@ -4,6 +4,6 @@
   "completion_reviewer_model": "xai/grok-4.7-fast:high",
   "evidence_reviewer_model": "xai/grok-4.7-fast:high",
   "risk_reviewer_model": "xai/grok-4.7-fast:xhigh",
-  "writer_model": "zai/glm-5.3:high",
+  "writer_model": "zai/glm-5.3:max",
   "max_turns": 10
 }

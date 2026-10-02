@@ -1,9 +1,9 @@
 {
-  "orchestrator_model": "kimi-coding/k3:high",
+  "orchestrator_model": "zai/glm-5.3:high",
   "reviewer_model": "openai-codex/gpt-6-astra:high",
   "completion_reviewer_model": "openai-codex/gpt-6-astra:high",
   "evidence_reviewer_model": "openai-codex/gpt-6-astra:high",
   "risk_reviewer_model": "openai-codex/gpt-6-astra:xhigh",
-  "writer_model": "kimi-coding/k3:max",
+  "writer_model": "zai/glm-5.3:max",
   "max_turns": 10
 }
