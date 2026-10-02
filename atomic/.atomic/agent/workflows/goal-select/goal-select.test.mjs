@@ -78,7 +78,34 @@ const solOpusAstra = {
   writer_model: "anthropic/claude-opus-5-5:xhigh",
   max_turns: 10,
 };
-const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "glm-sol.json": glmSol, "sol-opus-astra.json": solOpusAstra };
+const opusFable = {
+  orchestrator_model: "anthropic/claude-opus-5-5:high",
+  reviewer_model: "anthropic/claude-fable-5-1:high",
+  completion_reviewer_model: "anthropic/claude-fable-5-1:xhigh",
+  evidence_reviewer_model: "anthropic/claude-fable-5-1:high",
+  risk_reviewer_model: "anthropic/claude-fable-5-1:xhigh",
+  writer_model: "anthropic/claude-opus-5-5:xhigh",
+  max_turns: 10,
+};
+const solFable = {
+  orchestrator_model: "openai-codex/gpt-6.1-sol:high",
+  reviewer_model: "anthropic/claude-fable-5-1:high",
+  completion_reviewer_model: "anthropic/claude-fable-5-1:xhigh",
+  evidence_reviewer_model: "anthropic/claude-fable-5-1:high",
+  risk_reviewer_model: "anthropic/claude-fable-5-1:xhigh",
+  writer_model: "openai-codex/gpt-6.1-sol:high",
+  max_turns: 10,
+};
+const opusAstra = {
+  orchestrator_model: "anthropic/claude-opus-5-5:high",
+  reviewer_model: "openai-codex/gpt-6-astra:high",
+  completion_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
+  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  writer_model: "anthropic/claude-opus-5-5:xhigh",
+  max_turns: 10,
+};
+const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "glm-sol.json": glmSol, "sol-opus-astra.json": solOpusAstra, "opus-fable.json": opusFable, "sol-fable.json": solFable, "opus-astra.json": opusAstra };
 const savedHome = process.env.HOME;
 process.env.HOME = home;
 after(() => {
@@ -375,7 +402,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.deepEqual(modelPolicyPaths(defaultJson), [defaultJson]);
     assert.equal(defaultPolicyPath(), sharedDefaultPath);
     assert.match(input.description, /~\/\.config\/atomic\/goal-select-models\/sol-astra\.json/);
-    assert.match(input.description, /kimi-astra\.json, grok-opus\.json, glm-grock\.json, glm-sol\.json, sol-opus-astra\.json/);
+    assert.match(input.description, /kimi-astra\.json, grok-opus\.json, glm-grock\.json, glm-sol\.json, sol-opus-astra\.json, opus-fable\.json, sol-fable\.json, opus-astra\.json/);
     assert.match(input.description, /dropping another JSON or JSONC file into that directory/);
     assert.match(input.description, /including an empty or whitespace string/);
     assert.ok(input.description.includes(defaultJson), input.description);
