@@ -1,18 +1,31 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { Type } from "typebox";
-import { TRACKER_GUARD_ENTRY, TRACKER_GUARD_TOOL, trackerGuardDecision } from "../../extensions/goal-select-tracker-guard.ts";
+import { atomicAgentDir, mcpNamespace, nativeMcpConfig } from "../../extensions/goal-select-mcp-discovery.ts";
+import {
+  TOOL_SEARCH_TOOL,
+  TRACKER_GUARD_ENTRY,
+  TRACKER_GUARD_TOOL,
+  TRACKER_READS,
+  mcpToolName,
+  trackerGuardDecision,
+  trackerReadTools,
+  trackerStageName,
+} from "../../extensions/goal-select-tracker-guard.ts";
 
 export const TRACKERS = {
-  jira: { label: "Jira", server: "atlassian", check: "getAccessibleAtlassianResources", fetch: "getJiraIssue", search: "searchJiraIssuesUsingJql" },
-  linear: { label: "Linear", server: "linear", check: "get_workspace", fetch: "get_issue", search: "list_issues" },
+  jira: { label: "Jira", server: "atlassian", ...TRACKER_READS.jira },
+  linear: { label: "Linear", server: "linear", ...TRACKER_READS.linear },
 };
 
 export const TRACKER_GUARD_FILE = "goal-select-tracker-guard.ts";
 export const STOP_CHOICE = "Stop: none of these";
 
 const NOTHING_STARTED = "No checkout or snapshot was created and no Goal stage ran.";
+const SERVER_NAME = /^[A-Za-z0-9_-]+$/;
+const TRUST_INPUTS = ["settings.json", "extensions", "skills", "prompts", "themes", "SYSTEM.md", "APPEND_SYSTEM.md"];
+const CONTEXT_FILES = ["AGENTS.override.md", "AGENTS.md", "AGENTS.MD", "CLAUDE.md", "CLAUDE.MD"];
 
 export function trackerIntake(inputs, cwd) {
   if (inputs.tracker === undefined || inputs.tracker === "none") return undefined;
@@ -29,69 +42,73 @@ export function trackerIntake(inputs, cwd) {
   };
 }
 
-function agentDirs(env, home) {
+export function trackerStage(intake, stage) {
+  return trackerStageName(stage, { tracker: intake.tracker, server: intake.server });
+}
+
+function extensionDirs(env, home) {
   const configured = (env.ATOMIC_CODING_AGENT_DIR ?? env.PI_CODING_AGENT_DIR)?.trim();
-  if (!configured) return [join(home, ".pi", "agent"), join(home, ".atomic", "agent")];
-  if (configured === "~") return [home];
-  return [configured.startsWith("~/") ? resolve(home, configured.slice(2)) : resolve(configured)];
+  if (!configured) return [join(home, ".pi", "agent", "extensions"), join(home, ".atomic", "agent", "extensions")];
+  return [join(atomicAgentDir(env, home), "extensions")];
 }
 
-export function mcpConfigFiles(cwd, env, home) {
-  return [
-    join(home, ".config", "mcp", "mcp.json"),
-    ...agentDirs(env, home).map((dir) => join(dir, "mcp.json")),
-    join(cwd, ".mcp.json"),
-    join(cwd, ".pi", "mcp.json"),
-    join(cwd, ".atomic", "mcp.json"),
-  ];
-}
-
-function importPaths(kind, cwd, home) {
-  const paths = {
-    "claude-code": [join(home, ".claude", "mcp.json"), join(home, ".claude.json"), join(home, ".claude", "claude_desktop_config.json")],
-    "claude-desktop": [join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json")],
-    codex: [join(home, ".codex", "config.json")],
-    windsurf: [join(home, ".windsurf", "mcp.json")],
-    vscode: [resolve(cwd, ".vscode/mcp.json")],
-  };
-  return paths[kind] ?? [];
+function canonical(path) {
+  try {
+    return realpathSync(resolve(path));
+  } catch {
+    return resolve(path);
+  }
 }
 
 function readJson(path) {
-  if (!existsSync(path)) return undefined;
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : undefined;
   } catch {
     return undefined;
   }
 }
 
-function serverMap(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+function hasTrustInputs(cwd, home) {
+  let dir = canonical(cwd);
+  if ([".atomic", ".pi"].some((config) => TRUST_INPUTS.some((entry) => existsSync(join(dir, config, entry))))) return true;
+  const globalSkills = canonical(join(home, ".agents", "skills"));
+  while (true) {
+    if (CONTEXT_FILES.some((name) => existsSync(join(dir, name)))) return true;
+    const skills = canonical(join(dir, ".agents", "skills"));
+    if (skills !== globalSkills && existsSync(skills)) return true;
+    const parent = dirname(dir);
+    if (parent === dir) return false;
+    dir = parent;
+  }
 }
 
-function configuredServers(file, cwd, home) {
-  const config = readJson(file);
-  if (!config || typeof config !== "object") return {};
-  const servers = {};
-  for (const kind of Array.isArray(config.imports) ? config.imports : []) {
-    const path = importPaths(kind, cwd, home).find((candidate) => existsSync(candidate));
-    const imported = path && readJson(path);
-    const entries = serverMap(kind === "windsurf" || kind === "vscode" ? (imported?.mcpServers ?? imported?.["mcp-servers"]) : imported?.mcpServers);
-    for (const [name, entry] of Object.entries(entries)) servers[name] ??= { entry, source: `${path} (imported by ${file})` };
+export function projectTrust(cwd, agentDir, home) {
+  const store = readJson(join(agentDir, "trust.json"));
+  let dir = canonical(cwd);
+  while (store && typeof store === "object") {
+    if (store[dir] === true) return "trusted";
+    if (store[dir] === false) return "untrusted";
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
   }
-  for (const [name, entry] of Object.entries(serverMap(config.mcpServers ?? config["mcp-servers"]))) servers[name] = { entry, source: file };
-  return servers;
+  if (!hasTrustInputs(cwd, home)) return "trusted";
+  const fallback = readJson(join(agentDir, "settings.json"))?.defaultProjectTrust;
+  return fallback === "always" ? "trusted" : fallback === "never" ? "untrusted" : "unknown";
 }
 
 export function trackerPreflight(intake, env, home) {
-  const files = mcpConfigFiles(intake.cwd, env, home);
-  let found;
-  for (const file of files) found = configuredServers(file, intake.cwd, home)[intake.server] ?? found;
-  if (found?.entry?.disabled === true) {
-    throw new Error(`MCP server "${intake.server}" for ${intake.label} is disabled ("disabled": true in ${found.source}). Enable it or set tracker_mcp_server, then rerun. ${NOTHING_STARTED}`);
+  if (!SERVER_NAME.test(intake.server)) {
+    throw new Error(`"${intake.server}" is not a valid MCP server name for ${intake.label}: use letters, digits, "_" and "-". ${NOTHING_STARTED}`);
   }
-  const guardDirs = [...agentDirs(env, home).map((dir) => join(dir, "extensions")), join(intake.cwd, ".pi", "extensions"), join(intake.cwd, ".atomic", "extensions")];
+  const agentDir = atomicAgentDir(env, home);
+  const trust = projectTrust(intake.cwd, agentDir, home);
+  const config = nativeMcpConfig({ agentDir, cwd: intake.cwd, projectTrusted: trust === "trusted" });
+  const found = config.servers.find((server) => mcpNamespace(server.name) === mcpNamespace(intake.server));
+  if (found?.config.enabled === false) {
+    throw new Error(`MCP server "${found.name}" for ${intake.label} is disabled ("enabled": false in ${found.source}). Enable it in /mcp or set tracker_mcp_server, then rerun. ${NOTHING_STARTED}`);
+  }
+  const guardDirs = [...extensionDirs(env, home), join(intake.cwd, ".pi", "extensions"), join(intake.cwd, ".atomic", "extensions")];
   const guard = guardDirs.map((dir) => join(dir, TRACKER_GUARD_FILE)).find((path) => existsSync(path));
   if (!guard) {
     throw new Error(`Tracker intake needs the ${TRACKER_GUARD_FILE} Atomic extension, which blocks every tracker call except allow-listed reads before it runs, and it is not in ${guardDirs.join(", ")}. ${NOTHING_STARTED}`);
@@ -99,15 +116,16 @@ export function trackerPreflight(intake, env, home) {
   return {
     server: intake.server,
     config_source: found?.source ?? null,
-    config_files: files.filter((file) => existsSync(file)),
+    config_files: config.files,
+    project_trust: trust,
     guard,
   };
 }
 
 export function describeTrackerConfig(intake, preflight) {
-  return preflight.config_source
-    ? `MCP server ${intake.server} is configured in ${preflight.config_source}`
-    : `MCP server ${intake.server} is not in Atomic's MCP config files (${preflight.config_files.join(", ") || "none exist"}); a package or extension may still provide it, and the live connection check at intake decides`;
+  if (preflight.config_source) return `MCP server ${intake.server} is configured in ${preflight.config_source}`;
+  const project = preflight.project_trust === "trusted" ? "" : ` (project .atomic/mcp.json not read: project trust is ${preflight.project_trust})`;
+  return `MCP server ${intake.server} is not in Atomic's MCP config files (${preflight.config_files.join(", ") || "none exist"})${project}; a package or extension may still provide it, and the live connection check at intake decides`;
 }
 
 export const trackerIntakeSchema = Type.Object({
@@ -121,9 +139,8 @@ export const trackerIntakeSchema = Type.Object({
   detail: Type.String(),
 });
 
-function prefixedNames(server, tool) {
-  const short = server.replace(/-?mcp$/i, "").replace(/-/g, "_") || "mcp";
-  return [`${server.replace(/-/g, "_")}_${tool}`, `${short}_${tool}`, tool];
+function scopeOf(intake) {
+  return { tracker: intake.tracker, server: intake.server };
 }
 
 export function guardCheckStageOptions(intake) {
@@ -139,29 +156,27 @@ export function guardCheckStageOptions(intake) {
 }
 
 export function trackerStageOptions(intake, prompt) {
-  const direct = [intake.check, intake.fetch, intake.search].flatMap((tool) => prefixedNames(intake.server, tool));
   return {
     prompt,
     cwd: intake.cwd,
     schema: trackerIntakeSchema,
-    tools: [TRACKER_GUARD_TOOL, "mcp", ...new Set(direct)],
-    mcp: { allow: [intake.server] },
+    tools: [TRACKER_GUARD_TOOL, TOOL_SEARCH_TOOL, ...trackerReadTools(scopeOf(intake))],
   };
 }
 
 function trackerCalls(intake) {
-  const tool = (name) => `"${intake.server.replace(/-/g, "_")}_${name}"`;
+  const tool = (name) => `"${mcpToolName(intake.server, name)}"`;
   if (intake.tracker === "jira") {
     return [
-      `- Check: tool ${tool(intake.check)}, args {}. It returns the cloudId of each Jira site.`,
-      `- Fetch: tool ${tool(intake.fetch)}, args {"cloudId": "<cloudId>", "issueIdOrKey": "<KEY>", "fields": ["*all"], "expand": "names", "responseContentFormat": "markdown", "updateHistory": false}. For an issue URL, use its key and the cloudId of the URL's site.`,
-      `- Search: tool ${tool(intake.search)}, args {"cloudId": "<cloudId>", "jql": "text ~ \\"<words>\\" ORDER BY updated DESC", "maxResults": 50, "fields": ["summary"]}. Escape any double quote in the words.`,
+      `- Check: tool ${tool(intake.check)}, arguments {}. It returns the cloudId of each Jira site.`,
+      `- Fetch: tool ${tool(intake.fetch)}, arguments {"cloudId": "<cloudId>", "issueIdOrKey": "<KEY>", "fields": ["*all"], "expand": "names", "responseContentFormat": "markdown", "updateHistory": false}. For an issue URL, use its key and the cloudId of the URL's site.`,
+      `- Search: tool ${tool(intake.search)}, arguments {"cloudId": "<cloudId>", "jql": "text ~ \\"<words>\\" ORDER BY updated DESC", "maxResults": 50, "fields": ["summary"]}. Escape any double quote in the words.`,
     ];
   }
   return [
-    `- Check: tool ${tool(intake.check)}, args {}.`,
-    `- Fetch: tool ${tool(intake.fetch)}, args {"id": "<IDENTIFIER>"}. For an issue URL, use the identifier in it, such as ENG-123.`,
-    `- Search: tool ${tool(intake.search)}, args {"query": "<words>", "limit": 10, "fields": ["id", "title"]}.`,
+    `- Check: tool ${tool(intake.check)}, arguments {}.`,
+    `- Fetch: tool ${tool(intake.fetch)}, arguments {"id": "<IDENTIFIER>"}. For an issue URL, use the identifier in it, such as ENG-123.`,
+    `- Search: tool ${tool(intake.search)}, arguments {"query": "<words>", "limit": 10, "fields": ["id", "title"]}.`,
   ];
 }
 
@@ -184,19 +199,19 @@ export function trackerPrompt(intake, { mode, request }) {
     "",
     "<steps>",
     `0. Call ${TRACKER_GUARD_TOOL} with no arguments, alone, before any other tool. If it is not available or fails, stop with outcome "unavailable" without calling anything else.`,
-    `1. Connect: mcp({ connect: "${intake.server}" }). If it cannot connect or needs authentication, stop with outcome "unavailable".`,
+    `1. Call ${TOOL_SEARCH_TOOL} once with the query "${intake.server} ${intake.check} ${intake.fetch} ${intake.search}". It waits for the "${intake.server}" MCP server to connect. Afterwards the three read tools below are in your tool list; ${TOOL_SEARCH_TOOL} may report that no further tools matched because they are already loaded. If none of them is in your tool list after ${TOOL_SEARCH_TOOL}, the server is not connected or needs sign-in: stop with outcome "unavailable".`,
     `2. Check read access with the check call below. If it fails, stop with outcome "unavailable".`,
     ...action,
     "</steps>",
     "",
     "<calls>",
-    `Make each call through the mcp gateway as mcp({ tool: "<name>", args: "<args as a JSON string>" }). Names carry the server prefix; mcp({ server: "${intake.server}" }) lists the exact names if a call reports an unknown tool.`,
+    "Call each read tool directly by the exact name below, with arguments that follow the tool's declared parameter schema. Do not construct any other tool name.",
     ...trackerCalls(intake),
     "</calls>",
     "",
     "<constraints>",
-    `Read only. Call only ${TRACKER_GUARD_TOOL}, connect, server listing, describe, and the check, fetch and search calls above. Never create, edit, transition, assign, label, comment on, link or otherwise change tracker data, even if the request asks for it.`,
-    "The goal-select-tracker-guard extension blocks any other call before it runs, and the workflow stops the run if you attempt one.",
+    `Read only. Call only ${TRACKER_GUARD_TOOL}, ${TOOL_SEARCH_TOOL}, and the check, fetch and search tools above. Never create, edit, transition, assign, label, comment on, link or otherwise change tracker data, even if the request asks for it.`,
+    `The goal-select-tracker-guard extension blocks any other call, including any tool of another MCP server, before it runs, and the workflow stops the run if you attempt one.`,
     "Fetch only the one issue you report.",
     "</constraints>",
     "",
@@ -208,7 +223,7 @@ export function trackerPrompt(intake, { mode, request }) {
     "- acceptance_criteria: for fetched, the issue's acceptance criteria copied verbatim, from a description section or a field with that meaning; empty when the issue has none.",
     "- acceptance_criteria_source: where you found them, for example \"description section 'Acceptance criteria'\" or \"field customfield_10035 (Acceptance Criteria)\"; empty when none.",
     "- candidates: for candidates, each match's key and title; otherwise an empty list.",
-    "- detail: for unavailable or not_found, the error text from the gateway or tracker, verbatim; otherwise one short sentence.",
+    "- detail: for unavailable or not_found, the error text from the tool or tracker, verbatim; otherwise one short sentence.",
     "</output>",
   ].join("\n");
 }
@@ -222,32 +237,47 @@ function persistedOutput(text) {
   return path && existsSync(path) ? readFileSync(path, "utf8") : text;
 }
 
-function resultText(message) {
-  const mcpContent = message.details?.mcpResult?.content;
-  const blocks = Array.isArray(mcpContent) ? mcpContent : (message.content ?? []);
-  const text = blocks.filter((block) => block?.type === "text").map((block) => block.text).join("\n");
-  return Array.isArray(mcpContent) ? text : persistedOutput(text);
+function textOf(content) {
+  return (Array.isArray(content) ? content : []).filter((block) => block?.type === "text").map((block) => block.text).join("\n");
+}
+
+function rawResponse(message, recorded) {
+  if (recorded && Array.isArray(recorded.content)) {
+    const text = textOf(recorded.content);
+    if (text) return { text, complete: true };
+    if (recorded.structuredContent !== undefined) return { text: JSON.stringify(recorded.structuredContent, null, 2), complete: true };
+  }
+  const path = message.details?.fullOutputPath;
+  if (typeof path === "string") {
+    return existsSync(path) ? { text: readFileSync(path, "utf8"), complete: true } : { text: textOf(message.content), complete: false };
+  }
+  const text = persistedOutput(textOf(message.content));
+  return { text, complete: !text.startsWith("<persisted-output>") };
 }
 
 function readTranscript(sessionFile) {
   const calls = [];
   const results = [];
   const decisions = new Map();
+  const recorded = new Map();
   for (const line of readFileSync(sessionFile, "utf8").split("\n")) {
     if (!line.trim()) continue;
     const entry = JSON.parse(line);
-    if (entry.type === "custom" && entry.customType === TRACKER_GUARD_ENTRY && entry.data?.toolCallId) decisions.set(entry.data.toolCallId, entry.data);
+    if (entry.type === "custom" && entry.customType === TRACKER_GUARD_ENTRY && entry.data?.toolCallId) {
+      if (entry.data.event === "result") recorded.set(entry.data.toolCallId, entry.data.result);
+      else decisions.set(entry.data.toolCallId, entry.data);
+    }
     const message = entry.type === "message" ? entry.message : undefined;
     if (message?.role === "assistant") calls.push(...(message.content ?? []).filter((block) => block?.type === "toolCall"));
     if (message?.role === "toolResult") results.push({ ...message, at: entry.timestamp });
   }
   const probes = results.filter((message) => message.toolName === TRACKER_GUARD_TOOL && !message.isError && message.details?.guard === "active" && decisions.get(message.toolCallId)?.allowed === true);
-  return { calls, results, decisions, probed: probes.length > 0 };
+  return { calls, results, decisions, recorded, probes };
 }
 
 export function auditGuardCheck(sessionFile) {
   if (!sessionFile || !existsSync(sessionFile)) return { transcript: false, active: false };
-  return { transcript: true, active: readTranscript(sessionFile).probed };
+  return { transcript: true, active: readTranscript(sessionFile).probes.length > 0 };
 }
 
 export function guardCheckOutcome(audit, intake) {
@@ -256,20 +286,42 @@ export function guardCheckOutcome(audit, intake) {
   }
 }
 
+const sameServer = (a, b) => typeof a === "string" && mcpNamespace(a) === mcpNamespace(b);
+
 export function auditTrackerStage(sessionFile, intake) {
   if (!sessionFile || !existsSync(sessionFile)) return { transcript: false };
-  const { calls, results, decisions, probed } = readTranscript(sessionFile);
-  const succeeded = results.filter((message) => !message.isError && !message.details?.error && message.details?.server === intake.server && typeof message.details?.tool === "string");
-  const readOnly = (call) => trackerGuardDecision(call.name, call.arguments).allowed;
+  const { calls, results, decisions, recorded, probes } = readTranscript(sessionFile);
+  const scope = scopeOf(intake);
+  const reads = trackerReadTools(scope);
+  const readOnly = (call) => trackerGuardDecision(call.name, scope).allowed;
+  const succeeded = results.filter(
+    (message) =>
+      !message.isError &&
+      reads.includes(message.toolName) &&
+      decisions.get(message.toolCallId)?.allowed === true &&
+      typeof message.details?.tool === "string" &&
+      sameServer(message.details.server, intake.server) &&
+      mcpToolName(intake.server, message.details.tool) === message.toolName,
+  );
+  const refused = new Set(
+    calls
+      .filter((call) => !decisions.has(call.id) && results.some((message) => message.toolCallId === call.id && message.isError && textOf(message.content) === `Tool ${call.name} not found`))
+      .map((call) => call.id),
+  );
   return {
     transcript: true,
-    probed,
-    unguarded: calls.filter((call) => call.name !== "structured_output" && !decisions.has(call.id)).map((call) => call.name),
-    blocked: calls.filter((call) => decisions.get(call.id)?.allowed === false && !readOnly(call)).map((call) => decisions.get(call.id).reason),
-    disallowed: calls.filter((call) => decisions.get(call.id)?.allowed === true && !readOnly(call)).map((call) => call.arguments?.tool ?? call.name),
+    probed: probes.some((message) => message.details.tracker === intake.tracker && sameServer(message.details.server, intake.server)),
+    unguarded: calls.filter((call) => call.name !== "structured_output" && !decisions.has(call.id) && !refused.has(call.id)).map((call) => call.name),
+    blocked: [
+      ...calls.filter((call) => decisions.get(call.id)?.allowed === false && !readOnly(call)).map((call) => decisions.get(call.id).reason),
+      ...calls.filter((call) => refused.has(call.id) && !readOnly(call)).map((call) => `tool "${call.name}" is not available in this stage`),
+    ],
+    disallowed: calls.filter((call) => decisions.get(call.id)?.allowed === true && !readOnly(call)).map((call) => call.name),
     checked: succeeded.some((message) => message.details.tool === intake.check),
     reads: [...new Set(succeeded.map((message) => message.details.tool))],
-    fetched: succeeded.filter((message) => message.details.tool === intake.fetch).map((message) => ({ text: resultText(message), at: message.at ?? null })),
+    fetched: succeeded
+      .filter((message) => message.details.tool === intake.fetch)
+      .map((message) => ({ ...rawResponse(message, recorded.get(message.toolCallId)), at: message.at ?? null })),
   };
 }
 
@@ -286,7 +338,7 @@ export function trackerStageOutcome(stage, audit, intake, request) {
   const result = stage.structured;
   const detail = result?.detail ? ` ${result.detail}` : "";
   if (!audit.checked || result?.outcome === "unavailable") {
-    throw new Error(`${where} is unavailable: the ${intake.check} read check did not succeed.${detail} Authenticate with /mcp-auth ${intake.server} or fix the server, then rerun. ${NOTHING_STARTED}`);
+    throw new Error(`${where} is unavailable: the ${intake.check} read check did not succeed.${detail} Sign in with /mcp login ${intake.server} (or atomic mcp login ${intake.server}), check it with /mcp, or fix the server, then rerun. ${NOTHING_STARTED}`);
   }
   if (result?.outcome === "not_found" || (result?.outcome === "candidates" && result.candidates.length === 0)) {
     throw new Error(`No ${intake.label} issue matched "${request}" through MCP server "${intake.server}".${detail} ${NOTHING_STARTED}`);
@@ -296,6 +348,9 @@ export function trackerStageOutcome(stage, audit, intake, request) {
   const fetch = key ? audit.fetched.findLast((candidate) => candidate.text.includes(key)) : undefined;
   if (result?.outcome !== "fetched" || fetch === undefined) {
     throw new Error(`The ${stage.name} stage did not return a ${intake.label} issue that a successful ${intake.fetch} call fetched (reported "${key || "none"}").${detail} ${NOTHING_STARTED}`);
+  }
+  if (!fetch.complete) {
+    throw new Error(`The ${stage.name} stage fetched ${intake.label} ${key}, but its full ${intake.fetch} response was not preserved (the model saw a shortened copy and the full output is gone), so no faithful snapshot can be written. Rerun. ${NOTHING_STARTED}`);
   }
   return {
     kind: "fetched",

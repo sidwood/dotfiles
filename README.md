@@ -309,23 +309,32 @@ Set `tracker` to `jira` or `linear` to take the work from one issue instead of
 `tracker_mcp_server` overrides the MCP server (`atlassian` or `linear`).
 Tracker intake needs:
 
-- the tracker's MCP server configured and authenticated with `/mcp-auth`;
+- the tracker's MCP server in Atomic's native `~/.atomic/agent/mcp.json` or a
+  trusted project's `.atomic/mcp.json`, or contributed by a package or
+  extension, and signed in with `/mcp login <server>`;
 - `atomic/.atomic/agent/extensions/goal-select-tracker-guard.ts`, which Stow
-  links into `~/.atomic/agent/extensions`. In goal-select's intake stages it
-  blocks every call except allow-listed tracker reads before the call runs,
-  and it does nothing in any other session. A stage with no MCP access must
-  show the guard active before an intake stage can reach MCP.
+  links into `~/.atomic/agent/extensions`. Intake stages are named after the
+  tracker and server, such as `goal-select-tracker-intake-jira-atlassian`, and
+  may call only the guard, `tool_search` and that server's three native read
+  tools, such as `mcp__atlassian__getJiraIssue`. The guard blocks every other
+  call, and every call before its probe, before the call runs. It does
+  nothing in any other session. A stage with no MCP access must show the
+  guard active before an intake stage can reach MCP.
 
 The issue is fetched read-only and saved to
 `<checkout>/.atomic/goal-select/work/<tracker>-<key>-<id>.md`, beside a
-`.gitignore` that keeps it out of Git. The Goal objective and acceptance
-criteria point at that snapshot, so implementing and reviewing agents need no
-tracker access; typed `acceptance_criteria` replace the issue's own. A disabled
-or unreachable server, a missing issue, an inactive guard or a stopped choice
-ends the run before any Goal stage, never falling back to `objective`. Pass a
-key or URL for headless runs: search words and an empty `tracker_issue` wait
-for an answer. `resolve_only` checks only the MCP config files and the guard
-file.
+`.gitignore` that keeps it out of Git. The snapshot keeps the server's complete
+response, even when Atomic shortened it for the model. The Goal objective and
+acceptance criteria point at that snapshot, so implementing and reviewing
+agents need no tracker access; typed `acceptance_criteria` replace the issue's
+own. A server with `"enabled": false`, an unreachable server, a missing issue,
+an inactive guard or a stopped choice ends the run before any Goal stage, never
+falling back to `objective`. Pass a key or URL for headless runs: search words
+and an empty `tracker_issue` wait for an answer. `resolve_only` checks only the
+native MCP config files and the guard file.
+
+After changing these files, run `/reload` and `/workflow reload`, or restart
+Atomic. Runs already in progress keep the code they started with.
 
 ### Unified Shell Config
 

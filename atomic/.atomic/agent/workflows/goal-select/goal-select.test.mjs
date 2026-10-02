@@ -2024,7 +2024,7 @@ describe("goal-select launch-form prefill (module evaluated as Atomic discovery 
   });
 });
 
-describe("goal-select tracker intake (fixture MCP transcripts and fake workflow context; no live tracker, model or TUI)", () => {
+describe("goal-select tracker intake (native MCP transcript fixtures and fake workflow context; no live tracker, model or TUI)", () => {
   const guardSource = fileURLToPath(new URL("../../extensions/goal-select-tracker-guard.ts", import.meta.url));
   const jiraIssue = {
     id: "10007",
@@ -2049,39 +2049,54 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
   let saved;
   let steps = 0;
 
-  function call(name, args, { text = "ok", details, isError = false, guarded = true } = {}) {
+  function call(name, args, { text = "ok", details, isError = false, guarded = true, recorded } = {}) {
     steps += 1;
-    return { id: `call-${steps}`, name, args, text, details, isError, guarded };
+    return { id: `call-${steps}`, name, args, text, details, isError, guarded, recorded };
   }
 
-  function gateway(server, tool, args, text) {
-    return call("mcp", { tool: `${server}_${tool}`, args: JSON.stringify(args) }, { text, details: { mode: "call", server, tool, mcpResult: { content: [{ type: "text", text }] } } });
+  function read(server, tool, args, text, { modelText = text, fullOutputPath } = {}) {
+    return call(guard.mcpToolName(server, tool), args, {
+      text: modelText,
+      details: { server, tool, ...(fullOutputPath ? { fullOutputPath } : {}) },
+      recorded: { content: [{ type: "text", text }] },
+    });
   }
 
-  function gatewayError(server, tool, args, error, text) {
-    return call("mcp", { tool: `${server}_${tool}`, args: JSON.stringify(args) }, { text, details: { mode: "call", error } });
+  function readError(server, tool, args, text) {
+    return call(guard.mcpToolName(server, tool), args, { text, details: { server, tool }, isError: true });
   }
 
-  function blockedCall(name, args) {
-    const decision = guard.trackerGuardDecision(name, args);
+  function blockedCall(name, args, scope = { tracker: "jira", server: "atlassian" }) {
+    const decision = guard.trackerGuardDecision(name, scope);
     return call(name, args, { text: `goal-select tracker intake is read-only: ${decision.reason}.`, isError: true });
   }
 
-  const probe = (stage = "goal-select-tracker-intake") =>
-    call(guard.TRACKER_GUARD_TOOL, {}, { text: `goal-select-tracker-guard is active in ${stage}.`, details: { guard: "active", stage, read_tools: guard.TRACKER_READ_TOOLS } });
-  const connect = (server = "atlassian") => call("mcp", { connect: server }, { text: `Connected to ${server}`, details: { mode: "connect", server } });
-  const jiraCheck = () => gateway("atlassian", "getAccessibleAtlassianResources", {}, JSON.stringify([{ id: "cloud-1", url: "https://example.atlassian.net" }]));
-  const jiraFetch = (issue = jiraIssue) =>
-    gateway("atlassian", "getJiraIssue", { cloudId: "cloud-1", issueIdOrKey: issue.key, fields: ["*all"], responseContentFormat: "markdown", updateHistory: false }, JSON.stringify(issue, null, 2));
-  const jiraSteps = () => [connect(), jiraCheck(), jiraFetch()];
+  const probe = (stage = "goal-select-tracker-intake-jira-atlassian") => {
+    const { scope } = guard.parseTrackerStage(stage);
+    return call(guard.TRACKER_GUARD_TOOL, {}, {
+      text: `goal-select-tracker-guard is active in ${stage}.`,
+      details: { guard: "active", stage: guard.parseTrackerStage(stage).stage, ...(scope ?? {}), read_tools: scope ? guard.trackerReadTools(scope) : [] },
+    });
+  };
+  const discover = (server = "atlassian") => call(guard.TOOL_SEARCH_TOOL, { query: `${server} reads` }, { text: "No matching tools found.", details: { loaded: [] } });
+  const jiraCheck = () => read("atlassian", "getAccessibleAtlassianResources", {}, JSON.stringify([{ id: "cloud-1", url: "https://example.atlassian.net" }]));
+  const jiraFetch = (issue = jiraIssue, options) =>
+    read("atlassian", "getJiraIssue", { cloudId: "cloud-1", issueIdOrKey: issue.key, fields: ["*all"], responseContentFormat: "markdown", updateHistory: false }, JSON.stringify(issue, null, 2), options);
+  const jiraSteps = () => [discover(), jiraCheck(), jiraFetch()];
 
   function transcript(stageName, stageSteps) {
+    const scope = guard.parseTrackerStage(stageName)?.scope;
     const file = join(trackerRoot, "sessions", `${stageName}-${randomUUID()}.jsonl`);
     const lines = [{ type: "session", version: 3, id: randomUUID(), timestamp: new Date().toISOString(), cwd: trackerSeed, internal: true, workflow: { runId: "fixture", stageId: randomUUID(), stageName } }];
+    let probed = false;
     for (const step of stageSteps) {
       lines.push({ type: "message", timestamp: new Date().toISOString(), message: { role: "assistant", content: [{ type: "toolCall", id: step.id, name: step.name, arguments: step.args }] } });
       if (step.guarded) {
-        lines.push({ type: "custom", customType: guard.TRACKER_GUARD_ENTRY, data: { event: "decision", toolCallId: step.id, toolName: step.name, ...(step.decision ?? guard.trackerGuardDecision(step.name, step.args)) } });
+        lines.push({ type: "custom", customType: guard.TRACKER_GUARD_ENTRY, data: { event: "decision", toolCallId: step.id, toolName: step.name, ...(step.decision ?? guard.trackerGuardDecision(step.name, scope, probed)) } });
+      }
+      if (step.name === guard.TRACKER_GUARD_TOOL && !step.isError) probed = true;
+      if (step.guarded && step.recorded && !step.isError) {
+        lines.push({ type: "custom", customType: guard.TRACKER_GUARD_ENTRY, data: { event: "result", toolCallId: step.id, toolName: step.name, result: step.recorded } });
       }
       lines.push({
         type: "message",
@@ -2102,9 +2117,10 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
       review,
       inputs: { objective: undefined, tracker: "jira", ...inputs },
       onTask: (name) => {
-        const stage = stages[name] ?? (name === "goal-select-tracker-guard-check" ? { steps: [probe(name)] } : undefined);
+        const base = guard.parseTrackerStage(name)?.stage;
+        const stage = stages[base] ?? (base === guard.TRACKER_GUARD_CHECK_STAGE ? { steps: [probe(name)] } : undefined);
         if (!stage) return {};
-        const stageSteps = name === "goal-select-tracker-guard-check" || stage.probe === false ? stage.steps : [probe(name), ...stage.steps];
+        const stageSteps = base === guard.TRACKER_GUARD_CHECK_STAGE || stage.probe === false ? stage.steps : [probe(name), ...stage.steps];
         return { structured: stage.structured, sessionFile: transcript(name, stageSteps) };
       },
     });
@@ -2217,18 +2233,43 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
     assert.equal("tracker" in preview, false);
   });
 
-  it("stops before any stage or clone when an MCP config file disables the tracker server, and honours a later file that re-enables it", async () => {
-    writeJson(join(agentDir, "mcp.json"), { mcpServers: { atlassian: { disabled: true } } });
+  it("reads only Atomic's native MCP config: stops on enabled false, lets a trusted project file replace the global entry, and ignores legacy files and fields", async () => {
+    const globalFile = join(agentDir, "mcp.json");
+    const projectFile = join(trackerSeed, ".atomic", "mcp.json");
+    const trust = (decision) => writeJson(join(agentDir, "trust.json"), { [trackerSeed]: decision });
+    const preview = () => resolveOnly(trackerSeed, { objective: undefined, tracker: "jira", tracker_issue: "PROJ-7", branch_checkout_dir: "" });
+    writeJson(globalFile, { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp", enabled: false } } });
     try {
       const started = trackerRun({ inputs: { tracker_issue: "PROJ-7" } });
-      await assertStopsBeforeGoal(started, (error) => error.message.includes(`disabled ("disabled": true in ${join(agentDir, "mcp.json")})`) && error.message.includes("No checkout or snapshot was created"));
+      await assertStopsBeforeGoal(started, (error) => error.message.includes(`disabled ("enabled": false in ${globalFile})`) && error.message.includes("No checkout or snapshot was created"));
       assert.deepEqual(names(started.calls), ["check-tracker-mcp"]);
-      writeJson(join(trackerSeed, ".mcp.json"), { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp" } } });
-      const models = await resolveOnly(trackerSeed, { objective: undefined, tracker: "jira", tracker_issue: "PROJ-7", branch_checkout_dir: "" });
-      assert.equal(models.tracker.config_source, join(trackerSeed, ".mcp.json"));
+
+      writeJson(projectFile, { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp" } } });
+      trust(true);
+      assert.equal((await preview()).tracker.config_source, projectFile, "a trusted project entry replaces the global one");
+      trust(false);
+      await assertStopsBeforeGoal(trackerRun({ inputs: { tracker_issue: "PROJ-7" } }), /disabled \("enabled": false in /);
+
+      writeJson(projectFile, { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp", enabled: false } } });
+      writeJson(globalFile, { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp" } } });
+      assert.equal((await preview()).tracker.config_source, globalFile, "an untrusted project file is not read");
+      trust(true);
+      await assertStopsBeforeGoal(trackerRun({ inputs: { tracker_issue: "PROJ-7" } }), (error) => error.message.includes(`("enabled": false in ${projectFile})`));
+
+      rmSync(projectFile, { force: true });
+      writeJson(globalFile, { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp", disabled: true } } });
+      writeJson(join(trackerSeed, ".mcp.json"), { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp", enabled: false } } });
+      writeJson(join(trackerSeed, ".pi", "mcp.json"), { mcpServers: { atlassian: { url: "https://mcp.atlassian.com/v1/mcp", enabled: false } } });
+      assert.equal((await preview()).tracker.config_source, globalFile, "legacy disabled and legacy files are not native configuration");
+
+      writeJson(globalFile, { mcpServers: { work_linear: { url: "https://mcp.linear.app/mcp", enabled: false } } });
+      await assertStopsBeforeGoal(
+        trackerRun({ inputs: { tracker: "linear", tracker_issue: "TUS-5", tracker_mcp_server: "work-linear" } }),
+        /MCP server "work_linear" for Linear is disabled/,
+      );
+      await assertStopsBeforeGoal(trackerRun({ inputs: { tracker_issue: "PROJ-7", tracker_mcp_server: "my server" } }), /"my server" is not a valid MCP server name/);
     } finally {
-      rmSync(join(agentDir, "mcp.json"), { force: true });
-      rmSync(join(trackerSeed, ".mcp.json"), { force: true });
+      for (const path of [globalFile, join(agentDir, "trust.json"), join(trackerSeed, ".mcp.json"), join(trackerSeed, ".pi")]) rmSync(path, { recursive: true, force: true });
     }
   });
 
@@ -2277,15 +2318,15 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
     });
     const result = await started.outcome;
     assert.equal(result.status, "complete");
-    assert.deepEqual(stageNames(started.calls), ["goal-select-tracker-guard-check", "goal-select-tracker-intake", "orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
+    assert.deepEqual(stageNames(started.calls), ["goal-select-tracker-guard-check", "goal-select-tracker-intake-jira-atlassian", "orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
     const order = names(started.calls);
     assert.deepEqual(order.slice(0, 7), [
       "check-tracker-mcp",
       "resolve-branch-checkout",
       "goal-select-tracker-guard-check",
       "audit-goal-select-tracker-guard-check",
-      "goal-select-tracker-intake",
-      "audit-goal-select-tracker-intake",
+      "goal-select-tracker-intake-jira-atlassian",
+      "audit-goal-select-tracker-intake-jira-atlassian",
       "write-tracker-snapshot",
     ]);
     const guardCheck = modelStages(started.calls)[0].options;
@@ -2295,11 +2336,18 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
     const intake = modelStages(started.calls)[1].options;
     assert.equal(intake.cwd, trackerSeed);
     assert.ok(intake.schema);
-    assert.deepEqual(intake.mcp, { allow: ["atlassian"] });
-    assert.deepEqual(intake.tools.slice(0, 2), [guard.TRACKER_GUARD_TOOL, "mcp"]);
-    assert.ok(intake.tools.includes("atlassian_getJiraIssue"));
-    for (const tool of intake.tools.slice(2)) assert.ok(guard.isTrackerReadTool(tool), tool);
+    assert.equal(intake.mcp, undefined, "the native MCP client ignores stage mcp scopes, so the guard and allowlist enforce the server");
+    assert.deepEqual(intake.tools, [
+      guard.TRACKER_GUARD_TOOL,
+      "tool_search",
+      "mcp__atlassian__getAccessibleAtlassianResources",
+      "mcp__atlassian__getJiraIssue",
+      "mcp__atlassian__searchJiraIssuesUsingJql",
+    ]);
     assert.match(intake.prompt, /0\. Call goal_select_tracker_guard with no arguments, alone, before any other tool/);
+    assert.match(intake.prompt, /1\. Call tool_search once with the query "atlassian getAccessibleAtlassianResources getJiraIssue searchJiraIssuesUsingJql"/);
+    assert.match(intake.prompt, /- Fetch: tool "mcp__atlassian__getJiraIssue", arguments \{"cloudId": "<cloudId>", "issueIdOrKey": "<KEY>"/);
+    assert.doesNotMatch(intake.prompt, /mcp\(\{|gateway/);
     assert.match(intake.prompt, /<request>\nPROJ-7\n<\/request>/);
     assert.match(intake.prompt, /Never create, edit, transition/);
 
@@ -2345,7 +2393,7 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
     const result = await started.outcome;
     assert.equal(result.status, "complete");
     const order = names(started.calls);
-    assert.ok(order.indexOf("goal-select-tracker-intake") < order.indexOf("plan-branch-clone"), "intake runs before the clone is planned");
+    assert.ok(order.indexOf("goal-select-tracker-intake-jira-atlassian") < order.indexOf("plan-branch-clone"), "intake runs before the clone is planned");
     const clone = started.calls.find((entry) => entry.name === "create-branch-clone").result.checkout;
     assert.match(basename(clone), /^tracker seed\.goal-proj-7-[0-9a-f]{8}$/);
     assert.equal(modelStages(started.calls)[1].options.cwd, trackerSeed, "the intake stage runs in the invoking checkout");
@@ -2360,19 +2408,20 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
   it("offers search matches to choose from, then fetches only the chosen issue in a second read-only stage", async () => {
     const { ui, asked } = recordingUi({ select: [(options) => options[0]] });
     const candidates = { ...noIssue, outcome: "candidates", candidates: [{ key: "PROJ-7", title: "Fix the login redirect" }, { key: "PROJ-9", title: "Login copy" }], detail: "Two matches." };
-    const search = gateway("atlassian", "searchJiraIssuesUsingJql", { cloudId: "cloud-1", jql: 'text ~ "login redirect"' }, JSON.stringify({ issues: [{ key: "PROJ-7" }, { key: "PROJ-9" }] }));
+    const search = read("atlassian", "searchJiraIssuesUsingJql", { cloudId: "cloud-1", jql: 'text ~ "login redirect"' }, JSON.stringify({ issues: [{ key: "PROJ-7" }, { key: "PROJ-9" }] }));
     const started = trackerRun({
       ui,
       inputs: { tracker_issue: "login redirect", branch_checkout_dir: "" },
       stages: {
-        "goal-select-tracker-intake": { structured: candidates, steps: [connect(), jiraCheck(), search] },
+        "goal-select-tracker-intake": { structured: candidates, steps: [discover(), jiraCheck(), search] },
         "goal-select-tracker-fetch": { structured: fetchedJira, steps: jiraSteps() },
       },
     });
     const result = await started.outcome;
     assert.equal(result.status, "complete");
     assert.deepEqual(asked, [{ kind: "select", message: "Choose the Jira issue for this run (request: login redirect)", options: ["PROJ-7: Fix the login redirect", "PROJ-9: Login copy", "Stop: none of these"] }]);
-    assert.deepEqual(stageNames(started.calls).slice(0, 3), guard.TRACKER_INTAKE_STAGES);
+    assert.deepEqual(stageNames(started.calls).slice(0, 3), ["goal-select-tracker-guard-check", "goal-select-tracker-intake-jira-atlassian", "goal-select-tracker-fetch-jira-atlassian"]);
+    assert.deepEqual(modelStages(started.calls)[2].options.tools, modelStages(started.calls)[1].options.tools, "the fetch stage has the same native read allowlist");
     assert.match(modelStages(started.calls)[2].options.prompt, /<request>\nPROJ-7\n<\/request>/);
     assert.match(modelStages(started.calls)[2].options.prompt, /Fetch exactly the issue PROJ-7/);
     assert.ok(readFileSync(snapshotsIn(trackerSeed)[0], "utf8").includes("- Request: login redirect"));
@@ -2382,7 +2431,7 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
     const candidates = { ...noIssue, outcome: "candidates", candidates: [{ key: "PROJ-7", title: "Fix the login redirect" }] };
     const stopped = recordingUi({ select: [STOP_CHOICE_TEXT] });
     await assertStopsBeforeGoal(
-      trackerRun({ ui: stopped.ui, inputs: { tracker_issue: "login" }, stages: { "goal-select-tracker-intake": { structured: candidates, steps: [connect(), jiraCheck()] } } }),
+      trackerRun({ ui: stopped.ui, inputs: { tracker_issue: "login" }, stages: { "goal-select-tracker-intake": { structured: candidates, steps: [discover(), jiraCheck()] } } }),
       /No Jira issue was chosen for "login"/,
     );
 
@@ -2409,48 +2458,98 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
     const confirmedRun = trackerRun({ ui: confirmed.ui, inputs: { tracker_issue: "10007", branch_checkout_dir: "" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: jiraSteps() } } });
     assert.equal((await confirmedRun.outcome).status, "complete");
     assert.equal(confirmed.asked.length, 1);
-    assert.equal(stageNames(confirmedRun.calls).includes("goal-select-tracker-fetch"), false, "a confirmed issue is not fetched again");
+    assert.equal(stageNames(confirmedRun.calls).some((name) => name.startsWith("goal-select-tracker-fetch")), false, "a confirmed issue is not fetched again");
   });
 
   it("stops when the tracker is unavailable or the issue is missing, never falling back to the typed objective", async () => {
-    const authError = call("mcp", { connect: "atlassian" }, { text: 'Server "atlassian" requires authentication. Run /mcp-auth atlassian.', details: { mode: "connect", error: "auth_required" } });
+    const unconnected = discover();
     await assertStopsBeforeGoal(
-      trackerRun({ inputs: { objective: "Typed fallback that must not run.", tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: { ...noIssue, detail: "atlassian requires authentication." }, steps: [authError] } } }),
-      /Jira through MCP server "atlassian" is unavailable: the getAccessibleAtlassianResources read check did not succeed\. atlassian requires authentication\. Authenticate with \/mcp-auth atlassian/,
+      trackerRun({ inputs: { objective: "Typed fallback that must not run.", tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: { ...noIssue, detail: "atlassian needs sign-in." }, steps: [unconnected] } } }),
+      /Jira through MCP server "atlassian" is unavailable: the getAccessibleAtlassianResources read check did not succeed\. atlassian needs sign-in\. Sign in with \/mcp login atlassian \(or atomic mcp login atlassian\)/,
     );
+    const authError = readError("atlassian", "getAccessibleAtlassianResources", {}, 'MCP server "atlassian" needs sign-in. Run /mcp login atlassian.');
     await assertStopsBeforeGoal(
-      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [connect(), jiraFetch()] } } }),
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [discover(), authError, jiraFetch()] } } }),
       /is unavailable: the getAccessibleAtlassianResources read check did not succeed/,
     );
-    const missing = gatewayError("atlassian", "getJiraIssue", { cloudId: "cloud-1", issueIdOrKey: "PROJ-404" }, "tool_error", "Error: Issue does not exist or you do not have permission to see it.");
+    const missing = readError("atlassian", "getJiraIssue", { cloudId: "cloud-1", issueIdOrKey: "PROJ-404" }, "Error: Issue does not exist or you do not have permission to see it.");
     await assertStopsBeforeGoal(
-      trackerRun({ inputs: { tracker_issue: "PROJ-404" }, stages: { "goal-select-tracker-intake": { structured: { ...noIssue, outcome: "not_found", detail: "Issue does not exist." }, steps: [connect(), jiraCheck(), missing] } } }),
+      trackerRun({ inputs: { tracker_issue: "PROJ-404" }, stages: { "goal-select-tracker-intake": { structured: { ...noIssue, outcome: "not_found", detail: "Issue does not exist." }, steps: [discover(), jiraCheck(), missing] } } }),
       /No Jira issue matched "PROJ-404" through MCP server "atlassian"\. Issue does not exist\./,
     );
     await assertStopsBeforeGoal(
-      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [connect(), jiraCheck()] } } }),
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [discover(), jiraCheck()] } } }),
       /did not return a Jira issue that a successful getJiraIssue call fetched \(reported "PROJ-7"\)/,
     );
     await assertStopsBeforeGoal(
       trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { steps: jiraSteps() } } }),
       /is unavailable|did not return/,
     );
+    const legacyGateway = call("mcp", { tool: "atlassian_getJiraIssue", args: "{}" }, { text: JSON.stringify(jiraIssue), details: { server: "atlassian", tool: "getJiraIssue" } });
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [jiraCheck(), legacyGateway] } } }),
+      /blocked them before they ran: tool "mcp" is not an allow-listed jira read tool of MCP server "atlassian"/,
+    );
+  });
+
+  it("never counts a read of another MCP server, even one shaped like the selected server's, as the issue", async () => {
+    const linearRead = read("linear", "get_issue", { id: "PROJ-7" }, JSON.stringify(jiraIssue));
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [discover(), jiraCheck(), linearRead] } } }),
+      /goal-select-tracker-guard blocked them before they ran: tool "mcp__linear__get_issue" is not an allow-listed jira read tool of MCP server "atlassian"/,
+    );
+    const spoofed = { ...jiraFetch(), details: { server: "linear", tool: "getJiraIssue" } };
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [discover(), jiraCheck(), spoofed] } } }),
+      /did not return a Jira issue that a successful getJiraIssue call fetched/,
+    );
+    const otherScope = { ...probe("goal-select-tracker-intake-jira-other"), decision: { allowed: true } };
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, probe: false, steps: [otherScope, ...jiraSteps()] } } }),
+      /goal_select_tracker_guard did not run/,
+    );
+  });
+
+  it("snapshots the complete response of a large native result, not the shortened text the model saw, and stops when the full text is gone", async () => {
+    const big = { ...jiraIssue, fields: { ...jiraIssue.fields, description: `${jiraIssue.fields.description}\n\n${"Long field. ".repeat(4000)}` } };
+    const full = JSON.stringify(big, null, 2);
+    assert.ok(full.length > 40_000);
+    const shortened = `Warning: truncated output\n\n${full.slice(0, 10_000)}\n\n[Full output: /missing (read it with offset/limit)]`;
+    const savedPath = join(trackerRoot, "full-output.txt");
+    writeFileSync(savedPath, full);
+    for (const fetch of [
+      jiraFetch(big, { modelText: shortened, fullOutputPath: join(trackerRoot, "gone.txt") }),
+      { ...jiraFetch(big, { modelText: shortened, fullOutputPath: savedPath }), recorded: undefined },
+    ]) {
+      const started = trackerRun({ inputs: { tracker_issue: "PROJ-7", branch_checkout_dir: "" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [discover(), jiraCheck(), fetch] } } });
+      assert.equal((await started.outcome).status, "complete");
+      const [snapshot] = snapshotsIn(trackerSeed);
+      const text = readFileSync(snapshot, "utf8");
+      assert.ok(text.includes(`~~~\n${full}\n~~~`), "the raw section holds the complete response");
+      assert.ok(!text.includes("Warning: truncated output"));
+      rmSync(join(trackerSeed, ".atomic"), { recursive: true, force: true });
+    }
+    const lost = { ...jiraFetch(big, { modelText: shortened, fullOutputPath: join(trackerRoot, "gone.txt") }), recorded: undefined };
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [discover(), jiraCheck(), lost] } } }),
+      /its full getJiraIssue response was not preserved/,
+    );
   });
 
   it("stops when the guard blocked a tracker write attempt before it ran, or when any call ran without a guard decision", async () => {
-    const transition = blockedCall("mcp", { tool: "atlassian_transitionJiraIssue", args: JSON.stringify({ cloudId: "cloud-1", issueIdOrKey: "PROJ-7", transition: { id: "31" } }) });
+    const transition = blockedCall("mcp__atlassian__transitionJiraIssue", { cloudId: "cloud-1", issueIdOrKey: "PROJ-7", transition: { id: "31" } });
     await assertStopsBeforeGoal(
-      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [connect(), jiraCheck(), transition, jiraFetch()] } } }),
-      /attempted tracker calls outside the read-only allow-list; goal-select-tracker-guard blocked them before they ran: MCP tool "atlassian_transitionJiraIssue" is not an allow-listed tracker read tool/,
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [discover(), jiraCheck(), transition, jiraFetch()] } } }),
+      /attempted tracker calls outside the read-only allow-list; goal-select-tracker-guard blocked them before they ran: tool "mcp__atlassian__transitionJiraIssue" is not an allow-listed jira read tool of MCP server "atlassian"/,
     );
     const unguardedFetch = { ...jiraFetch(), guarded: false };
     await assertStopsBeforeGoal(
-      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [connect(), jiraCheck(), unguardedFetch] } } }),
-      /goal-select-tracker-guard was not shown active for every call in the goal-select-tracker-intake stage \(unchecked: mcp\)/,
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [discover(), jiraCheck(), unguardedFetch] } } }),
+      /goal-select-tracker-guard was not shown active for every call in the goal-select-tracker-intake-jira-atlassian stage \(unchecked: mcp__atlassian__getJiraIssue\)/,
     );
     await assertStopsBeforeGoal(
       trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, probe: false, steps: jiraSteps() } } }),
-      /not shown active for every call in the goal-select-tracker-intake stage \(goal_select_tracker_guard did not run\)/,
+      /not shown active for every call in the goal-select-tracker-intake-jira-atlassian stage \(goal_select_tracker_guard did not run\)/,
     );
   });
 
@@ -2464,14 +2563,33 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
 
   it("does not treat reads the guard held back until its probe ran as write attempts", async () => {
     const heldBack = {
-      ...call("mcp", { connect: "atlassian" }, { text: "goal-select tracker intake is read-only: goal_select_tracker_guard must run before any other call.", isError: true }),
-      decision: guard.trackerGuardDecision("mcp", { connect: "atlassian" }, false),
+      ...call("tool_search", { query: "atlassian" }, { text: "goal-select tracker intake is read-only: goal_select_tracker_guard must run before any other call.", isError: true }),
+      decision: guard.trackerGuardDecision("tool_search", { tracker: "jira", server: "atlassian" }, false),
     };
     const started = trackerRun({
       inputs: { tracker_issue: "PROJ-7", branch_checkout_dir: "" },
-      stages: { "goal-select-tracker-intake": { structured: fetchedJira, probe: false, steps: [heldBack, probe(), connect(), jiraCheck(), jiraFetch()] } },
+      stages: { "goal-select-tracker-intake": { structured: fetchedJira, probe: false, steps: [heldBack, probe(), discover(), jiraCheck(), jiraFetch()] } },
     });
     assert.equal((await started.outcome).status, "complete");
+  });
+
+  it("tolerates a read Atomic refused because the server had not connected yet, but stops on a refused write", async () => {
+    const refused = (name, args) => call(name, args, { text: `Tool ${name} not found`, isError: true, guarded: false });
+    const early = trackerRun({
+      inputs: { tracker_issue: "PROJ-7", branch_checkout_dir: "" },
+      stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [refused("mcp__atlassian__getAccessibleAtlassianResources", {}), ...jiraSteps()] } },
+    });
+    assert.equal((await early.outcome).status, "complete");
+    rmSync(join(trackerSeed, ".atomic"), { recursive: true, force: true });
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [...jiraSteps(), refused("mcp__atlassian__editJiraIssue", { issueIdOrKey: "PROJ-7" })] } } }),
+      /blocked them before they ran: tool "mcp__atlassian__editJiraIssue" is not available in this stage/,
+    );
+    const unexplained = { ...call("mcp__atlassian__getJiraIssue", {}, { text: "ran without the guard", guarded: false }) };
+    await assertStopsBeforeGoal(
+      trackerRun({ inputs: { tracker_issue: "PROJ-7" }, stages: { "goal-select-tracker-intake": { structured: fetchedJira, steps: [...jiraSteps(), unexplained] } } }),
+      /not shown active for every call .*unchecked: mcp__atlassian__getJiraIssue/,
+    );
   });
 
   it("uses launch acceptance_criteria instead of the issue's and keeps launch objective text, recording both in the snapshot", async () => {
@@ -2488,23 +2606,23 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
     assert.ok(text.includes(`The issue's own criteria, for reference:\n\nFrom the issue (description section 'Acceptance criteria'), copied verbatim from the response:\n\n${jiraCriteria}`));
   });
 
-  it("fetches a Linear issue through a direct MCP tool on a custom server name and labels criteria it could not find", async () => {
+  it("fetches a Linear issue through the native tools of a custom server name and labels criteria it could not find", async () => {
     const linearIssue = { id: "TUS-5", uuid: "u-5", title: "Complete the token layer", description: "Bring main.css to the full token set.", url: "https://linear.app/acme/issue/TUS-5/complete-the-token-layer" };
-    const direct = (tool, args, text) => call(`work_linear_${tool}`, args, { text, details: { server: "work-linear", tool } });
+    const native = (tool, args, text) => read("work-linear", tool, args, text);
     const started = trackerRun({
       inputs: { tracker: "linear", tracker_issue: "https://linear.app/acme/issue/TUS-5/complete-the-token-layer", tracker_mcp_server: " work-linear ", branch_checkout_dir: "" },
       stages: {
         "goal-select-tracker-intake": {
           structured: { ...fetchedJira, issue_key: "TUS-5", title: "Model title", url: "", acceptance_criteria: "", acceptance_criteria_source: "" },
-          steps: [connect("work-linear"), direct("get_workspace", {}, JSON.stringify({ name: "Acme" })), direct("get_issue", { id: "TUS-5" }, JSON.stringify(linearIssue))],
+          steps: [discover("work-linear"), native("get_workspace", {}, JSON.stringify({ name: "Acme" })), native("get_issue", { id: "TUS-5" }, JSON.stringify(linearIssue))],
         },
       },
     });
     const result = await started.outcome;
+    assert.equal(modelStages(started.calls)[1].name, "goal-select-tracker-intake-linear-work-linear");
     const intake = modelStages(started.calls)[1].options;
-    assert.deepEqual(intake.mcp, { allow: ["work-linear"] });
-    assert.ok(intake.tools.includes("work_linear_get_issue"));
-    assert.match(intake.prompt, /tool "work_linear_get_issue", args \{"id": "<IDENTIFIER>"\}/);
+    assert.deepEqual(intake.tools.slice(2), ["mcp__work_linear__get_workspace", "mcp__work_linear__get_issue", "mcp__work_linear__list_issues"]);
+    assert.match(intake.prompt, /tool "mcp__work_linear__get_issue", arguments \{"id": "<IDENTIFIER>"\}/);
     const [snapshot] = snapshotsIn(trackerSeed);
     assert.match(basename(snapshot), /^linear-tus-5-[0-9a-f]{8}\.md$/);
     const text = readFileSync(snapshot, "utf8");
@@ -2518,40 +2636,24 @@ describe("goal-select tracker intake (fixture MCP transcripts and fake workflow 
 
 
 
-describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool_call hook contract, not a live session)", () => {
-  const readCalls = [
-    ["mcp", { connect: "atlassian" }],
-    ["mcp", { server: "atlassian" }],
-    ["mcp", { describe: "atlassian_getJiraIssue" }],
-    ["mcp", { search: "jira issue" }],
-    ["mcp", {}],
-    ["mcp", { tool: "atlassian_getAccessibleAtlassianResources", args: "{}" }],
-    ["mcp", { tool: "atlassian_getJiraIssue", args: "{}" }],
-    ["mcp", { tool: "atlassian_searchJiraIssuesUsingJql", args: "{}" }],
-    ["mcp", { tool: "linear_get_workspace", args: "{}" }],
-    ["mcp", { tool: "linear-get-issue", args: "{}" }],
-    ["mcp", { tool: "list_issues", args: "{}" }],
-    ["linear_get_issue", { id: "TUS-5" }],
-    ["structured_output", { state: "done" }],
-  ];
+describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool_call and tool_result hook contract, not a live session)", () => {
+  const jira = { tracker: "jira", server: "atlassian" };
+  const linear = { tracker: "linear", server: "work-linear" };
   const writeTools = [
-    "atlassian_editJiraIssue",
-    "atlassian_createJiraIssue",
-    "atlassian_transitionJiraIssue",
-    "atlassian_addCommentToJiraIssue",
-    "atlassian_addWorklogToJiraIssue",
-    "atlassian_createIssueLink",
-    "atlassian_createConfluencePage",
-    "atlassian_updateConfluencePage",
-    "linear_save_issue",
-    "linear_save_comment",
-    "linear_delete_comment",
-    "linear_create_attachment",
-    "linear_share_issue",
-    "linear_save_project",
-    "linear_mark_notification",
-    "linear_merge_diff",
-    "linear_get_issue_status",
+    "mcp__atlassian__editJiraIssue",
+    "mcp__atlassian__createJiraIssue",
+    "mcp__atlassian__transitionJiraIssue",
+    "mcp__atlassian__addCommentToJiraIssue",
+    "mcp__atlassian__addWorklogToJiraIssue",
+    "mcp__atlassian__createIssueLink",
+    "mcp__atlassian__createConfluencePage",
+    "mcp__atlassian__updateConfluencePage",
+    "mcp__work_linear__save_issue",
+    "mcp__work_linear__save_comment",
+    "mcp__work_linear__delete_comment",
+    "mcp__work_linear__create_attachment",
+    "mcp__work_linear__share_issue",
+    "mcp__work_linear__merge_diff",
   ];
 
   function session(stageName) {
@@ -2565,68 +2667,118 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
       appendEntry: (type, data) => entries.push({ type, data }),
       registerTool: (tool) => tools.push(tool),
     });
-    assert.deepEqual(Object.keys(handlers).sort(), ["session_start", "tool_call"]);
+    assert.deepEqual(Object.keys(handlers).sort(), ["session_start", "tool_call", "tool_result"]);
     const header = stageName === undefined ? { type: "session" } : { type: "session", workflow: { runId: "r", stageId: "s", stageName } };
     const ctx = { sessionManager: { getHeader: () => header } };
     handlers.session_start({ reason: "startup" }, ctx);
     let id = 0;
-    const fire = (toolName, input) => {
+    const fire = (toolName, input = {}) => {
       id += 1;
       return handlers.tool_call({ toolName, input, toolCallId: `t${id}` }, ctx);
     };
+    const result = (toolName, structuredContent, isError = false) => handlers.tool_result({ type: "tool_result", toolName, toolCallId: `t${id}`, input: {}, content: [], isError, structuredContent }, ctx);
     const runProbe = async () => {
       assert.equal(fire(guard.TRACKER_GUARD_TOOL, {}), undefined);
       return tools[0].execute(`t${id}`, {});
     };
-    return { fire, entries, tools, runProbe };
+    return { fire, result, entries, tools, runProbe };
   }
+
+  it("names native MCP tools exactly as Atomic does, including server punctuation and over-long names", () => {
+    assert.equal(guard.mcpToolName("atlassian", "getJiraIssue"), "mcp__atlassian__getJiraIssue");
+    assert.equal(guard.mcpToolName("work-linear", "get_issue"), "mcp__work_linear__get_issue");
+    const long = guard.mcpToolName("a-very-long-server-name-for-tests-x", "searchJiraIssuesUsingJql");
+    assert.equal(long.length, 64);
+    assert.match(long, /^mcp__a_very_long_server_name_for_tests_x__searchJira\w*_[0-9a-f]{8}$/);
+    assert.deepEqual(guard.trackerReadTools(jira), ["mcp__atlassian__getAccessibleAtlassianResources", "mcp__atlassian__getJiraIssue", "mcp__atlassian__searchJiraIssuesUsingJql"]);
+  });
+
+  it("reads the tracker and server only from the workflow's stage name, and gives unscoped stages no MCP access", () => {
+    assert.deepEqual(guard.parseTrackerStage("goal-select-tracker-intake-jira-atlassian"), { stage: guard.TRACKER_INTAKE_STAGE, scope: jira });
+    assert.deepEqual(guard.parseTrackerStage("goal-select-tracker-fetch-linear-work-linear"), { stage: guard.TRACKER_FETCH_STAGE, scope: linear });
+    assert.deepEqual(guard.parseTrackerStage("goal-select-tracker-intake"), { stage: guard.TRACKER_INTAKE_STAGE });
+    assert.deepEqual(guard.parseTrackerStage("goal-select-tracker-intake-github-x"), { stage: guard.TRACKER_INTAKE_STAGE });
+    assert.deepEqual(guard.parseTrackerStage(guard.TRACKER_GUARD_CHECK_STAGE), { stage: guard.TRACKER_GUARD_CHECK_STAGE });
+    for (const name of ["orchestrator-1", "tracker-intake", undefined]) assert.equal(guard.parseTrackerStage(name), undefined);
+    assert.equal(guard.trackerStageName(guard.TRACKER_INTAKE_STAGE, linear), "goal-select-tracker-intake-linear-work-linear");
+  });
 
   it("does nothing outside goal-select's intake stages: no probe tool, no entries, no blocking", () => {
     for (const stage of [undefined, "orchestrator-1", "completion-reviewer-1", "tracker-intake"]) {
-      const { fire, entries, tools } = session(stage);
-      assert.equal(fire("mcp", { tool: "atlassian_editJiraIssue" }), undefined, String(stage));
+      const { fire, result, entries, tools } = session(stage);
+      assert.equal(fire("mcp__atlassian__editJiraIssue"), undefined, String(stage));
       assert.equal(fire("bash", { command: "true" }), undefined, String(stage));
+      assert.equal(result("mcp__atlassian__getJiraIssue", { content: [] }), undefined);
       assert.deepEqual(tools, [], String(stage));
       assert.deepEqual(entries, [], String(stage));
     }
   });
 
-  it("registers its probe tool in each intake stage and holds back every other call until the probe has run", async () => {
-    for (const stage of guard.TRACKER_INTAKE_STAGES) {
+  it("holds back discovery and reads until the probe runs, then allows only tool_search and the selected server's three reads", async () => {
+    for (const [stage, scope] of [["goal-select-tracker-intake-jira-atlassian", jira], ["goal-select-tracker-fetch-linear-work-linear", linear]]) {
       const { fire, entries, tools, runProbe } = session(stage);
       assert.deepEqual(tools.map((tool) => tool.name), [guard.TRACKER_GUARD_TOOL]);
-      assert.deepEqual(entries, [{ type: guard.TRACKER_GUARD_ENTRY, data: { event: "loaded", stage } }]);
-      const early = fire("mcp", { connect: "atlassian" });
-      assert.equal(early?.block, true);
-      assert.match(early.reason, /goal_select_tracker_guard must run before any other call/);
-      const result = await runProbe();
-      assert.equal(result.details.guard, "active");
-      assert.equal(result.details.stage, stage);
-      for (const [toolName, input] of readCalls) assert.equal(fire(toolName, input), undefined, `${stage} ${toolName} ${JSON.stringify(input)}`);
-      const decisions = entries.filter((entry) => entry.data.event === "decision");
-      assert.equal(decisions.length, readCalls.length + 2);
-      assert.ok(decisions.slice(1).every((entry) => entry.type === guard.TRACKER_GUARD_ENTRY && entry.data.allowed === true && entry.data.toolCallId));
+      assert.deepEqual(entries, [{ type: guard.TRACKER_GUARD_ENTRY, data: { event: "loaded", stage: guard.parseTrackerStage(stage).stage, ...scope } }]);
+      for (const early of [guard.TOOL_SEARCH_TOOL, ...guard.trackerReadTools(scope)]) {
+        const outcome = fire(early);
+        assert.equal(outcome?.block, true, early);
+        assert.match(outcome.reason, /goal_select_tracker_guard must run before any other call/);
+      }
+      const probe = await runProbe();
+      assert.deepEqual(probe.details, { guard: "active", stage: guard.parseTrackerStage(stage).stage, ...scope, read_tools: guard.trackerReadTools(scope) });
+      for (const allowed of [guard.TOOL_SEARCH_TOOL, ...guard.trackerReadTools(scope), "structured_output"]) assert.equal(fire(allowed), undefined, `${stage} ${allowed}`);
     }
   });
 
-  it("blocks tracker writes, unlisted tracker tools such as get_issue_status, other gateway actions and non-tracker tools before they run", async () => {
-    const { fire, entries, runProbe } = session("goal-select-tracker-intake");
+  it("blocks writes, unlisted reads, other servers' reads, the removed gateway, codemode and shell escapes after the probe", async () => {
+    const { fire, entries, runProbe } = session("goal-select-tracker-intake-jira-atlassian");
     await runProbe();
     const blocked = [
-      ...writeTools.map((tool) => ["mcp", { tool, args: "{}" }]),
-      ...writeTools.map((tool) => [tool, {}]),
-      ["mcp", { action: "ui-messages" }],
-      ["bash", { command: "curl -X POST https://example.atlassian.net" }],
-      ["write", { path: "x", content: "y" }],
-      ["subagent", {}],
+      ...writeTools,
+      "mcp__atlassian__getJiraIssue_extra",
+      "mcp__atlassian__getConfluencePage",
+      "mcp__atlassian__getTransitionsForJiraIssue",
+      "mcp__linear__get_issue",
+      "mcp__work_linear__get_issue",
+      "mcp__atlassian2__getJiraIssue",
+      "getJiraIssue",
+      "atlassian_getJiraIssue",
+      "mcp",
+      "codemode",
+      "read_mcp_resource",
+      "bash",
+      "write",
+      "subagent",
     ];
-    for (const [toolName, input] of blocked) {
-      const outcome = fire(toolName, input);
-      assert.equal(outcome?.block, true, `${toolName} ${JSON.stringify(input)}`);
-      assert.match(outcome.reason, /^goal-select tracker intake is read-only: /);
+    for (const toolName of blocked) {
+      const outcome = fire(toolName, { command: "curl -X POST https://example.atlassian.net" });
+      assert.equal(outcome?.block, true, toolName);
+      assert.match(outcome.reason, /^goal-select tracker intake is read-only: tool ".*" is not an allow-listed jira read tool of MCP server "atlassian"\.$/);
     }
     const decisions = entries.filter((entry) => entry.data.event === "decision").slice(1);
     assert.equal(decisions.length, blocked.length);
     assert.ok(decisions.every((entry) => entry.data.allowed === false && entry.data.reason));
+  });
+
+  it("lets the guard check stage run its probe and nothing else", async () => {
+    const { fire, runProbe } = session(guard.TRACKER_GUARD_CHECK_STAGE);
+    const probe = await runProbe();
+    assert.deepEqual(probe.details, { guard: "active", stage: guard.TRACKER_GUARD_CHECK_STAGE, read_tools: [] });
+    for (const toolName of [guard.TOOL_SEARCH_TOOL, "mcp__atlassian__getJiraIssue"]) assert.equal(fire(toolName)?.block, true, toolName);
+  });
+
+  it("records the complete native result of each allowed read, and nothing for other tools or failed calls", async () => {
+    const { fire, result, entries, runProbe } = session("goal-select-tracker-intake-jira-atlassian");
+    await runProbe();
+    const full = { content: [{ type: "text", text: "x".repeat(30_000) }], structuredContent: { key: "PROJ-7" } };
+    fire("mcp__atlassian__getJiraIssue");
+    result("mcp__atlassian__getJiraIssue", full);
+    fire(guard.TOOL_SEARCH_TOOL);
+    result(guard.TOOL_SEARCH_TOOL, { loaded: [] });
+    fire("mcp__atlassian__getJiraIssue");
+    result("mcp__atlassian__getJiraIssue", { content: [], isError: true }, true);
+    const recorded = entries.filter((entry) => entry.data.event === "result");
+    assert.equal(recorded.length, 1);
+    assert.deepEqual(recorded[0].data, { event: "result", toolCallId: "t2", toolName: "mcp__atlassian__getJiraIssue", result: full });
   });
 });

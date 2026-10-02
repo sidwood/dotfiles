@@ -3,6 +3,7 @@ import { workflow } from "@bastani/atomic/workflows";
 import { Type } from "typebox";
 import { withSteeringPropagationContext } from "/Users/sidwood/.local/share/atomic/node_modules/@bastani/atomic/dist/builtin/workflows/builtin/steering-context.js";
 import { markGoalSelectRun } from "../extensions/goal-select-mcp-discovery.ts";
+import { TRACKER_FETCH_STAGE, TRACKER_GUARD_CHECK_STAGE, TRACKER_INTAKE_STAGE } from "../extensions/goal-select-tracker-guard.ts";
 import { resolveBranchCheckout, resolvePolicyPath } from "./goal-select/branch-checkout.js";
 import {
   CLONE_TIMEOUT_MS,
@@ -28,6 +29,7 @@ import {
   trackerPrompt,
   trackerSnapshot,
   trackerSnapshotPath,
+  trackerStage,
   trackerStageOptions,
   trackerStageOutcome,
   writeTrackerSnapshot,
@@ -69,9 +71,9 @@ async function runTrackerStage(ctx: any, name: string, intake: TrackerIntake, re
 }
 
 async function intakeTrackerIssue(ctx: any, intake: TrackerIntake) {
-  const guardCheck = await ctx.task("goal-select-tracker-guard-check", guardCheckStageOptions(intake));
+  const guardCheck = await ctx.task(TRACKER_GUARD_CHECK_STAGE, guardCheckStageOptions(intake));
   const guardAudit = await ctx.tool(
-    "audit-goal-select-tracker-guard-check",
+    `audit-${TRACKER_GUARD_CHECK_STAGE}`,
     { session_file: guardCheck.sessionFile ?? null },
     async () => auditGuardCheck(guardCheck.sessionFile),
     { timeoutMs: 30_000 },
@@ -79,12 +81,13 @@ async function intakeTrackerIssue(ctx: any, intake: TrackerIntake) {
   guardCheckOutcome(guardAudit, intake);
   const request = intake.request || (await ctx.ui.input(`${intake.label} issue key, URL or search words`)).trim();
   if (!request) throw new Error(`No ${intake.label} issue was given, so tracker intake stopped. No checkout or snapshot was created and no Goal stage ran.`);
+  const intakeStage = trackerStage(intake, TRACKER_INTAKE_STAGE);
   const found = await runTrackerStage(
     ctx,
-    "goal-select-tracker-intake",
+    intakeStage,
     intake,
     request,
-    ctx.task("goal-select-tracker-intake", trackerStageOptions(intake, trackerPrompt(intake, { mode: "lookup", request }))),
+    ctx.task(intakeStage, trackerStageOptions(intake, trackerPrompt(intake, { mode: "lookup", request }))),
   );
   if (found.kind === "fetched" && namesIssue(request, found.issue)) return found.issue;
   const choices: TrackerIssue[] = found.kind === "fetched" ? [found.issue] : found.candidates;
@@ -93,12 +96,13 @@ async function intakeTrackerIssue(ctx: any, intake: TrackerIntake) {
   const chosen = choices[options.indexOf(answer)];
   if (!chosen) throw new Error(`No ${intake.label} issue was chosen for "${request}", so tracker intake stopped. No checkout or snapshot was created and no Goal stage ran.`);
   if (found.kind === "fetched") return found.issue;
+  const fetchStage = trackerStage(intake, TRACKER_FETCH_STAGE);
   const fetched = await runTrackerStage(
     ctx,
-    "goal-select-tracker-fetch",
+    fetchStage,
     intake,
     chosen.key,
-    ctx.task("goal-select-tracker-fetch", trackerStageOptions(intake, trackerPrompt(intake, { mode: "fetch", request: chosen.key }))),
+    ctx.task(fetchStage, trackerStageOptions(intake, trackerPrompt(intake, { mode: "fetch", request: chosen.key }))),
   );
   if (fetched.kind !== "fetched" || fetched.issue.key.toLowerCase() !== chosen.key.toLowerCase()) {
     throw new Error(`The ${intake.label} fetch for the chosen issue ${chosen.key} returned ${fetched.kind === "fetched" ? fetched.issue.key : "no issue"}. No checkout or snapshot was created and no Goal stage ran.`);
