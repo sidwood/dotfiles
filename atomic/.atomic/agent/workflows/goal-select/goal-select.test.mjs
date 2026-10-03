@@ -39,7 +39,7 @@ const kimiAstra = {
   completion_reviewer_model: "openai-codex/gpt-6-astra:high",
   evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
   risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
-  writer_model: "kimi-coding/k3:high",
+  writer_model: "kimi-coding/k3:max",
   max_turns: 10,
 };
 const grokOpus = {
@@ -48,7 +48,7 @@ const grokOpus = {
   completion_reviewer_model: "anthropic/claude-opus-5-5:high",
   evidence_reviewer_model: "anthropic/claude-opus-5-5:high",
   risk_reviewer_model: "anthropic/claude-opus-5-5:xhigh",
-  writer_model: "xai/grok-4.7:high",
+  writer_model: "xai/grok-4.7:xhigh",
   max_turns: 10,
 };
 const glmGrock = {
@@ -57,7 +57,7 @@ const glmGrock = {
   completion_reviewer_model: "xai/grok-4.7-fast:high",
   evidence_reviewer_model: "xai/grok-4.7-fast:high",
   risk_reviewer_model: "xai/grok-4.7-fast:xhigh",
-  writer_model: "zai/glm-5.3:high",
+  writer_model: "zai/glm-5.3:max",
   max_turns: 10,
 };
 const glmSol = {
@@ -67,6 +67,33 @@ const glmSol = {
   evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
   risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
   writer_model: "zai/glm-5.3:max",
+  max_turns: 10,
+};
+const glmAstra = {
+  orchestrator_model: "zai/glm-5.3:high",
+  reviewer_model: "openai-codex/gpt-6-astra:high",
+  completion_reviewer_model: "openai-codex/gpt-6-astra:high",
+  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
+  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  writer_model: "zai/glm-5.3:max",
+  max_turns: 10,
+};
+const grokAstra = {
+  orchestrator_model: "xai/grok-4.7:high",
+  reviewer_model: "openai-codex/gpt-6-astra:high",
+  completion_reviewer_model: "openai-codex/gpt-6-astra:high",
+  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
+  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  writer_model: "xai/grok-4.7:xhigh",
+  max_turns: 10,
+};
+const kimiOpus = {
+  orchestrator_model: "kimi-coding/k3:high",
+  reviewer_model: "anthropic/claude-opus-5-5:high",
+  completion_reviewer_model: "anthropic/claude-opus-5-5:high",
+  evidence_reviewer_model: "anthropic/claude-opus-5-5:high",
+  risk_reviewer_model: "anthropic/claude-opus-5-5:xhigh",
+  writer_model: "kimi-coding/k3:max",
   max_turns: 10,
 };
 const solOpusAstra = {
@@ -105,7 +132,7 @@ const opusAstra = {
   writer_model: "anthropic/claude-opus-5-5:xhigh",
   max_turns: 10,
 };
-const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "glm-sol.json": glmSol, "sol-opus-astra.json": solOpusAstra, "opus-fable.json": opusFable, "sol-fable.json": solFable, "opus-astra.json": opusAstra };
+const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "glm-sol.json": glmSol, "sol-opus-astra.json": solOpusAstra, "opus-fable.json": opusFable, "sol-fable.json": solFable, "opus-astra.json": opusAstra, "glm-astra.json": glmAstra, "grok-astra.json": grokAstra, "kimi-opus.json": kimiOpus };
 const savedHome = process.env.HOME;
 process.env.HOME = home;
 after(() => {
@@ -379,7 +406,9 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.equal(byName["orchestrator-1"].model, jsoncPolicy.orchestrator_model);
     for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, jsoncPolicy.reviewer_model, role);
     assert.equal(byName["orchestrator-2"].model, goalSelect.inputs.orchestrator_model.default);
-    for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-2`].model, goalSelect.inputs.reviewer_model.default, role);
+    for (const role of ["completion", "evidence"]) assert.equal(byName[`${role}-reviewer-2`].model, goalSelect.inputs.reviewer_model.default, role);
+    assert.equal(byName["risk-reviewer-2"].model, goalSelect.inputs.risk_reviewer_model.default, "a malformed turn falls back to the launch risk reviewer");
+    assert.equal(byName["risk-reviewer-2"].model, solAstra.risk_reviewer_model, "the launch risk reviewer is the preset's explicit value, not the generic reviewer_model");
     const turnPolicy = (turn) => calls.find((call) => call.name === `resolve-models-${turn}`).result;
     assert.equal(turnPolicy(1).maxTurns, 3);
     assert.deepEqual(turnPolicy(2), {});
@@ -1150,9 +1179,10 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
   });
 
   it("hands an explicit project-local policy to a new clone as the clone reads it, matched by the preview", async () => {
-    const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: goalSelect.inputs.reviewer_model.default };
+    const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: goalSelect.inputs.reviewer_model.default, risk: goalSelect.inputs.risk_reviewer_model.default };
+    assert.equal(launch.risk, solAstra.risk_reviewer_model, "the launch risk reviewer is the preset's explicit value, not the generic reviewer_model");
     const fromJsonc = { orchestrator: jsoncPolicy.orchestrator_model, reviewer: jsoncPolicy.reviewer_model };
-    const fromJson = { orchestrator: "test/json-orchestrator", reviewer: launch.reviewer };
+    const fromJson = { orchestrator: "test/json-orchestrator", reviewer: launch.reviewer, risk: launch.risk };
     const committedFile = (path, head) => `${path} at seed commit ${head} (the clone gets this committed file)`;
     const uncommittedFile = (dir, path) => `${join(dir, path)} (not committed; copied into the clone when it is created)`;
     for (const [label, committed, untracked, expected] of [
@@ -1193,7 +1223,7 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
       if (expected.copied !== null) assert.equal(readFileSync(join(actual.target, expected.copied), "utf8"), readFileSync(join(dir, expected.copied), "utf8"), `${label}: copied verbatim`);
       const byName = Object.fromEntries(modelStages(actual.calls).map((stage) => [stage.name, stage.options]));
       assert.equal(byName["orchestrator-1"].model, expected.models.orchestrator, `${label}: preview matches turn 1`);
-      for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, expected.models.reviewer, `${label} ${role}`);
+      for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, expected.models[role] ?? expected.models.reviewer, `${label} ${role}`);
       assert.ok(Object.values(byName).every((stage) => stage.cwd === actual.target), label);
       assert.deepEqual(seedState(dir), before, `${label}: the run leaves the seed alone`);
     }

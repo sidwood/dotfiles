@@ -4,6 +4,6 @@
   "completion_reviewer_model": "anthropic/claude-opus-5-5:high",
   "evidence_reviewer_model": "anthropic/claude-opus-5-5:high",
   "risk_reviewer_model": "anthropic/claude-opus-5-5:xhigh",
-  "writer_model": "kimi-coding/k3:high",
+  "writer_model": "kimi-coding/k3:max",
   "max_turns": 10
 }
