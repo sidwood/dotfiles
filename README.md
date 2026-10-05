@@ -347,8 +347,10 @@ The `shell/` package provides configuration sourced from zsh:
 
 ### OpenCode: local and Framework models
 
-`c` and `cm` are plain aliases for `opencode`. `cf` selects the Framework
-Desktop server. The enabled configuration selects the local or cloud model. Start a new shell after
+`c` and `cm` are plain aliases for `opencode`. The enabled LM Studio profile
+also lists Framework models in `/models`; no wrapper is needed after Lemonade's
+LAN client-key removal is applied. `cf` is the retained legacy launcher.
+The enabled configuration selects the local or cloud model. Start a new shell after
 updating to pick up the changed aliases.
 
 The CLI is `opencode-ai@1.18.20`, installed by **Install pinned Node CLIs**,
@@ -358,6 +360,17 @@ Homebrew formula, `brew uninstall opencode` so `~/.local/bin/opencode` is the
 only one.
 
 The shared `opencode.jsonc` intentionally selects no provider or default model.
+It loads `tool-awareness.md` to ground capability claims in actual tool calls
+and distinguish approval prompts from missing tools; permissions are unchanged.
+Shell init enables OpenCode's optional Exa web search, experimental LSP and plan
+tools, and CLI question tool without a launcher or blanket experimental mode.
+The local-worker role permits task delegation and questions. Ordinary Build file,
+shell, editing and web-fetch tools remain enabled; external-directory and sensitive
+file approval guards remain. Search queries go to Exa's hosted service; local
+model inference still goes to the selected LAN/localhost server. LSP operations
+require a language server for the current file type. Model-specific patch versus
+edit/write selection remains OpenCode's responsibility. Restart OpenCode from a
+new shell after updating so the feature flags and instructions take effect.
 On a Mac that runs local models, select **Enable LM Studio models in OpenCode
 on this Mac** in `install.sh`, alongside the Stow option. This creates a
 machine-local `~/.config/opencode/opencode.json -> lmstudio.json` symlink;
@@ -377,11 +390,9 @@ c
 c run "Explain this project"
 c --model lmstudio/qwen/qwen3.8-27b
 c models lmstudio
-cf models
-cf                         # 27b-64k default
-cf 27b-128k                # experimental long-context profile
-cf 122b
-cf 27b-64k run "Explain this project"
+c models framework
+c --model framework/Qwen3.8-27B-GGUF-UD-Q5_K_XL-128K
+c --model framework/Qwen3.5-122B-A10B-GGUF
 ```
 
 The Homebrew installation option includes the `lm-studio` cask; no standalone
@@ -399,8 +410,9 @@ Control Gemma’s thinking toggle in LM Studio. OpenCode’s generated
 `low`/`medium`/`high` effort presets are disabled for this model because it
 does not support those levels.
 
-Neither the shared config nor the local profile has a `small_model` override: for these custom providers,
-OpenCode's title helper falls back to the selected model. The optional
+The combined local profile disables automatic title generation, retaining the
+Framework's single-request safeguard without depending on a separate Mac helper.
+Sessions can be named manually; `--title` names a CLI session explicitly. The optional
 `--agent local-worker` role also inherits the selected model. Launchers never
 request cloud reviews or run remediation; orchestration belongs to the harness
 or a future Atomic workflow. The standalone `frontier-review` utility remains
@@ -418,7 +430,18 @@ until those models were selected again.
 
 #### Framework configuration
 
-All Framework model definitions and Lemonade request settings live in
+The active `lmstudio.json` includes a native `framework` provider at
+`http://192.168.4.25:13305/v1`, with an empty client key. The Mac-local default
+and LM Studio model definitions are preserved. Start plain `c`, open `/models`
+and search for `Framework`, or pass the full `--model` ID shown above. Positional
+arguments are project directories, so `c 27b-128k` is not a profile command.
+
+This requires the separately sudo-approved Lemonade client-key removal. The
+server's existing LAN firewall and separate admin key remain in place; no public
+endpoint or SSH tunnel is added. Any allowed LAN device can use the regular API.
+Normal Framework inference needs no `op run`, credential environment or launcher.
+
+The retained legacy wrapper's model definitions and request settings live in
 `opencode/.config/opencode/framework.json`. The adjacent
 `framework-profiles.tsv` maps command shortcuts to model IDs; its first row is
 the default. `27b` remains an alias for `27b-64k`.
@@ -447,7 +470,7 @@ LM Studio on the desktop. Update the endpoint, credential mode, model IDs,
 loaded context limits, and server-specific request settings together. The
 macOS dotfiles installer does not manage the desktop's operating system.
 
-Framework titles remain disabled to avoid untested concurrent inference.
+Legacy wrapper titles remain disabled to avoid untested concurrent inference.
 Cold long-context requests allow up to an hour; the 128K profile requests
 streaming keepalives. Its previous 121,990-token cold test took 14m 11s and
 retrieved three of six test values, so it remains experimental. A cached

@@ -4,7 +4,8 @@ mode: primary
 permission:
   edit: allow
   bash: allow
-  task: deny
+  task: allow
+  question: allow
 ---
 
 You are the local implementation worker in a model fleet.

@@ -32,7 +32,7 @@
           }
         },
         "Qwen3.8-27B-GGUF-UD-Q5_K_XL-128K": {
-          "name": "Qwen3.8-27B Q5 128K (experimental)",
+          "name": "Qwen3.8-27B Q5 128K",
           "reasoning": false,
           "tool_call": true,
           "limit": {

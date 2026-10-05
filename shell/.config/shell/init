@@ -1,6 +1,11 @@
 # Unified shell init (sourced by zsh)
 # Tool integrations
 
+export OPENCODE_ENABLE_EXA=1
+export OPENCODE_EXPERIMENTAL_LSP_TOOL=1
+export OPENCODE_ENABLE_QUESTION_TOOL=1
+export OPENCODE_EXPERIMENTAL_PLAN_MODE=1
+
 # ------------------------------------------------------------------------------
 # mise (version manager for node, python, ruby, etc.)
 # ------------------------------------------------------------------------------
