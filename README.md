@@ -271,8 +271,9 @@ JSONC model policy before every turn.
 The policy is a preset from the shared library at
 `~/.config/atomic/goal-select-models/`, stowed from this repo and shared by
 every project, checkout and branch clone: `sol-astra.json` (the default),
-`kimi-astra.json`, `kimi-opus.json`, `grok-opus.json`, `grok-astra.json`,
-`glm-grock.json`, `glm-astra.json`, `glm-sol.json`,
+`kimi-astra.json`, `kimi-opus.json`, `kimi-sol.json`,
+`grok-opus.json`, `grok-astra.json`, `grok-sol.json`,
+`glm-grock.json`, `glm-astra.json`, `glm-sol.json`, `opus-sol.json`,
 `sol-opus-astra.json`, `opus-fable.json`, `sol-fable.json` and `opus-astra.json`.
 Each preset pins the six role models and `max_turns: 10`.
 The launch form's `model_policy_path`

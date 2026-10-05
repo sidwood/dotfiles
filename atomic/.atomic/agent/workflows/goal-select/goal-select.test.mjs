@@ -96,6 +96,33 @@ const kimiOpus = {
   writer_model: "kimi-coding/k3:max",
   max_turns: 10,
 };
+const grokSol = {
+  orchestrator_model: "xai/grok-4.7:high",
+  reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  completion_reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
+  writer_model: "xai/grok-4.7:xhigh",
+  max_turns: 10,
+};
+const kimiSol = {
+  orchestrator_model: "kimi-coding/k3:high",
+  reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  completion_reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
+  writer_model: "kimi-coding/k3:max",
+  max_turns: 10,
+};
+const opusSol = {
+  orchestrator_model: "anthropic/claude-opus-5-5:high",
+  reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  completion_reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
+  risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
+  writer_model: "anthropic/claude-opus-5-5:xhigh",
+  max_turns: 10,
+};
 const solOpusAstra = {
   orchestrator_model: "openai-codex/gpt-6.1-sol:high",
   reviewer_model: "openai-codex/gpt-6-astra:high",
@@ -132,7 +159,7 @@ const opusAstra = {
   writer_model: "anthropic/claude-opus-5-5:xhigh",
   max_turns: 10,
 };
-const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "glm-sol.json": glmSol, "sol-opus-astra.json": solOpusAstra, "opus-fable.json": opusFable, "sol-fable.json": solFable, "opus-astra.json": opusAstra, "glm-astra.json": glmAstra, "grok-astra.json": grokAstra, "kimi-opus.json": kimiOpus };
+const presets = { "sol-astra.json": solAstra, "kimi-astra.json": kimiAstra, "grok-opus.json": grokOpus, "glm-grock.json": glmGrock, "glm-sol.json": glmSol, "sol-opus-astra.json": solOpusAstra, "opus-fable.json": opusFable, "sol-fable.json": solFable, "opus-astra.json": opusAstra, "glm-astra.json": glmAstra, "grok-astra.json": grokAstra, "kimi-opus.json": kimiOpus, "grok-sol.json": grokSol, "kimi-sol.json": kimiSol, "opus-sol.json": opusSol };
 const savedHome = process.env.HOME;
 process.env.HOME = home;
 after(() => {
