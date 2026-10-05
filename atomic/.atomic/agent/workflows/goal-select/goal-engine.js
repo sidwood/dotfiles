@@ -992,6 +992,53 @@ function reviewerExecutionFailedDecision(input) {
     diagnostics: input.reviews.flatMap((review) => review.parse_diagnostics)
   };
 }
+// Failures of the machine around the run, not of the work under review. A
+// run that dies on one must stay resumable: recording needs_human for it
+// makes the next resume stop before any stage runs, and the only way
+// forward is a new run that repeats every review.
+const INFRASTRUCTURE_FAILURE_PATTERNS = [
+  /Workflow database checkpoint timed out/i,
+  /Postgres connection pool changed/i,
+  /Postgres dependency invalidated/i,
+  /Connection terminated/i,
+  /Client was closed and is not queryable/i,
+  /usage limit has been reached/i,
+  /\b(?:ECONNRESET|ECONNREFUSED|EPIPE)\b/
+];
+function failureText(err) {
+  const parts = [];
+  for (let current = err, depth = 0; current !== undefined && current !== null && depth < 5; current = current.cause, depth += 1) {
+    parts.push(current instanceof Error ? current.message : String(current));
+    if (Array.isArray(current.errors)) {
+      parts.push(...current.errors.map((inner) => inner instanceof Error ? inner.message : String(inner)));
+    }
+  }
+  return parts.join(`
+`);
+}
+function isInfrastructureFailure(text) {
+  return INFRASTRUCTURE_FAILURE_PATTERNS.some((pattern) => pattern.test(text));
+}
+// Ledgers written before infrastructure failures were rethrown hold a
+// needs_human decision for them. Drop that decision so a resume continues
+// the turn it interrupted.
+function reopenAfterInfrastructureFailure(ledger) {
+  if (ledger.status !== "needs_human")
+    return false;
+  const last = ledger.decisions.at(-1);
+  if (last?.decision !== "needs_human")
+    return false;
+  const turnErrors = ledger.reviews.filter((review) => review.turn === last.turn && !review.parsed);
+  const evidence = [last.reason ?? "", ...last.diagnostics ?? [], ...turnErrors.flatMap((review) => review.parse_diagnostics ?? [])].join(`
+`);
+  if (!isInfrastructureFailure(evidence))
+    return false;
+  ledger.decisions.pop();
+  ledger.reviews = ledger.reviews.filter((review) => !turnErrors.includes(review));
+  ledger.status = "active";
+  appendLifecycleEvent(ledger, "reopened", "Reopened after an infrastructure failure; the interrupted turn continues.", last.turn);
+  return true;
+}
 async function runGoalWorkflow(ctx, options) {
   const inputs = ctx.inputs;
   const createPr = options.createPr;
@@ -1015,13 +1062,20 @@ async function runGoalWorkflow(ctx, options) {
   let latestReviewReportPath;
   let terminalRemainingWork;
   let previousOrchestratorSessionFile;
-  for (let turn = 1; ledger.status === "active"; turn += 1) {
+  if (reopenAfterInfrastructureFailure(ledger))
+    await writeGoalLedger(ledgerPath, ledger);
+  // A resume re-enters here with the ledger of the interrupted run. Turns the
+  // reducer already decided are replayed (Atomic returns their recorded stage
+  // results) to rebuild the loop's state without recording them twice.
+  const decidedTurns = ledger.decisions.reduce((latest, decision) => Math.max(latest, decision.turn), 0);
+  for (let turn = 1; ledger.status === "active" || turn <= decidedTurns; turn += 1) {
+    const replayingDecidedTurn = turn <= decidedTurns;
     const turnModels = await resolveTurnModels(ctx, modelSelection, turn);
     if (turnModels.maxTurns !== undefined) {
       maxTurns = turnModels.maxTurns;
       blockerThreshold = Math.min(DEFAULT_BLOCKER_THRESHOLD, maxTurns);
     }
-    if (turn > maxTurns) {
+    if (!replayingDecidedTurn && turn > maxTurns) {
       const baseReason = `Orchestrator attempt budget reached (${maxTurns}) before turn ${turn}. Remaining work: ${collectRemainingWork(latestReviews)}`;
       terminalRemainingWork = collectRemainingWork(latestReviews);
       ledger.status = "needs_human";
@@ -1042,8 +1096,11 @@ async function runGoalWorkflow(ctx, options) {
       await writeGoalLedger(ledgerPath, ledger);
       break;
     }
-    appendLifecycleEvent(ledger, "work_turn_started", "Orchestrator started.", turn);
-    await writeGoalLedger(ledgerPath, ledger);
+    const turnAlreadyStarted = ledger.lifecycle.some((event) => event.event === "work_turn_started" && event.turn === turn);
+    if (!replayingDecidedTurn && !turnAlreadyStarted) {
+      appendLifecycleEvent(ledger, "work_turn_started", "Orchestrator started.", turn);
+      await writeGoalLedger(ledgerPath, ledger);
+    }
     lastTurnModels = turnModels;
     const orchestratorReceiptPath = join3(artifactDir, "orchestrator-receipt.md");
     const orchestratorForkOptions = forkContinuationOptions(previousOrchestratorSessionFile);
@@ -1067,6 +1124,8 @@ async function runGoalWorkflow(ctx, options) {
         ...orchestratorForkOptions
       });
     } catch (err) {
+      if (isInfrastructureFailure(failureText(err)))
+        throw err;
       const message = err instanceof Error ? err.message : String(err);
       const baseReason = `Orchestrator failed before producing a receipt: ${message}`;
       terminalRemainingWork = baseReason;
@@ -1095,18 +1154,20 @@ async function runGoalWorkflow(ctx, options) {
       break;
     }
     previousOrchestratorSessionFile = orchestrator.sessionFile;
-    ledger.turns = turn;
-    const receiptAlreadyRecorded = ledger.receipts.some((receipt) => receipt.turn === turn && receipt.artifact_path === orchestratorReceiptPath);
-    if (!receiptAlreadyRecorded) {
-      ledger.receipts.push({
-        turn,
-        stage: orchestrator.name ?? orchestrator.stageName,
-        artifact_path: orchestratorReceiptPath,
-        summary: `Orchestrator receipt artifact: ${orchestratorReceiptPath}`
-      });
-      appendLifecycleEvent(ledger, "receipt_recorded", "Orchestrator receipt recorded.", turn);
+    if (!replayingDecidedTurn) {
+      ledger.turns = turn;
+      const receiptAlreadyRecorded = ledger.receipts.some((receipt) => receipt.turn === turn && receipt.artifact_path === orchestratorReceiptPath);
+      if (!receiptAlreadyRecorded) {
+        ledger.receipts.push({
+          turn,
+          stage: orchestrator.name ?? orchestrator.stageName,
+          artifact_path: orchestratorReceiptPath,
+          summary: `Orchestrator receipt artifact: ${orchestratorReceiptPath}`
+        });
+        appendLifecycleEvent(ledger, "receipt_recorded", "Orchestrator receipt recorded.", turn);
+      }
+      await writeGoalLedger(ledgerPath, ledger);
     }
-    await writeGoalLedger(ledgerPath, ledger);
     const reviewerStep = (name, reviewerRole, focus, modelConfig) => ({
       name,
       task: renderReviewerPrompt({
@@ -1139,8 +1200,11 @@ async function runGoalWorkflow(ctx, options) {
         group: `goal-reviewers-turn-${turn}`
       });
     } catch (err) {
-      reviewerBatchFailed = true;
       const failure = reviewerFailureText(err);
+      if (isInfrastructureFailure(`${failure}
+${failureText(err)}`))
+        throw err;
+      reviewerBatchFailed = true;
       reviewerExecutionDiagnostic = failure.includes("referenced artifact does not exist") ? `Reviewer execution failed while resolving its reads contract: ${failure}` : `Reviewer execution failed before producing a decision: ${failure}`;
       reviewResults = [
         {
@@ -1192,14 +1256,14 @@ async function runGoalWorkflow(ctx, options) {
       }
     });
     latestReviewReportPath = await writeReviewRoundArtifact(artifactDir, latestReviews, reverified.batch, reverified.audits);
-    if (reverified.audits.length > 0) {
+    if (!replayingDecidedTurn && reverified.audits.length > 0) {
       ledger.reverification ??= [];
       ledger.reverification.push(...reverified.audits);
     }
     const findings = latestReviews.flatMap((review) => review.findings);
     const traceability = latestReviews.flatMap((review) => review.requirements_traceability);
     ledger.convergence ??= [];
-    if (!reviewerBatchFailed && roundProducedDecisions) {
+    if (!replayingDecidedTurn && !reviewerBatchFailed && roundProducedDecisions) {
       ledger.convergence.push(record_convergence({
         unresolvedBlockingCount: reverified.batch.filter((entry) => entry.blocking).length,
         meanFindingConfidence: findings.length === 0 ? null : findings.reduce((total, finding) => total + finding.confidence_score, 0) / findings.length,
@@ -1209,8 +1273,10 @@ async function runGoalWorkflow(ctx, options) {
       }));
     }
     const newReviews = latestReviews.filter((review) => !ledger.reviews.some((recorded) => recorded.turn === review.turn && recorded.reviewer === review.reviewer));
-    ledger.reviews.push(...newReviews);
     latestReviewArtifactPaths = [latestReviewReportPath, ...latestReviews.map((review) => review.artifact_path)];
+    if (replayingDecidedTurn)
+      continue;
+    ledger.reviews.push(...newReviews);
     appendLifecycleEvent(ledger, "reviews_recorded", `Recorded ${latestReviews.length} reviewer decisions.`, turn);
     if (reviewerBatchFailed) {
       terminalRemainingWork = collectRemainingWork(latestReviews);

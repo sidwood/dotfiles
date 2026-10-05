@@ -768,6 +768,132 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.ok(stages.every((stage) => stage.options.cwd === clone));
   });
 
+  describe("resume after an infrastructure failure", () => {
+    const checkpointTimeout = "Workflow database checkpoint timed out. Restore PostgreSQL and inspect the run before resuming; external outcomes may be unknown.";
+    const resumable = (overrides) => fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone }, ...overrides });
+    const ledgerState = (calls) => {
+      const artifactDir = calls.find((call) => call.kind === "tool" && call.name === "artifact-root").result;
+      const path = join(artifactDir, "goal-ledger-state.json");
+      return { path, read: () => JSON.parse(readFileSync(path, "utf8")) };
+    };
+    const failReviewersOn = (ctx, turn, message) => {
+      const parallel = ctx.parallel;
+      ctx.parallel = async (steps, options) => {
+        if (steps[0].name.endsWith(`-${turn}`)) throw new Error(message);
+        return parallel(steps, options);
+      };
+    };
+    const secondTurnApproves = (name) => (name.endsWith("-1") ? keepGoing : approve);
+    const stageNames = (calls) => modelStages(calls).map((stage) => stage.name);
+    // Atomic replays a resumed run's recorded tool results, so the resumed
+    // body is handed the artifact directory of the interrupted run.
+    const resumeOf = (interrupted, overrides) => {
+      const resumed = resumable(overrides);
+      const artifactDir = interrupted.calls.find((call) => call.kind === "tool" && call.name === "artifact-root").result;
+      const tool = resumed.ctx.tool;
+      resumed.ctx.tool = (name, args, fn) => tool(name, args, name === "artifact-root" ? async () => artifactDir : fn);
+      return resumed;
+    };
+
+    it("leaves the ledger active when reviewers die on a database timeout, and a resume under the same run id finishes that turn", async () => {
+      const first = resumable({});
+      failReviewersOn(first.ctx, 1, checkpointTimeout);
+      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      const state = ledgerState(first.calls);
+      const interrupted = state.read();
+      assert.equal(interrupted.status, "active");
+      assert.deepEqual(interrupted.decisions, []);
+      assert.equal(interrupted.receipts.length, 1);
+
+      const second = resumeOf(first, {});
+      const result = await goalSelect.run(second.ctx);
+      assert.equal(result.status, "complete");
+      const finished = state.read();
+      assert.deepEqual(finished.decisions.map((decision) => [decision.turn, decision.decision]), [[1, "complete"]]);
+      assert.equal(finished.receipts.length, 1);
+      assert.equal(finished.reviews.length, 3);
+      assert.equal(finished.lifecycle.filter((event) => event.event === "work_turn_started").length, 1);
+    });
+
+    it("rethrows an orchestrator that hits the provider usage limit without recording a decision", async () => {
+      const { ctx, calls } = resumable({
+        onTask: () => {
+          throw new Error("Codex error: The usage limit has been reached");
+        },
+      });
+      await assert.rejects(goalSelect.run(ctx), /usage limit/);
+      const interrupted = ledgerState(calls).read();
+      assert.equal(interrupted.status, "active");
+      assert.deepEqual(interrupted.decisions, []);
+      assert.equal(interrupted.turns, 0);
+    });
+
+    it("still records needs_human when the work itself fails", async () => {
+      const orchestratorFails = resumable({
+        onTask: () => {
+          throw new Error("the model refused the task");
+        },
+      });
+      assert.equal((await goalSelect.run(orchestratorFails.ctx)).status, "needs_human");
+
+      const reviewersFail = resumable({});
+      failReviewersOn(reviewersFail.ctx, 1, "reviewer returned no decision");
+      assert.equal((await goalSelect.run(reviewersFail.ctx)).status, "needs_human");
+      assert.equal(ledgerState(reviewersFail.calls).read().decisions.at(-1).decision, "needs_human");
+    });
+
+    it("reopens a ledger an earlier engine closed on a database timeout, replays the decided turn once and finishes the interrupted one", async () => {
+      const first = resumable({ review: secondTurnApproves });
+      failReviewersOn(first.ctx, 2, checkpointTimeout);
+      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      const state = ledgerState(first.calls);
+      const closed = state.read();
+      assert.deepEqual(closed.decisions.map((decision) => decision.turn), [1]);
+      closed.status = "needs_human";
+      closed.reviews.push({ turn: 2, reviewer: "reviewer-error", parsed: false, parse_diagnostics: [`Reviewer execution failed before producing a decision: ${checkpointTimeout}`] });
+      closed.decisions.push({ turn: 2, decision: "needs_human", reason: "Reviewer execution failed before quorum could be established. Remaining work: unknown", diagnostics: [] });
+      writeJson(state.path, closed);
+
+      const second = resumeOf(first, { review: secondTurnApproves });
+      const result = await goalSelect.run(second.ctx);
+      assert.equal(result.status, "complete");
+      assert.deepEqual(stageNames(second.calls), [
+        "orchestrator-1",
+        "completion-reviewer-1",
+        "evidence-reviewer-1",
+        "risk-reviewer-1",
+        "orchestrator-2",
+        "completion-reviewer-2",
+        "evidence-reviewer-2",
+        "risk-reviewer-2",
+      ]);
+      const finished = state.read();
+      assert.deepEqual(finished.decisions.map((decision) => [decision.turn, decision.decision]), [[1, "continue"], [2, "complete"]]);
+      assert.equal(finished.reviews.some((review) => review.reviewer === "reviewer-error"), false);
+      assert.equal(finished.reviews.length, 6);
+      assert.equal(finished.receipts.length, 2);
+      assert.equal(finished.convergence.length, 2);
+      assert.ok(finished.lifecycle.some((event) => event.event === "reopened" && event.turn === 2));
+    });
+
+    it("keeps a ledger closed for a reason of the work closed, starting no new turn", async () => {
+      const first = resumable({ review: () => keepGoing });
+      failReviewersOn(first.ctx, 2, checkpointTimeout);
+      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      const state = ledgerState(first.calls);
+      const closed = state.read();
+      closed.status = "needs_human";
+      closed.decisions.push({ turn: 2, decision: "needs_human", reason: "Orchestrator attempt budget reached (1) before turn 2. Remaining work: More proof needed.", diagnostics: [] });
+      writeJson(state.path, closed);
+
+      const second = resumeOf(first, { review: () => keepGoing });
+      const result = await goalSelect.run(second.ctx);
+      assert.equal(result.status, "needs_human");
+      assert.equal(stageNames(second.calls).includes("orchestrator-3"), false);
+      assert.deepEqual(state.read().decisions, closed.decisions);
+    });
+  });
+
   it("Atomic's runtime hands task and parallel-step cwd to the stage session", async () => {
     const seen = [];
     const probe = workflow({
