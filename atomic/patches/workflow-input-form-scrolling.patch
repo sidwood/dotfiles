@@ -1,0 +1,130 @@
+diff -ru a/dist/modes/interactive/components/host-input-form.js b/dist/modes/interactive/components/host-input-form.js
+--- a/dist/modes/interactive/components/host-input-form.js	2026-10-06 08:34:16
++++ b/dist/modes/interactive/components/host-input-form.js	2026-10-06 08:34:16
+@@ -1,12 +1,16 @@
+-import { Editor, Input, Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, } from "@earendil-works/pi-tui";
++import { CURSOR_MARKER, Editor, Input, Key, matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, } from "@earendil-works/pi-tui";
+ import { getEditorTheme } from "../theme/theme.js";
++import { ScrollWidget } from "./scroll-widget.js";
+ /** Indent (cells) for a field's control, description, and error rows so they align under the field name. */
+ const LABEL_INDENT = 2;
+ function isEditable(field) {
+     return field.type !== "select" && field.type !== "boolean";
+ }
+-/** Host-owned form: all key handling and mutable editing state stay in the terminal process. */
+-export class HostInputFormComponent {
++/**
++ * Host-owned form: all key handling and mutable editing state stay in the terminal process.
++ * It is also its own dock viewport, so a form taller than the dock scrolls and keeps focus in view.
++ */
++export class HostInputFormComponent extends ScrollWidget {
+     title;
+     heading;
+     submitLabel;
+@@ -20,7 +24,12 @@
+     focusedIndex;
+     invalid = new Set();
+     _focused = true;
++    /** Rendered rows the focused control occupies; `caret` is the editor cursor row, or -1. */
++    focusRows = { top: 0, bottom: 0, caret: -1 };
++    revealFocus = true;
++    laidOut = { content: 0, viewport: 0 };
+     constructor(tui, theme, keybindings, request, delegate) {
++        super({ render: (width) => this.renderForm(width), invalidate: () => this.invalidate() }, Number.MAX_SAFE_INTEGER);
+         this.title = request.title;
+         this.heading = request.heading ?? "";
+         this.submitLabel = request.submitLabel ?? "[ Submit ]";
+@@ -67,6 +76,16 @@
+         this.syncFocus();
+     }
+     handleInput(data) {
++        const page = this.keybindings.matches(data, "tui.altScreen.pageUp")
++            ? -1
++            : this.keybindings.matches(data, "tui.altScreen.pageDown")
++                ? 1
++                : 0;
++        if (page !== 0 && this.overflows) {
++            this.scrollBy(page * Math.max(1, this.laidOut.viewport - 1));
++            return true;
++        }
++        this.revealFocus = true;
+         if (matchesKey(data, Key.escape) ||
+             matchesKey(data, Key.ctrl("c")) ||
+             this.keybindings.matches(data, "tui.select.cancel")) {
+@@ -97,7 +116,35 @@
+         this.tui.requestRender();
+         return true;
+     }
+-    render(width) {
++    get overflows() {
++        return this.laidOut.viewport > 0 && this.laidOut.content > this.laidOut.viewport;
++    }
++    /** Contain the wheel only while there is something to scroll; a form that fits leaves it to the transcript. */
++    scrollBy(lines) {
++        return this.overflows ? super.scrollBy(lines) : lines;
++    }
++    updateLayout(contentHeight, viewportHeight, requestRender) {
++        const resized = contentHeight !== this.laidOut.content || viewportHeight !== this.laidOut.viewport;
++        super.updateLayout(contentHeight, viewportHeight, requestRender);
++        this.laidOut = { content: contentHeight, viewport: viewportHeight };
++        if (!this.revealFocus && !resized)
++            return;
++        this.revealFocus = false;
++        this.scrollTo(this.focusScrollTop(viewportHeight));
++    }
++    /** Smallest scroll that shows the focused block (its head when taller than the viewport) and the caret. */
++    focusScrollTop(height) {
++        const { top, bottom, caret } = this.focusRows;
++        let next = this.scrollTop;
++        if (bottom - top > height || top < next)
++            next = top;
++        else if (bottom > next + height)
++            next = bottom - height;
++        if (caret >= next + height)
++            next = caret - height + 1;
++        return next;
++    }
++    renderForm(width) {
+         const boxWidth = Math.max(1, width);
+         const inner = Math.max(2, boxWidth - 2);
+         const cw = Math.max(8, inner - 2);
+@@ -112,6 +159,7 @@
+         for (let index = 0; index < this.fields.length; index += 1) {
+             const field = this.fields[index];
+             const active = index === this.focusedIndex;
++            const top = index === 0 ? 0 : body.length + 1;
+             body.push(this.labelRow(field, active, cw));
+             for (const line of this.renderField(field, index, controlWidth))
+                 body.push(`${indent}${line}`);
+@@ -123,12 +171,18 @@
+             if (this.invalid.has(index)) {
+                 body.push(`${indent}${this.theme.fg("error", `✗ ${this.invalidReason(field, this.currentValue(index)) ?? "invalid"}`)}`);
+             }
++            if (active)
++                this.focusRows = { top, bottom: body.length + 1, caret: -1 };
+             body.push("");
+         }
++        if (this.focusedIndex === this.fields.length)
++            this.focusRows = { top: body.length + 1, bottom: body.length + 5, caret: -1 };
+         body.push(this.submitRow());
+         body.push("");
+         body.push(this.footerRow());
+-        return this.frame(body, inner, cw);
++        const lines = this.frame(body, inner, cw);
++        this.focusRows.caret = lines.findIndex((line) => line.includes(CURSOR_MARKER));
++        return lines;
+     }
+     invalidate() {
+         for (const editor of this.editors)
+diff -ru a/dist/modes/interactive/interactive-mode-base.js b/dist/modes/interactive/interactive-mode-base.js
+--- a/dist/modes/interactive/interactive-mode-base.js	2026-10-06 08:34:16
++++ b/dist/modes/interactive/interactive-mode-base.js	2026-10-06 08:34:16
+@@ -452,7 +452,7 @@
+             autocompleteMaxVisible,
+         });
+         this.editor = this.defaultEditor;
+-        this.editorContainer = new Container();
++        this.editorContainer = new WidgetContainer();
+         this.editorContainer.addChild(this.editor);
+         this.footerDataProvider = new FooterDataProvider(this.sessionManager.getCwd());
+         this.footer = new FooterComponent(this.session, this.footerDataProvider, undefined, () => this.navigationInlineCustomUiDepth > 0);
