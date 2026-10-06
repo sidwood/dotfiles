@@ -296,7 +296,7 @@ function writerModelNote(model) {
 
 <keepContext>
 Writer model for this turn: ${model}
-When you delegate implementation with the subagent tool, pass model: "${model}". Do not leave the implementation agent on the builtin worker model.
+Every change to the checkout in this turn is written by an implementation agent on that model: delegate with the subagent tool and pass model: "${model}". That includes a small fix after a review, a test expectation and a follow-up commit. You plan, delegate, verify and write the receipt; you do not edit files or commit yourself, because the reviewers may share your model line and must not review their own line's work. Do not leave the implementation agent on the builtin worker model. If the agent ends on a different model than the one requested, say so in the receipt.
 </keepContext>`;
 }
 
