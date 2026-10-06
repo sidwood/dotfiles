@@ -171,9 +171,9 @@ export default workflow({
         "How the work is reviewed. simple: one reviewer owning contract, evidence and risk (quorum 1). standard: a completion-and-evidence reviewer plus a risk reviewer (both must approve). complex: completion, evidence and risk reviewers (two of three). Each tier's models, quorum and round cap come from the shared policy's review_tiers; a policy file's own top-level reviewer keys override them.",
     }),
     orchestrator_model: Type.String({
-      default: prefill.orchestrator_model ?? "openai-codex/gpt-6.1-sol:medium",
+      default: prefill.orchestrator_model ?? "openai/gpt-6.1-sol:medium",
       description:
-        "Orchestrator model, with an optional :thinking suffix. Prefilled from the shared policy's orchestrator_model; otherwise openai-codex/gpt-6.1-sol:medium. A policy-file orchestrator_model replaces this before the turn.",
+        "Orchestrator model, with an optional :thinking suffix. Prefilled from the shared policy's orchestrator_model; otherwise openai/gpt-6.1-sol:medium. A policy-file orchestrator_model replaces this before the turn.",
     }),
     reviewer_model: Type.Optional(
       Type.String({

@@ -176,7 +176,7 @@ var reviewDecisionSchema = Type.Object({
 
 // dist/builtin/workflows/builtin/goal-models.ts
 var orchestratorModelConfig = {
-  model: "openai-codex/gpt-6-astra:medium",
+  model: "openai/gpt-6-astra:medium",
   // No fallback: a stage runs on the model its policy names or fails
   // (resumable) so the provider can be put right. A silent fallback moved
   // review to another lineage and another budget.
@@ -184,7 +184,7 @@ var orchestratorModelConfig = {
   excludedTools: ["ask_user_question"]
 };
 var reviewerModelConfig = {
-  model: "openai-codex/gpt-6-astra:high",
+  model: "openai/gpt-6-astra:high",
   // No fallback: a stage runs on the model its policy names or fails
   // (resumable) so the provider can be put right. A silent fallback moved
   // review to another lineage and another budget.

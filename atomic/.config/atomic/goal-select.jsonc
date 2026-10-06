@@ -9,28 +9,28 @@
 // inputs, the chosen review tier, then defaults.
 {
   "defaults": {
-    "orchestrator_model": "openai-codex/gpt-6.1-sol:medium",
+    "orchestrator_model": "openai/gpt-6.1-sol:medium",
     "review_tier": "complex"
   },
   "review_tiers": {
     // One reviewer owning contract, evidence and risk together.
     "simple": {
       "panel": 1,
-      "reviewer_model": "openai-codex/gpt-6.1-sol:high",
+      "reviewer_model": "openai/gpt-6.1-sol:high",
       "max_turns": 3
     },
     // Completion-and-evidence on Sol, adversarial risk on Astra.
     "standard": {
       "panel": 2,
-      "reviewer_model": "openai-codex/gpt-6.1-sol:high",
-      "risk_reviewer_model": "openai-codex/gpt-6-astra:xhigh",
+      "reviewer_model": "openai/gpt-6.1-sol:high",
+      "risk_reviewer_model": "openai/gpt-6-astra:xhigh",
       "max_turns": 3
     },
     // The full three-role panel, quorum two of three.
     "complex": {
       "panel": 3,
-      "reviewer_model": "openai-codex/gpt-6-astra:high",
-      "risk_reviewer_model": "openai-codex/gpt-6-astra:xhigh",
+      "reviewer_model": "openai/gpt-6-astra:high",
+      "risk_reviewer_model": "openai/gpt-6-astra:xhigh",
       "max_turns": 3
     }
   }

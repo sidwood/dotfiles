@@ -28,30 +28,30 @@ const presetLibrary = join(sharedDir, "goal-select-models");
 // The shared policy as the dotfiles ship it: launch-form defaults and the
 // three review tiers, with no top-level override.
 const sharedPolicy = {
-  defaults: { orchestrator_model: "openai-codex/gpt-6.1-sol:medium", review_tier: "complex" },
+  defaults: { orchestrator_model: "openai/gpt-6.1-sol:medium", review_tier: "complex" },
   review_tiers: {
-    simple: { panel: 1, reviewer_model: "openai-codex/gpt-6.1-sol:high", max_turns: 3 },
-    standard: { panel: 2, reviewer_model: "openai-codex/gpt-6.1-sol:high", risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh", max_turns: 3 },
-    complex: { panel: 3, reviewer_model: "openai-codex/gpt-6-astra:high", risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh", max_turns: 3 },
+    simple: { panel: 1, reviewer_model: "openai/gpt-6.1-sol:high", max_turns: 3 },
+    standard: { panel: 2, reviewer_model: "openai/gpt-6.1-sol:high", risk_reviewer_model: "openai/gpt-6-astra:xhigh", max_turns: 3 },
+    complex: { panel: 3, reviewer_model: "openai/gpt-6-astra:high", risk_reviewer_model: "openai/gpt-6-astra:xhigh", max_turns: 3 },
   },
 };
 // Atomic's builtin Goal models: what a stage runs on when nothing assigns one.
-const builtinModels = { orchestrator: "openai-codex/gpt-6-astra:medium", reviewer: "openai-codex/gpt-6-astra:high" };
+const builtinModels = { orchestrator: "openai/gpt-6-astra:medium", reviewer: "openai/gpt-6-astra:high" };
 const solAstra = {
-  orchestrator_model: "openai-codex/gpt-6.1-sol:medium",
-  reviewer_model: "openai-codex/gpt-6-astra:high",
-  completion_reviewer_model: "openai-codex/gpt-6-astra:high",
-  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
-  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
-  writer_model: "openai-codex/gpt-6.1-sol:high",
+  orchestrator_model: "openai/gpt-6.1-sol:medium",
+  reviewer_model: "openai/gpt-6-astra:high",
+  completion_reviewer_model: "openai/gpt-6-astra:high",
+  evidence_reviewer_model: "openai/gpt-6-astra:high",
+  risk_reviewer_model: "openai/gpt-6-astra:xhigh",
+  writer_model: "openai/gpt-6.1-sol:high",
   max_turns: 10,
 };
 const kimiAstra = {
   orchestrator_model: "kimi-coding/k3:high",
-  reviewer_model: "openai-codex/gpt-6-astra:high",
-  completion_reviewer_model: "openai-codex/gpt-6-astra:high",
-  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
-  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  reviewer_model: "openai/gpt-6-astra:high",
+  completion_reviewer_model: "openai/gpt-6-astra:high",
+  evidence_reviewer_model: "openai/gpt-6-astra:high",
+  risk_reviewer_model: "openai/gpt-6-astra:xhigh",
   writer_model: "kimi-coding/k3:max",
   max_turns: 10,
 };
@@ -75,28 +75,28 @@ const glmGrock = {
 };
 const glmSol = {
   orchestrator_model: "zai/glm-5.3:high",
-  reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  completion_reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
+  reviewer_model: "openai/gpt-6.1-sol:high",
+  completion_reviewer_model: "openai/gpt-6.1-sol:high",
+  evidence_reviewer_model: "openai/gpt-6.1-sol:high",
+  risk_reviewer_model: "openai/gpt-6.1-sol:xhigh",
   writer_model: "zai/glm-5.3:max",
   max_turns: 10,
 };
 const glmAstra = {
   orchestrator_model: "zai/glm-5.3:high",
-  reviewer_model: "openai-codex/gpt-6-astra:high",
-  completion_reviewer_model: "openai-codex/gpt-6-astra:high",
-  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
-  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  reviewer_model: "openai/gpt-6-astra:high",
+  completion_reviewer_model: "openai/gpt-6-astra:high",
+  evidence_reviewer_model: "openai/gpt-6-astra:high",
+  risk_reviewer_model: "openai/gpt-6-astra:xhigh",
   writer_model: "zai/glm-5.3:max",
   max_turns: 10,
 };
 const grokAstra = {
   orchestrator_model: "xai/grok-4.7:high",
-  reviewer_model: "openai-codex/gpt-6-astra:high",
-  completion_reviewer_model: "openai-codex/gpt-6-astra:high",
-  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
-  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  reviewer_model: "openai/gpt-6-astra:high",
+  completion_reviewer_model: "openai/gpt-6-astra:high",
+  evidence_reviewer_model: "openai/gpt-6-astra:high",
+  risk_reviewer_model: "openai/gpt-6-astra:xhigh",
   writer_model: "xai/grok-4.7:xhigh",
   max_turns: 10,
 };
@@ -111,37 +111,37 @@ const kimiOpus = {
 };
 const grokSol = {
   orchestrator_model: "xai/grok-4.7:high",
-  reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  completion_reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
+  reviewer_model: "openai/gpt-6.1-sol:high",
+  completion_reviewer_model: "openai/gpt-6.1-sol:high",
+  evidence_reviewer_model: "openai/gpt-6.1-sol:high",
+  risk_reviewer_model: "openai/gpt-6.1-sol:xhigh",
   writer_model: "xai/grok-4.7:xhigh",
   max_turns: 10,
 };
 const kimiSol = {
   orchestrator_model: "kimi-coding/k3:high",
-  reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  completion_reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
+  reviewer_model: "openai/gpt-6.1-sol:high",
+  completion_reviewer_model: "openai/gpt-6.1-sol:high",
+  evidence_reviewer_model: "openai/gpt-6.1-sol:high",
+  risk_reviewer_model: "openai/gpt-6.1-sol:xhigh",
   writer_model: "kimi-coding/k3:max",
   max_turns: 10,
 };
 const opusSol = {
   orchestrator_model: "anthropic/claude-opus-5-5:high",
-  reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  completion_reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  evidence_reviewer_model: "openai-codex/gpt-6.1-sol:high",
-  risk_reviewer_model: "openai-codex/gpt-6.1-sol:xhigh",
+  reviewer_model: "openai/gpt-6.1-sol:high",
+  completion_reviewer_model: "openai/gpt-6.1-sol:high",
+  evidence_reviewer_model: "openai/gpt-6.1-sol:high",
+  risk_reviewer_model: "openai/gpt-6.1-sol:xhigh",
   writer_model: "anthropic/claude-opus-5-5:xhigh",
   max_turns: 10,
 };
 const solOpusAstra = {
-  orchestrator_model: "openai-codex/gpt-6.1-sol:high",
-  reviewer_model: "openai-codex/gpt-6-astra:high",
-  completion_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
-  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
-  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  orchestrator_model: "openai/gpt-6.1-sol:high",
+  reviewer_model: "openai/gpt-6-astra:high",
+  completion_reviewer_model: "openai/gpt-6-astra:xhigh",
+  evidence_reviewer_model: "openai/gpt-6-astra:high",
+  risk_reviewer_model: "openai/gpt-6-astra:xhigh",
   writer_model: "anthropic/claude-opus-5-5:xhigh",
   max_turns: 10,
 };
@@ -155,20 +155,20 @@ const opusFable = {
   max_turns: 10,
 };
 const solFable = {
-  orchestrator_model: "openai-codex/gpt-6.1-sol:high",
+  orchestrator_model: "openai/gpt-6.1-sol:high",
   reviewer_model: "anthropic/claude-fable-5-1:high",
   completion_reviewer_model: "anthropic/claude-fable-5-1:xhigh",
   evidence_reviewer_model: "anthropic/claude-fable-5-1:high",
   risk_reviewer_model: "anthropic/claude-fable-5-1:xhigh",
-  writer_model: "openai-codex/gpt-6.1-sol:high",
+  writer_model: "openai/gpt-6.1-sol:high",
   max_turns: 10,
 };
 const opusAstra = {
   orchestrator_model: "anthropic/claude-opus-5-5:high",
-  reviewer_model: "openai-codex/gpt-6-astra:high",
-  completion_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
-  evidence_reviewer_model: "openai-codex/gpt-6-astra:high",
-  risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh",
+  reviewer_model: "openai/gpt-6-astra:high",
+  completion_reviewer_model: "openai/gpt-6-astra:xhigh",
+  evidence_reviewer_model: "openai/gpt-6-astra:high",
+  risk_reviewer_model: "openai/gpt-6-astra:xhigh",
   writer_model: "anthropic/claude-opus-5-5:xhigh",
   max_turns: 10,
 };
@@ -974,14 +974,14 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
 
     it("refuses a review panel that holds the writer's model, whatever its effort, before any stage of that turn", async () => {
       const sol = sharedPolicy.review_tiers.simple.reviewer_model;
-      const refused = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai-codex/gpt-6.1-sol:xhigh" } });
+      const refused = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai/gpt-6.1-sol:xhigh" } });
       await assert.rejects(goalSelect.run(refused.ctx), (error) => {
         assert.equal(error.message, `Review tier simple puts the writer's model (${sol}) on the review panel as reviewer; choose another tier, writer or reviewer model.`);
         return true;
       });
       assert.deepEqual(modelStages(refused.calls), [], "no stage of turn 1 ran");
 
-      const allowed = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai-codex/gpt-6-astra:xhigh" } });
+      const allowed = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai/gpt-6-astra:xhigh" } });
       assert.equal((await goalSelect.run(allowed.ctx)).status, "complete", "another model from the same provider may review");
 
       const policyPath = join(clone, ".atomic", "tiers lineage.jsonc");
@@ -2314,7 +2314,7 @@ describe("goal-select model policy parser (JSONC)", () => {
 });
 
 describe("goal-select launch-form prefill (module evaluated as Atomic discovery does, reading the shared goal-select.jsonc)", () => {
-  const builtin = { orchestrator_model: "openai-codex/gpt-6.1-sol:medium", review_tier: "complex" };
+  const builtin = { orchestrator_model: "openai/gpt-6.1-sol:medium", review_tier: "complex" };
   const unprefilled = ["reviewer_model", "max_turns", "completion_reviewer_model", "evidence_reviewer_model", "risk_reviewer_model", "writer_model"];
   const sharedFile = join(".config", "atomic", "goal-select.jsonc");
   let prefillRoot;
