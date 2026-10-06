@@ -1020,6 +1020,8 @@ var REVIEWER_ROLES = {
 const INFRASTRUCTURE_FAILURE_PATTERNS = [
   /Workflow database checkpoint timed out/i,
   /provider .*(not ready|unavailable|not authenticated)/i,
+  /ownership generation changed/i,
+  /stale (executor|database|execution) writes are refused/i,
   /rate limit|too many requests|\b429\b|\b401\b|unauthorized|authentication failed|invalid (api key|credentials)/i,
   /Postgres connection pool changed/i,
   /Postgres dependency invalidated/i,

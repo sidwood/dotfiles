@@ -53,12 +53,18 @@ function exposure(value: unknown): unknown {
   return value === "codemode-deferred" ? "codemode" : value;
 }
 
-function entryError(name: string, raw: unknown): string | undefined {
+// A project entry with a url or command replaces the global server of the
+// same name; one without either overrides only its settings (Atomic 0.9.26
+// and later), and needs a global server to override.
+function isOverride(raw: Record<string, unknown>): boolean {
+  return typeof raw.url !== "string" && typeof raw.command !== "string" && raw.type === undefined;
+}
+function entryError(name: string, raw: unknown, overridesGlobal = false): string | undefined {
   if (!SERVER_NAME.test(name)) return `invalid server name "${name}"`;
   if (!isRecord(raw)) return `server "${name}" must be an object`;
   if (raw.exposure !== undefined && !EXPOSURES.includes(exposure(raw.exposure) as string)) return `server "${name}": invalid exposure`;
   if (raw.enabled !== undefined && typeof raw.enabled !== "boolean") return `server "${name}": enabled must be a boolean`;
-  if (typeof raw.url !== "string" && typeof raw.command !== "string") return `server "${name}" needs a command or url`;
+  if (isOverride(raw) && !overridesGlobal) return `server "${name}" needs a command or url, or a global server to override`;
   return undefined;
 }
 
@@ -78,7 +84,8 @@ function readConfigFile(path: string, scope: ServerEntry["scope"], state: Native
   }
   if (typeof parsed.autoEnableCodemode === "boolean") state.autoEnableCodemode = parsed.autoEnableCodemode;
   for (const [name, raw] of Object.entries(isRecord(parsed.mcpServers) ? parsed.mcpServers : {})) {
-    const error = entryError(name, raw);
+    const base = scope === "project" ? servers.get(name) : undefined;
+    const error = entryError(name, raw, base?.scope === "global");
     if (error) {
       state.errors.push(`${path}: ${error}`);
       continue;
@@ -93,7 +100,8 @@ function readConfigFile(path: string, scope: ServerEntry["scope"], state: Native
       state.errors.push(`${path}: server "${name}": auth is only allowed in the global mcp.json`);
       continue;
     }
-    servers.set(name, { name, config: { ...config, exposure: exposure(config.exposure) }, source: path, scope });
+    const merged = base?.scope === "global" && isOverride(config) ? { ...base.config, ...config } : config;
+    servers.set(name, { name, config: { ...merged, exposure: exposure(merged.exposure) }, source: path, scope });
   }
 }
 
