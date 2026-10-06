@@ -1028,7 +1028,14 @@ const INFRASTRUCTURE_FAILURE_PATTERNS = [
   /Connection terminated/i,
   /Client was closed and is not queryable/i,
   /usage limit has been reached/i,
-  /\b(?:ECONNRESET|ECONNREFUSED|EPIPE)\b/
+  /\b(?:ECONNRESET|ECONNREFUSED|EPIPE)\b/,
+  // Atomic's own database probe (1 s to connect, 3 s to answer) gives up on
+  // a healthy server when the machine is saturated.
+  /Managed Postgres(?:QL)?\b/i,
+  /health (?:check|probe)|connection identity check/i,
+  // A resumed stage that cannot reach Atomic's message broker never starts.
+  /Intercom could not reach the broker|queued Intercom instructions could not be delivered/i,
+  /service (?:is )?(?:temporarily )?unavailable|availability is currently degraded/i
 ];
 function failureText(err) {
   const parts = [];
@@ -1050,18 +1057,25 @@ function isInfrastructureFailure(text) {
 function reopenAfterInfrastructureFailure(ledger) {
   if (ledger.status !== "needs_human")
     return false;
-  const last = ledger.decisions.at(-1);
-  if (last?.decision !== "needs_human")
+  // A run can be closed more than once before it is reopened: by the
+  // failure, then by a resume whose stage could not start. Reopen only when
+  // every closing decision at the end of the ledger is one of those.
+  const closing = [];
+  for (let index = ledger.decisions.length - 1; index >= 0 && ledger.decisions[index].decision === "needs_human"; index -= 1) {
+    closing.push(ledger.decisions[index]);
+  }
+  if (closing.length === 0)
     return false;
-  const turnErrors = ledger.reviews.filter((review) => review.turn === last.turn && !review.parsed);
-  const evidence = [last.reason ?? "", ...last.diagnostics ?? [], ...turnErrors.flatMap((review) => review.parse_diagnostics ?? [])].join(`
-`);
-  if (!isInfrastructureFailure(evidence))
+  const errorsOf = (decision) => ledger.reviews.filter((review) => review.turn === decision.turn && !review.parsed);
+  const infrastructure = (decision) => isInfrastructureFailure([decision.reason ?? "", ...decision.diagnostics ?? [], ...errorsOf(decision).flatMap((review) => review.parse_diagnostics ?? [])].join(`
+`));
+  if (!closing.every(infrastructure))
     return false;
-  ledger.decisions.pop();
+  const turnErrors = closing.flatMap(errorsOf);
+  ledger.decisions.length -= closing.length;
   ledger.reviews = ledger.reviews.filter((review) => !turnErrors.includes(review));
   ledger.status = "active";
-  appendLifecycleEvent(ledger, "reopened", "Reopened after an infrastructure failure; the interrupted turn continues.", last.turn);
+  appendLifecycleEvent(ledger, "reopened", "Reopened after an infrastructure failure; the interrupted turn continues.", closing[0].turn);
   return true;
 }
 async function runGoalWorkflow(ctx, options) {

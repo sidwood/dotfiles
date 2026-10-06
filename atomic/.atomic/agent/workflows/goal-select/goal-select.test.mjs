@@ -1076,6 +1076,61 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.equal(interrupted.turns, 0);
     });
 
+    const healthCheckTimeout = "Managed PostgreSQL did not answer a health check in time. Provider: managed; endpoint: postgresql://127.0.0.1:5439/atomic_workflows_dbos_sys.";
+    const brokerUnreachable = 'atomic-workflows: stage "orchestrator-1" (7da4e207) did not start because its queued Intercom instructions could not be delivered: Intercom could not reach the broker after 5 warm-up attempts.';
+    const providerOutage = "Service temporarily unavailable. The model's availability is currently degraded.";
+
+    for (const [what, message] of [["a database health-check timeout", healthCheckTimeout], ["an unreachable message broker", brokerUnreachable], ["a provider outage", providerOutage]]) {
+      it(`rethrows an orchestrator stopped by ${what} without recording a decision`, async () => {
+        const { ctx, calls } = resumable({
+          onTask: () => {
+            throw new Error(message);
+          },
+        });
+        await assert.rejects(goalSelect.run(ctx));
+        const interrupted = ledgerState(calls).read();
+        assert.equal(interrupted.status, "active");
+        assert.deepEqual(interrupted.decisions, []);
+      });
+    }
+
+    it("reopens a ledger closed twice by infrastructure failures, once by the failure and once by a resume that could not start", async () => {
+      const first = resumable({ review: secondTurnApproves });
+      failReviewersOn(first.ctx, 2, checkpointTimeout);
+      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      const state = ledgerState(first.calls);
+      const closed = state.read();
+      closed.status = "needs_human";
+      for (const message of [healthCheckTimeout, brokerUnreachable]) {
+        const reason = `Orchestrator failed before producing a receipt: ${message}`;
+        closed.decisions.push({ turn: 2, decision: "needs_human", reason, diagnostics: [reason] });
+      }
+      writeJson(state.path, closed);
+
+      const second = resumeOf(first, { review: secondTurnApproves });
+      const result = await goalSelect.run(second.ctx);
+      assert.equal(result.status, "complete");
+      const finished = state.read();
+      assert.deepEqual(finished.decisions.map((decision) => [decision.turn, decision.decision]), [[1, "continue"], [2, "complete"]]);
+      assert.equal(finished.reviews.length, 6);
+    });
+
+    it("keeps a ledger closed when a work failure sits under a later infrastructure failure", async () => {
+      const first = resumable({ review: secondTurnApproves });
+      failReviewersOn(first.ctx, 2, checkpointTimeout);
+      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      const state = ledgerState(first.calls);
+      const closed = state.read();
+      closed.status = "needs_human";
+      closed.decisions.push({ turn: 2, decision: "needs_human", reason: "Orchestrator failed before producing a receipt: the model refused the task", diagnostics: [] });
+      closed.decisions.push({ turn: 2, decision: "needs_human", reason: `Orchestrator failed before producing a receipt: ${brokerUnreachable}`, diagnostics: [] });
+      writeJson(state.path, closed);
+
+      const second = resumeOf(first, { review: secondTurnApproves });
+      assert.equal((await goalSelect.run(second.ctx)).status, "needs_human");
+      assert.equal(state.read().decisions.length, closed.decisions.length);
+    });
+
     it("still records needs_human when the work itself fails", async () => {
       const orchestratorFails = resumable({
         onTask: () => {
