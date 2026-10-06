@@ -22,8 +22,21 @@ const root = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-test-")));
 process.env.ATOMIC_WORKFLOW_ARTIFACT_DIR = join(root, "artifacts");
 
 const home = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-home-")));
-const sharedDir = join(home, ".config", "atomic", "goal-select-models");
-const sharedDefaultPath = join(sharedDir, "sol-astra.json");
+const sharedDir = join(home, ".config", "atomic");
+const sharedDefaultPath = join(sharedDir, "goal-select.jsonc");
+const presetLibrary = join(sharedDir, "goal-select-models");
+// The shared policy as the dotfiles ship it: launch-form defaults and the
+// three review tiers, with no top-level override.
+const sharedPolicy = {
+  defaults: { orchestrator_model: "openai-codex/gpt-6.1-sol:medium", review_tier: "complex" },
+  review_tiers: {
+    simple: { panel: 1, reviewer_model: "openai-codex/gpt-6.1-sol:high", max_turns: 3 },
+    standard: { panel: 2, reviewer_model: "openai-codex/gpt-6.1-sol:high", risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh", max_turns: 3 },
+    complex: { panel: 3, reviewer_model: "openai-codex/gpt-6-astra:high", risk_reviewer_model: "openai-codex/gpt-6-astra:xhigh", max_turns: 3 },
+  },
+};
+// Atomic's builtin Goal models: what a stage runs on when nothing assigns one.
+const builtinModels = { orchestrator: "openai-codex/gpt-6-astra:medium", reviewer: "openai-codex/gpt-6-astra:high" };
 const solAstra = {
   orchestrator_model: "openai-codex/gpt-6.1-sol:medium",
   reviewer_model: "openai-codex/gpt-6-astra:high",
@@ -167,7 +180,8 @@ after(() => {
   else process.env.HOME = savedHome;
   rmSync(home, { recursive: true, force: true });
 });
-for (const [name, preset] of Object.entries(presets)) writeJson(join(sharedDir, name), preset);
+writeJson(sharedDefaultPath, sharedPolicy);
+for (const [name, preset] of Object.entries(presets)) writeJson(join(presetLibrary, name), preset);
 const { resolveInputs, run, workflow } = await import("@bastani/atomic/workflows");
 const originalChdir = process.chdir;
 const startCwd = process.cwd();
@@ -184,7 +198,7 @@ async function loadGoalSelectFrom(dir) {
 }
 const goalSelect = await loadGoalSelectFrom(root);
 const { branchCloneName, createBranchClone, objectiveSlug, planBranchClone } = await import(new URL("./branch-clone.js", import.meta.url).href);
-const { defaultPolicyPath, modelPolicyPaths, parseModelPolicy } = await import(new URL("./model-policy.js", import.meta.url).href);
+const { defaultPolicyPath, modelPolicyPaths, parseModelPolicy, sharedPolicyDir } = await import(new URL("./model-policy.js", import.meta.url).href);
 const { Type } = await import("typebox");
 const guard = await import(new URL("../../extensions/goal-select-tracker-guard.ts", import.meta.url).href);
 const { STOP_CHOICE: STOP_CHOICE_TEXT } = await import(new URL("./tracker-intake.js", import.meta.url).href);
@@ -275,6 +289,11 @@ function blocking(file) {
       },
     ],
   };
+}
+// The same open finding at priority 2: not serious enough for an extra round.
+function minor(file) {
+  const review = blocking(file);
+  return { ...review, findings: [{ ...review.findings[0], priority: 2 }] };
 }
 
 function fakeContext({ cwd, inputs, onTask = () => ({}), review = () => approve, signal = new AbortController().signal, runId = `goal-select-test-${randomUUID()}`, definition = goalSelect, ui }) {
@@ -418,9 +437,10 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
   it("reads a JSONC policy before every turn, and falls back to the launch inputs on a turn whose policy is malformed", async () => {
     const policyPath = join(clone, ".atomic", "jsonc-turns.json");
     writeFileSync(policyPath, jsoncPolicyText);
+    const launch = { reviewer_model: "test/launch-reviewer", risk_reviewer_model: "test/launch-risk" };
     const { ctx, calls } = fakeContext({
       cwd: seed,
-      inputs: { branch_checkout_dir: clone, model_policy_path: ".atomic/jsonc-turns.json" },
+      inputs: { branch_checkout_dir: clone, model_policy_path: ".atomic/jsonc-turns.json", ...launch },
       onTask: (name) => {
         if (name === "orchestrator-1") writeFileSync(policyPath, malformedPolicyText);
         return {};
@@ -431,14 +451,15 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.equal(result.status, "complete");
     const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
     assert.equal(byName["orchestrator-1"].model, jsoncPolicy.orchestrator_model);
-    for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, jsoncPolicy.reviewer_model, role);
+    for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, jsoncPolicy.reviewer_model, `${role}: the file's top-level reviewer_model beats the launch inputs`);
     assert.equal(byName["orchestrator-2"].model, goalSelect.inputs.orchestrator_model.default);
-    for (const role of ["completion", "evidence"]) assert.equal(byName[`${role}-reviewer-2`].model, goalSelect.inputs.reviewer_model.default, role);
-    assert.equal(byName["risk-reviewer-2"].model, goalSelect.inputs.risk_reviewer_model.default, "a malformed turn falls back to the launch risk reviewer");
-    assert.equal(byName["risk-reviewer-2"].model, solAstra.risk_reviewer_model, "the launch risk reviewer is the preset's explicit value, not the generic reviewer_model");
+    for (const role of ["completion", "evidence"]) assert.equal(byName[`${role}-reviewer-2`].model, launch.reviewer_model, role);
+    assert.equal(byName["risk-reviewer-2"].model, launch.risk_reviewer_model, "a malformed turn falls back to the launch risk reviewer, not the generic reviewer_model");
     const turnPolicy = (turn) => calls.find((call) => call.name === `resolve-models-${turn}`).result;
     assert.equal(turnPolicy(1).maxTurns, 3);
-    assert.deepEqual(turnPolicy(2), {});
+    assert.equal(turnPolicy(2).orchestrator, undefined, "a malformed turn has no override of its own");
+    assert.deepEqual(turnPolicy(2).reviewTiers, sharedPolicy.review_tiers, "a malformed turn still inherits the shared tiers");
+    assert.equal(turnPolicy(2).defaults.orchestrator, sharedPolicy.defaults.orchestrator_model);
   });
 
   function policyCheckout(name, files) {
@@ -449,26 +470,31 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     return dir;
   }
   const launchOrchestrator = () => goalSelect.inputs.orchestrator_model.default;
-  const launchReviewer = () => goalSelect.inputs.reviewer_model.default;
 
-  it("defaults model_policy_path to the shared sol-astra.json preset, so an omitted path selects the shared library", () => {
+  it("defaults model_policy_path to the shared goal-select.jsonc, so an omitted path selects the shared policy", () => {
     const input = goalSelect.inputs.model_policy_path;
     assert.equal(input.default, sharedDefaultPath);
     assert.equal(launchInputs({}).model_policy_path, sharedDefaultPath);
     assert.deepEqual(modelPolicyPaths(undefined), [sharedDefaultPath]);
     assert.deepEqual(modelPolicyPaths(defaultJson), [defaultJson]);
     assert.equal(defaultPolicyPath(), sharedDefaultPath);
-    assert.match(input.description, /~\/\.config\/atomic\/goal-select-models\/sol-astra\.json/);
-    assert.match(input.description, /kimi-astra\.json, grok-opus\.json, glm-grock\.json, glm-sol\.json, sol-opus-astra\.json, opus-fable\.json, sol-fable\.json, opus-astra\.json/);
-    assert.match(input.description, /dropping another JSON or JSONC file into that directory/);
-    assert.match(input.description, /including an empty or whitespace string/);
-    assert.ok(input.description.includes(defaultJson), input.description);
-    assert.ok(input.description.includes(defaultJsonc), input.description);
-    assert.doesNotMatch(input.description, /blank/i);
-    assert.match(goalSelect.description, /goal-select-models\/sol-astra\.json/);
+    assert.equal(sharedPolicyDir(), sharedDir);
+    assert.match(input.description, /~\/\.config\/atomic\/goal-select\.jsonc/);
+    assert.match(input.description, /defaults block seeds the launch form/);
+    assert.match(input.description, /review_tiers block defines the tiers/);
+    assert.match(input.description, /relative path is read inside the checkout/);
+    assert.doesNotMatch(input.description, /goal-select-models\/|sol-astra/);
+    assert.doesNotMatch(goalSelect.description, /goal-select-models\/|sol-astra/);
   });
 
-  it("resolves an omitted model_policy_path to the shared sol-astra preset under resolve_only and on a real turn 1, reading no project file", async () => {
+  it("ships the shared goal-select.jsonc with its defaults and three review tiers", () => {
+    const shipped = fileURLToPath(new URL("../../../../.config/atomic/goal-select.jsonc", import.meta.url));
+    const text = readFileSync(shipped, "utf8");
+    assert.match(text, /^\s*\/\//m, "the shipped file keeps its comments");
+    assert.deepEqual(parseModelPolicy(text), sharedPolicy);
+  });
+
+  it("resolves an omitted model_policy_path to the shared goal-select.jsonc under resolve_only and on a real turn 1, reading no project file", async () => {
     for (const [label, files] of [
       ["no project policy", {}],
       ["project .atomic policies present", { [defaultJson]: jsonPolicyText, [defaultJsonc]: jsoncPolicyText }],
@@ -478,26 +504,29 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.equal(resolved.checkout, dir, label);
       assert.equal(resolved.launch.policyPath, sharedDefaultPath, label);
       assert.equal("policyFallbackPath" in resolved.launch, false, label);
-      assert.deepEqual(resolved.policy, solAstra, label);
+      assert.deepEqual(resolved.policy, sharedPolicy, label);
       assert.equal(resolved.policy_source, sharedDefaultPath, label);
 
       const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir, model_policy_path: undefined } });
       assert.equal((await goalSelect.run(ctx)).status, "complete", label);
       const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
-      assert.equal(byName["orchestrator-1"].model, solAstra.orchestrator_model, `${label}: turn 1 matches resolve_only`);
-      for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, solAstra[`${role}_reviewer_model`], `${label} ${role}`);
+      const complex = sharedPolicy.review_tiers.complex;
+      assert.equal(byName["orchestrator-1"].model, sharedPolicy.defaults.orchestrator_model, `${label}: turn 1 matches resolve_only`);
+      for (const role of ["completion", "evidence"]) assert.equal(byName[`${role}-reviewer-1`].model, complex.reviewer_model, `${label} ${role}`);
+      assert.equal(byName["risk-reviewer-1"].model, complex.risk_reviewer_model, `${label} risk`);
       assert.deepEqual(toolArgs(calls, "resolve-models-1"), { path: sharedDefaultPath, turn: 1 }, label);
       assert.deepEqual(readdirSync(join(dir, ".atomic")).sort(), Object.keys(files).map((path) => basename(path)).sort(), `${label}: nothing written`);
     }
   });
 
-  it("falls back to the launch inputs on a turn whose shared preset is missing or malformed, with no substitute file", async () => {
+  it("falls back to the launch inputs on a turn whose shared policy is missing or malformed, with no substitute file", async () => {
     const dir = policyCheckout("omitted policy shared unreadable", {});
     for (const [label, setup] of [
       ["missing", (shared) => mkdirSync(dirname(shared), { recursive: true })],
       ["malformed", (shared) => writeJsonText(shared, malformedPolicyText)],
     ]) {
-      const altShared = join(root, `home ${label}`, ".config", "atomic", "goal-select-models", "sol-astra.json");
+      const altShared = join(root, `home ${label}`, ".config", "atomic", "goal-select.jsonc");
+      writeJson(join(dirname(altShared), "goal-select-models", "sol-astra.json"), solAstra);
       setup(altShared);
       process.env.HOME = join(root, `home ${label}`);
       try {
@@ -509,7 +538,9 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
 
         const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: dir, model_policy_path: undefined } });
         assert.equal((await goalSelect.run(ctx)).status, "complete", label);
-        assert.equal(modelStages(calls)[0].options.model, launchOrchestrator(), `${label}: the prefilled launch input applies`);
+        const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
+        assert.equal(byName["orchestrator-1"].model, launchOrchestrator(), `${label}: the prefilled launch input applies`);
+        for (const role of ["completion", "evidence", "risk"]) assert.equal(byName[`${role}-reviewer-1`].model, builtinModels.reviewer, `${label} ${role}: no tier models, not the old preset's`);
         assert.deepEqual(toolArgs(calls, "resolve-models-1"), { path: altShared, turn: 1 }, label);
         assert.deepEqual(readdirSync(join(dir, ".atomic")), [], `${label}: nothing written`);
       } finally {
@@ -518,14 +549,17 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     }
   });
 
-  it("re-resolves the shared preset before every turn: sol-astra, then kimi-astra, then sol-astra again", async () => {
+  it("re-resolves the shared goal-select.jsonc before every turn: shipped, then an edited copy, then shipped again", async () => {
     const dir = policyCheckout("shared policy turns", {});
+    // An edit made mid-run: a top-level orchestrator override and a complex
+    // tier with only a generic reviewer.
+    const edited = { orchestrator_model: "kimi-coding/k3:high", review_tiers: { complex: { reviewer_model: "anthropic/claude-opus-5-5:high", max_turns: 3 } } };
     const { ctx, calls } = fakeContext({
       cwd: seed,
       inputs: { branch_checkout_dir: dir, model_policy_path: undefined },
       onTask: (name) => {
-        if (name === "orchestrator-1") writeJson(sharedDefaultPath, kimiAstra);
-        if (name === "orchestrator-2") writeJson(sharedDefaultPath, solAstra);
+        if (name === "orchestrator-1") writeJson(sharedDefaultPath, edited);
+        if (name === "orchestrator-2") writeJson(sharedDefaultPath, sharedPolicy);
         return {};
       },
       review: (name) => (name.endsWith("-3") ? approve : keepGoing),
@@ -534,17 +568,22 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       const result = await goalSelect.run(ctx);
       assert.equal(result.status, "complete");
       const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
-      assert.equal(byName["orchestrator-1"].model, solAstra.orchestrator_model);
-      assert.equal(byName["completion-reviewer-1"].model, solAstra.reviewer_model);
-      assert.equal(byName["orchestrator-2"].model, kimiAstra.orchestrator_model);
-      assert.equal(byName["completion-reviewer-2"].model, kimiAstra.reviewer_model, "the whole preset is replaced, without merging");
-      assert.equal(byName["orchestrator-3"].model, solAstra.orchestrator_model);
-      assert.equal(byName["completion-reviewer-3"].model, solAstra.reviewer_model);
+      const complex = sharedPolicy.review_tiers.complex;
+      assert.equal(byName["orchestrator-1"].model, sharedPolicy.defaults.orchestrator_model);
+      assert.equal(byName["completion-reviewer-1"].model, complex.reviewer_model);
+      assert.equal(byName["risk-reviewer-1"].model, complex.risk_reviewer_model);
+      assert.equal(byName["orchestrator-2"].model, edited.orchestrator_model, "a top-level key overrides the running launch input");
+      assert.equal(byName["completion-reviewer-2"].model, edited.review_tiers.complex.reviewer_model);
+      assert.equal(byName["risk-reviewer-2"].model, edited.review_tiers.complex.reviewer_model, "the whole file is replaced, without merging the shipped risk model");
+      assert.equal(byName["orchestrator-3"].model, sharedPolicy.defaults.orchestrator_model, "the launch input returns once the override is gone");
+      assert.equal(byName["completion-reviewer-3"].model, complex.reviewer_model);
+      assert.equal(byName["risk-reviewer-3"].model, complex.risk_reviewer_model);
       const turnPolicy = (turn) => calls.find((call) => call.name === `resolve-models-${turn}`).result;
-      assert.equal(turnPolicy(1).maxTurns, 10, "max_turns comes from the shared preset on turn 1");
+      assert.equal(turnPolicy(1).maxTurns, undefined, "the shipped file sets no top-level max_turns");
+      assert.deepEqual(turnPolicy(1).reviewTiers, sharedPolicy.review_tiers, "the tiers come from the shared file on turn 1");
       for (const turn of [1, 2, 3]) assert.deepEqual(toolArgs(calls, `resolve-models-${turn}`), { path: sharedDefaultPath, turn });
     } finally {
-      writeJson(sharedDefaultPath, solAstra);
+      writeJson(sharedDefaultPath, sharedPolicy);
     }
   });
 
@@ -593,7 +632,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.deepEqual(toolArgs(namedRun.calls, "resolve-models-1"), { path: join(dir, spaces), turn: 1 });
   });
 
-  it("Atomic's runtime accepts an omitted model_policy_path and resolves the shared sol-astra preset, under resolve_only and on turn 1", async () => {
+  it("Atomic's runtime accepts an omitted model_policy_path and resolves the shared goal-select.jsonc, under resolve_only and on turn 1", async () => {
     const dir = policyCheckout("runtime omitted policy", { [defaultJsonc]: jsoncPolicyText });
     const seen = [];
     const adapters = { prompt: { prompt: async (_text, meta) => (seen.push([meta.stageName, meta.stageOptions?.cwd, meta.stageOptions?.model]), "done") } };
@@ -601,55 +640,18 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     const resolved = await run(goalSelect, { objective: "probe", branch_checkout_dir: dir, resolve_only: true }, options);
     assert.equal(resolved.status, "completed");
     const models = JSON.parse(resolved.result.models);
-    assert.deepEqual(models.policy, solAstra);
+    assert.deepEqual(models.policy, sharedPolicy);
     assert.equal(models.policy_source, sharedDefaultPath);
+    assert.equal(models.launch.reviewTier, sharedPolicy.defaults.review_tier, "Atomic applies the prefilled review tier");
     assert.deepEqual(seen, []);
     await run(goalSelect, { objective: "probe", branch_checkout_dir: dir }, options);
-    assert.deepEqual(seen[0], ["orchestrator-1", dir, solAstra.orchestrator_model]);
+    assert.deepEqual(seen[0], ["orchestrator-1", dir, sharedPolicy.defaults.orchestrator_model]);
   });
 
-  it("ships strict-JSON presets with the configured role models, each selectable by its absolute path", async () => {
-    const repoLibrary = fileURLToPath(new URL("../../../../.config/atomic/goal-select-models/", import.meta.url));
-    const shipped = readdirSync(repoLibrary);
-    for (const name of Object.keys(presets)) assert.ok(shipped.includes(name), `${name} is shipped in the shared library`);
-    assert.equal(shipped.includes("grok-kimi.json"), false, "grok-opus fully replaces the retired grok-kimi preset");
-    for (const [name, preset] of Object.entries(presets)) {
-      const path = join(repoLibrary, name);
-      const text = readFileSync(path, "utf8");
-      assert.deepEqual(JSON.parse(text), preset, `${name} is strict JSON matching its configured role models`);
-      assert.deepEqual(parseModelPolicy(text), preset, `${name} parses through the workflow's JSONC parser`);
-      const resolved = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: path });
-      assert.deepEqual(resolved.policy, preset, `${name} selected by editing the filename to it`);
-      assert.equal(resolved.policy_source, path);
-    }
-  });
 
-  it("keeps preset parity when an extra preset file joins the library, mutating only an isolated copy", async () => {
-    const repoLibrary = fileURLToPath(new URL("../../../../.config/atomic/goal-select-models/", import.meta.url));
-    const digest = (dir) => Object.fromEntries(readdirSync(dir).sort().map((name) => [name, createHash("sha256").update(readFileSync(join(dir, name))).digest("hex")]));
-    const shippedBefore = digest(repoLibrary);
-    const libraryCopy = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-library-")));
-    try {
-      for (const name of readdirSync(repoLibrary)) writeFileSync(join(libraryCopy, name), readFileSync(join(repoLibrary, name)));
-      const customText = `${JSON.stringify({ orchestrator_model: "test/pre-existing-custom", max_turns: 3 }, null, 2)}\n`;
-      const custom = join(libraryCopy, "team-custom.json");
-      writeFileSync(custom, customText);
-      const shipped = readdirSync(libraryCopy);
-      for (const [name, preset] of Object.entries(presets)) {
-        assert.ok(shipped.includes(name), `${name} is still present alongside the extra preset`);
-        assert.deepEqual(parseModelPolicy(readFileSync(join(libraryCopy, name), "utf8")), preset, `${name} parity holds alongside the extra preset`);
-      }
-      const resolved = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: custom });
-      assert.deepEqual(resolved.policy, { orchestrator_model: "test/pre-existing-custom", max_turns: 3 }, "the extra preset is selectable without registration");
-      assert.equal(readFileSync(custom, "utf8"), customText, "the extra preset's bytes survive the run untouched");
-    } finally {
-      rmSync(libraryCopy, { recursive: true, force: true });
-    }
-    assert.deepEqual(digest(repoLibrary), shippedBefore, "the shipped library's filenames and bytes are untouched by the suite");
-  });
 
   it("selects a preset dropped into the library directory by editing only the filename, with no registration", async () => {
-    const dropped = join(sharedDir, "ora-tempo.json");
+    const dropped = join(presetLibrary, "ora-tempo.json");
     writeJson(dropped, { orchestrator_model: "test/dropped-preset", max_turns: 7 });
     try {
       const resolved = await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: dropped });
@@ -766,6 +768,252 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     const stages = modelStages(calls);
     assert.deepEqual(stages.map((stage) => stage.name), ["orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
     assert.ok(stages.every((stage) => stage.options.cwd === clone));
+  });
+
+  describe("review tiers, round cap and lineage guard", () => {
+    // Test models in every tier, so each stage shows which layer chose its model.
+    const tierPolicy = {
+      review_tiers: {
+        simple: { panel: 1, reviewer_model: "test/simple-reviewer", max_turns: 2 },
+        standard: { panel: 2, reviewer_model: "test/standard-reviewer", risk_reviewer_model: "test/standard-risk", max_turns: 3 },
+        complex: { panel: 3, reviewer_model: "test/complex-reviewer", completion_reviewer_model: "test/complex-completion", risk_reviewer_model: "test/complex-risk", max_turns: 4 },
+      },
+    };
+    const readme = join(clone, "README.md");
+    function tierRun(name, { policy = tierPolicy, inputs = {}, onTask, ...rest } = {}) {
+      const path = join(clone, ".atomic", `tiers ${name}.jsonc`);
+      writeJson(path, policy);
+      return fakeContext({
+        cwd: seed,
+        inputs: { branch_checkout_dir: clone, model_policy_path: path, ...inputs },
+        onTask: (stage, options) => (stage.startsWith("reverify-") ? { structured: { score: 15, evidence: ["Confirmed."] } } : (onTask?.(stage, options) ?? {})),
+        ...rest,
+      });
+    }
+    // Orchestrator and reviewer stages; re-verifiers run only when findings need them.
+    const goalStages = (calls) => modelStages(calls).filter((stage) => !stage.name.startsWith("reverify-"));
+    const stageNames = (calls) => goalStages(calls).map((stage) => stage.name);
+    const reviewerModels = (calls) => Object.fromEntries(goalStages(calls).filter((stage) => !stage.name.startsWith("orchestrator-")).map((stage) => [stage.name, stage.options.model]));
+    const ledgerOf = (result) => JSON.parse(readFileSync(join(dirname(result.ledger_path), "goal-ledger-state.json"), "utf8"));
+    const votes = (result) => ledgerOf(result).decisions.map((decision) => [decision.turn, decision.decision, decision.complete_votes, decision.review_quorum]);
+    const findingLine = (priority, reviewer) => `- [P${priority}] Routing is unproven (${reviewer}): A single low-confidence reviewer finding that must be re-verified.`;
+
+    it("runs the simple tier as one reviewer whose approval alone completes the round", async () => {
+      const { ctx, calls } = tierRun("simple panel", { inputs: { review_tier: "simple" } });
+      const result = await goalSelect.run(ctx);
+      assert.equal(result.status, "complete");
+      assert.deepEqual(stageNames(calls), ["orchestrator-1", "reviewer-1"]);
+      assert.deepEqual(votes(result), [[1, "complete", 1, 1]]);
+    });
+
+    it("runs the standard tier as completion and risk reviewers that must both approve, the completion reviewer also owning evidence", async () => {
+      const { ctx, calls } = tierRun("standard panel", { inputs: { review_tier: "standard" }, review: (name) => (name === "risk-reviewer-1" ? keepGoing : approve) });
+      const result = await goalSelect.run(ctx);
+      assert.equal(result.status, "complete");
+      assert.deepEqual(stageNames(calls), ["orchestrator-1", "completion-reviewer-1", "risk-reviewer-1", "orchestrator-2", "completion-reviewer-2", "risk-reviewer-2"]);
+      assert.deepEqual(votes(result), [[1, "continue", 1, 2], [2, "complete", 2, 2]]);
+      const byName = Object.fromEntries(goalStages(calls).map((stage) => [stage.name, stage.options]));
+      assert.ok(byName["completion-reviewer-1"].task.includes("Also owns evidence validity for the current checkout"), byName["completion-reviewer-1"].task);
+      assert.equal(byName["risk-reviewer-1"].task.includes("owns evidence validity"), false);
+    });
+
+    it("runs the complex tier as completion, evidence and risk reviewers, two of three completing the round", async () => {
+      const { ctx, calls } = tierRun("complex panel", {
+        inputs: { review_tier: "complex" },
+        review: (name) => (name === "completion-reviewer-1" || name === "risk-reviewer-2" || name === "completion-reviewer-2" ? approve : keepGoing),
+      });
+      const result = await goalSelect.run(ctx);
+      assert.equal(result.status, "complete");
+      assert.deepEqual(stageNames(calls), [
+        "orchestrator-1",
+        "completion-reviewer-1",
+        "evidence-reviewer-1",
+        "risk-reviewer-1",
+        "orchestrator-2",
+        "completion-reviewer-2",
+        "evidence-reviewer-2",
+        "risk-reviewer-2",
+      ]);
+      assert.deepEqual(votes(result), [[1, "continue", 1, 2], [2, "complete", 2, 2]]);
+    });
+
+    it("lets a tier entry set its panel size and quorum", async () => {
+      const policy = { review_tiers: { standard: { panel: 3, reviewer_model: "test/standard-reviewer" }, complex: { quorum: 3, reviewer_model: "test/complex-reviewer" } } };
+      const widened = tierRun("panel override", { policy, inputs: { review_tier: "standard" } });
+      const widenedResult = await goalSelect.run(widened.ctx);
+      assert.deepEqual(stageNames(widened.calls), ["orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
+      assert.deepEqual(votes(widenedResult), [[1, "complete", 3, 2]], "the standard tier's quorum of two stays");
+
+      const strict = tierRun("quorum override", { policy, inputs: { review_tier: "complex" }, review: (name) => (name === "evidence-reviewer-1" ? keepGoing : approve) });
+      const strictResult = await goalSelect.run(strict.ctx);
+      assert.equal(strictResult.status, "complete");
+      assert.deepEqual(votes(strictResult), [[1, "continue", 2, 3], [2, "complete", 3, 3]]);
+    });
+
+    it("takes each tier's reviewer models from the shared goal-select.jsonc", async () => {
+      const { simple, standard, complex } = sharedPolicy.review_tiers;
+      for (const [tier, expected] of [
+        ["simple", { "reviewer-1": simple.reviewer_model }],
+        ["standard", { "completion-reviewer-1": standard.reviewer_model, "risk-reviewer-1": standard.risk_reviewer_model }],
+        ["complex", { "completion-reviewer-1": complex.reviewer_model, "evidence-reviewer-1": complex.reviewer_model, "risk-reviewer-1": complex.risk_reviewer_model }],
+      ]) {
+        const { ctx, calls } = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: tier } });
+        assert.equal((await goalSelect.run(ctx)).status, "complete", tier);
+        assert.deepEqual(reviewerModels(calls), expected, tier);
+        assert.equal(toolArgs(calls, "resolve-models-1").path, sharedDefaultPath, tier);
+      }
+    });
+
+    it("ranks reviewer models: a policy file's top-level key, then a launch per-role input, then launch reviewer_model, then the tier's per-role model, then its reviewer_model", async () => {
+      const launch = { reviewer_model: "test/launch-reviewer" };
+      for (const [label, tier, policy, inputs, expected] of [
+        ["tier per-role over tier reviewer_model", "complex", tierPolicy, {}, { "completion-reviewer-1": "test/complex-completion", "evidence-reviewer-1": "test/complex-reviewer", "risk-reviewer-1": "test/complex-risk" }],
+        ["tier models for standard", "standard", tierPolicy, {}, { "completion-reviewer-1": "test/standard-reviewer", "risk-reviewer-1": "test/standard-risk" }],
+        ["tier model for simple", "simple", tierPolicy, {}, { "reviewer-1": "test/simple-reviewer" }],
+        ["launch reviewer_model over every tier model", "complex", tierPolicy, launch, { "completion-reviewer-1": "test/launch-reviewer", "evidence-reviewer-1": "test/launch-reviewer", "risk-reviewer-1": "test/launch-reviewer" }],
+        ["launch reviewer_model over the simple tier", "simple", tierPolicy, launch, { "reviewer-1": "test/launch-reviewer" }],
+        ["launch per-role over launch reviewer_model", "complex", tierPolicy, { ...launch, risk_reviewer_model: "test/launch-risk" }, { "completion-reviewer-1": "test/launch-reviewer", "evidence-reviewer-1": "test/launch-reviewer", "risk-reviewer-1": "test/launch-risk" }],
+        ["launch per-role over the tier", "standard", tierPolicy, { completion_reviewer_model: "test/launch-completion" }, { "completion-reviewer-1": "test/launch-completion", "risk-reviewer-1": "test/standard-risk" }],
+        [
+          "file per-role over launch per-role",
+          "complex",
+          { ...tierPolicy, risk_reviewer_model: "test/file-risk" },
+          { ...launch, risk_reviewer_model: "test/launch-risk" },
+          { "completion-reviewer-1": "test/launch-reviewer", "evidence-reviewer-1": "test/launch-reviewer", "risk-reviewer-1": "test/file-risk" },
+        ],
+        [
+          "file reviewer_model over launch per-role",
+          "complex",
+          { ...tierPolicy, reviewer_model: "test/file-reviewer" },
+          { ...launch, completion_reviewer_model: "test/launch-completion" },
+          { "completion-reviewer-1": "test/file-reviewer", "evidence-reviewer-1": "test/file-reviewer", "risk-reviewer-1": "test/file-reviewer" },
+        ],
+        ["file reviewer_model over launch for the simple tier", "simple", { ...tierPolicy, reviewer_model: "test/file-reviewer" }, launch, { "reviewer-1": "test/file-reviewer" }],
+        ["file review_tier over the launch tier", "simple", { ...tierPolicy, review_tier: "standard" }, {}, { "completion-reviewer-1": "test/standard-reviewer", "risk-reviewer-1": "test/standard-risk" }],
+      ]) {
+        const { ctx, calls } = tierRun(label, { policy, inputs: { review_tier: tier, ...inputs } });
+        assert.equal((await goalSelect.run(ctx)).status, "complete", label);
+        assert.deepEqual(reviewerModels(calls), expected, label);
+      }
+    });
+
+    it("caps rounds at the tier's max_turns when max_turns is empty, lets an explicit max_turns win, and a policy file's top-level max_turns win over both", async () => {
+      const uncapped = { review_tiers: { simple: { reviewer_model: "test/simple-reviewer" } } };
+      for (const [label, policy, inputs, rounds] of [
+        ["empty: the tier's cap", tierPolicy, {}, 2],
+        ["explicit lower", tierPolicy, { max_turns: 1 }, 1],
+        ["explicit higher", tierPolicy, { max_turns: 3 }, 3],
+        ["empty with no tier cap: 3", uncapped, {}, 3],
+        ["file top-level over explicit", { ...tierPolicy, max_turns: 1 }, { max_turns: 3 }, 1],
+      ]) {
+        const { ctx, calls } = tierRun(label, { policy, inputs: { review_tier: "simple", ...inputs }, review: () => keepGoing });
+        const result = await goalSelect.run(ctx);
+        assert.equal(result.status, "handover", label);
+        assert.equal(result.turns_completed, rounds, label);
+        assert.deepEqual(stageNames(calls), Array.from({ length: rounds }, (_, index) => [`orchestrator-${index + 1}`, `reviewer-${index + 1}`]).flat(), label);
+        assert.ok(result.result.includes("## Open findings at handover\n- none recorded"), `${label}: ${result.result}`);
+      }
+    });
+
+    it("hands over at the round cap with the last round's open findings in the decision and the final report", async () => {
+      const { ctx, calls } = tierRun("handover", {
+        inputs: { review_tier: "complex", max_turns: 1 },
+        review: (name) => (name === "risk-reviewer-1" ? minor(readme) : keepGoing),
+      });
+      const result = await goalSelect.run(ctx);
+      assert.equal(result.status, "handover");
+      assert.equal(result.approved, false);
+      assert.deepEqual(stageNames(calls), ["orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
+      const ledger = ledgerOf(result);
+      assert.equal(ledger.status, "handover");
+      const [decision] = ledger.decisions;
+      assert.equal(decision.decision, "handover");
+      assert.equal(decision.extra_round, undefined);
+      assert.deepEqual(decision.open_findings, [findingLine(2, "risk-reviewer")]);
+      assert.match(decision.reason, /^Review rounds used \(1\) without reviewer quorum; handed over with open findings\./);
+      assert.ok(result.result.includes("## Final status\nhandover"), result.result);
+      assert.ok(result.result.endsWith(`## Open findings at handover\n${findingLine(2, "risk-reviewer")}`), result.result);
+    });
+
+    it("grants one extra round when the capped round left a P1 open, then hands over with it still open", async () => {
+      const { ctx, calls } = tierRun("extra round", { inputs: { review_tier: "simple", max_turns: 1 }, review: () => blocking(readme) });
+      const result = await goalSelect.run(ctx);
+      assert.equal(result.status, "handover");
+      assert.deepEqual(stageNames(calls), ["orchestrator-1", "reviewer-1", "orchestrator-2", "reviewer-2"]);
+      const [extra, handover] = ledgerOf(result).decisions;
+      assert.deepEqual([extra.turn, extra.decision, extra.extra_round], [1, "continue", true]);
+      assert.match(extra.reason, /one extra round granted for open serious findings: Routing is unproven$/);
+      assert.deepEqual([handover.turn, handover.decision, handover.extra_round], [2, "handover", undefined], "only one extra round, however serious the finding");
+      assert.deepEqual(handover.open_findings, [findingLine(1, "reviewer")]);
+
+      const recovered = tierRun("extra round approves", { inputs: { review_tier: "simple", max_turns: 1 }, review: (name) => (name === "reviewer-1" ? blocking(readme) : approve) });
+      const recoveredResult = await goalSelect.run(recovered.ctx);
+      assert.equal(recoveredResult.status, "complete", "the extra round is a full round that can complete the goal");
+      assert.deepEqual(votes(recoveredResult), [[1, "continue", 0, 1], [2, "complete", 1, 1]]);
+    });
+
+    it("grants no extra round for a P2, or for a P1 beyond or contradicting the objective", async () => {
+      const aligned = (alignment) => {
+        const review = blocking(readme);
+        return { ...review, findings: [{ ...review.findings[0], objective_alignment: alignment }] };
+      };
+      for (const [label, review, priority] of [
+        ["P2", minor(readme), 2],
+        ["P1 beyond the objective", aligned("beyond_objective"), 1],
+        ["P1 contradicting the objective", aligned("contradicts_objective"), 1],
+      ]) {
+        const { ctx, calls } = tierRun(label, { inputs: { review_tier: "simple", max_turns: 1 }, review: () => review });
+        const result = await goalSelect.run(ctx);
+        assert.equal(result.status, "handover", label);
+        assert.deepEqual(stageNames(calls), ["orchestrator-1", "reviewer-1"], label);
+        const decisions = ledgerOf(result).decisions;
+        assert.deepEqual(decisions.map((decision) => [decision.turn, decision.decision, decision.extra_round]), [[1, "handover", undefined]], label);
+        assert.deepEqual(decisions[0].open_findings, [findingLine(priority, "reviewer")], label);
+      }
+    });
+
+    it("refuses a review panel that holds the writer's model, whatever its effort, before any stage of that turn", async () => {
+      const sol = sharedPolicy.review_tiers.simple.reviewer_model;
+      const refused = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai-codex/gpt-6.1-sol:xhigh" } });
+      await assert.rejects(goalSelect.run(refused.ctx), (error) => {
+        assert.equal(error.message, `Review tier simple puts the writer's model (${sol}) on the review panel as reviewer; choose another tier, writer or reviewer model.`);
+        return true;
+      });
+      assert.deepEqual(modelStages(refused.calls), [], "no stage of turn 1 ran");
+
+      const allowed = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai-codex/gpt-6-astra:xhigh" } });
+      assert.equal((await goalSelect.run(allowed.ctx)).status, "complete", "another model from the same provider may review");
+
+      const policyPath = join(clone, ".atomic", "tiers lineage.jsonc");
+      const midRun = tierRun("lineage", {
+        inputs: { review_tier: "complex", writer_model: "test/writer:high" },
+        onTask: (name) => {
+          if (name === "orchestrator-1") writeJson(policyPath, { ...tierPolicy, risk_reviewer_model: "test/writer:low" });
+        },
+        review: () => keepGoing,
+      });
+      await assert.rejects(goalSelect.run(midRun.ctx), /^Error: Review tier complex puts the writer's model \(test\/writer:low\) on the review panel as risk;/);
+      assert.deepEqual(stageNames(midRun.calls), ["orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"], "a policy edit that breaks the lineage stops the run before turn 2");
+    });
+
+    it("tells a single reviewer it has no siblings, and every panel its size and quorum", async () => {
+      const panel = (calls, name) => goalStages(calls).find((stage) => stage.name === name).options.task.match(/<review_panel>\n([^]*?)\n<\/review_panel>/)?.[1];
+      const simple = tierRun("simple prompt", { inputs: { review_tier: "simple" } });
+      await goalSelect.run(simple.ctx);
+      assert.equal(
+        panel(simple.calls, "reviewer-1"),
+        "You are the only reviewer this round: there are no sibling reviewers to discover, so skip the evidence exchange and cover contract fidelity, evidence validity and adversarial risk yourself. Your verdict alone decides the round.",
+      );
+      for (const [tier, policy, names, text] of [
+        ["standard", tierPolicy, ["completion-reviewer-1", "risk-reviewer-1"], "This round's panel has 2 reviewers and needs 2 to approve."],
+        ["complex", tierPolicy, ["completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"], "This round's panel has 3 reviewers and needs 2 to approve."],
+        ["complex", { review_tiers: { complex: { quorum: 3 } } }, ["completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"], "This round's panel has 3 reviewers and needs 3 to approve."],
+      ]) {
+        const { ctx, calls } = tierRun(`${tier} prompt ${text}`, { policy, inputs: { review_tier: tier } });
+        await goalSelect.run(ctx);
+        for (const name of names) assert.equal(panel(calls, name), text, `${tier} ${name}`);
+      }
+    });
   });
 
   describe("resume after an infrastructure failure", () => {
@@ -1219,8 +1467,9 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     const byName = Object.fromEntries(stages.map((stage) => [stage.name, stage.options]));
     assert.ok(byName["orchestrator-1"].prompt.includes(`Current working directory: ${target}`));
     assert.ok(byName["pull-request"].prompt.includes(`Current working directory: ${target}`));
-    assert.equal(byName["orchestrator-1"].model, solAstra.orchestrator_model, "the shared preset wins over the clone's committed project-local policy");
-    assert.equal(byName["completion-reviewer-1"].model, solAstra.reviewer_model);
+    assert.equal(byName["orchestrator-1"].model, sharedPolicy.defaults.orchestrator_model, "the shared policy wins over the clone's committed project-local policy");
+    assert.equal(byName["completion-reviewer-1"].model, sharedPolicy.review_tiers.complex.reviewer_model);
+    assert.equal(byName["risk-reviewer-1"].model, sharedPolicy.review_tiers.complex.risk_reviewer_model);
     assert.equal(toolArgs(calls, "resolve-models-1").path, sharedDefaultPath);
     assert.deepEqual(seedState(autoSeed), initialSeed);
     assert.equal(process.cwd(), startCwd);
@@ -1248,8 +1497,8 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
       assert.deepEqual(models.planned_checkout, { path: target, branch: "goal-fix-login-redirect-loop-b9d17232", seed: autoSeed, seed_head: seedHead, created: false });
       assert.equal(models.launch.policyPath, sharedDefaultPath);
       assert.equal("policyFallbackPath" in models.launch, false);
-      assert.deepEqual(models.policy, solAstra);
-      assert.equal(models.policy_source, sharedDefaultPath, "the shared absolute preset is previewed as-is, never copied");
+      assert.deepEqual(models.policy, sharedPolicy);
+      assert.equal(models.policy_source, sharedDefaultPath, "the shared absolute policy is previewed as-is, never copied");
       assert.ok(result.result.startsWith("- Preview only: no branch clone was created and no Goal stage ran."), result.result);
       assert.ok(result.result.includes(`- Planned clone: ${target}`), result.result);
       assert.equal(existsSync(target), false);
@@ -1306,7 +1555,7 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
     const head = jsoncSeedBefore.head.slice(0, 12);
     const committed = (path) => `${path} at seed commit ${head} (the clone gets this committed file)`;
     const uncommitted = (path) => `${join(jsoncSeed, path)} (not committed; copied into the clone when it is created)`;
-    const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: goalSelect.inputs.reviewer_model.default };
+    const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: "test/launch-reviewer" };
     const fromJsonc = { orchestrator: jsoncPolicy.orchestrator_model, reviewer: jsoncPolicy.reviewer_model };
 
     for (const [path, policy, source, models, copied] of [
@@ -1321,7 +1570,7 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
       assert.equal(previewed.policy_source, source, path);
       assert.equal(existsSync(previewed.planned_checkout.path), false, `${path} preview creates no clone`);
 
-      const actual = await autoRun({ cwd: jsoncSeed, inputs: { model_policy_path: path } });
+      const actual = await autoRun({ cwd: jsoncSeed, inputs: { model_policy_path: path, reviewer_model: launch.reviewer } });
       assert.equal(created(actual.calls).policy_copied_from, copied, path);
       assert.equal(readFileSync(join(actual.target, path), "utf8"), readFileSync(join(jsoncSeed, path), "utf8"), `${path} reaches the clone verbatim`);
       const byName = Object.fromEntries(modelStages(actual.calls).map((stage) => [stage.name, stage.options]));
@@ -1332,8 +1581,10 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
   });
 
   it("hands an explicit project-local policy to a new clone as the clone reads it, matched by the preview", async () => {
-    const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: goalSelect.inputs.reviewer_model.default, risk: goalSelect.inputs.risk_reviewer_model.default };
-    assert.equal(launch.risk, solAstra.risk_reviewer_model, "the launch risk reviewer is the preset's explicit value, not the generic reviewer_model");
+    // The launch risk reviewer is distinct from the generic reviewer_model, so
+    // a role that falls back to the launch shows which input it took.
+    const launch = { orchestrator: goalSelect.inputs.orchestrator_model.default, reviewer: "test/launch-reviewer", risk: "test/launch-risk" };
+    const launchModels = { reviewer_model: launch.reviewer, risk_reviewer_model: launch.risk };
     const fromJsonc = { orchestrator: jsoncPolicy.orchestrator_model, reviewer: jsoncPolicy.reviewer_model };
     const fromJson = { orchestrator: "test/json-orchestrator", reviewer: launch.reviewer, risk: launch.risk };
     const committedFile = (path, head) => `${path} at seed commit ${head} (the clone gets this committed file)`;
@@ -1367,7 +1618,7 @@ describe("goal-select automatic branch clone (real git bc-add fixtures; fake wor
       assert.equal(existsSync(preview.target), false, `${label}: preview creates no clone`);
       assert.deepEqual(seedState(dir), before, `${label}: preview leaves the seed alone`);
 
-      const actual = await autoRun({ cwd: dir, inputs: { model_policy_path: expected.path } });
+      const actual = await autoRun({ cwd: dir, inputs: { model_policy_path: expected.path, ...launchModels } });
       assert.equal(actual.result.status, "complete", label);
       assert.equal(created(actual.calls).policy_copied_from, expected.copied === null ? null : join(dir, expected.copied), label);
       const cloned = existsSync(join(actual.target, ".atomic")) ? readdirSync(join(actual.target, ".atomic")).sort() : [];
@@ -2062,10 +2313,10 @@ describe("goal-select model policy parser (JSONC)", () => {
   });
 });
 
-describe("goal-select launch-form prefill (module evaluated as Atomic discovery does, reading the shared default preset)", () => {
-  const builtin = { orchestrator_model: "openai-codex/gpt-6-astra:medium", reviewer_model: "openai-codex/gpt-6-astra:high", max_turns: 10 };
-  const roleKeys = ["completion_reviewer_model", "evidence_reviewer_model", "risk_reviewer_model", "writer_model"];
-  const sharedPreset = join(".config", "atomic", "goal-select-models", "sol-astra.json");
+describe("goal-select launch-form prefill (module evaluated as Atomic discovery does, reading the shared goal-select.jsonc)", () => {
+  const builtin = { orchestrator_model: "openai-codex/gpt-6.1-sol:medium", review_tier: "complex" };
+  const unprefilled = ["reviewer_model", "max_turns", "completion_reviewer_model", "evidence_reviewer_model", "risk_reviewer_model", "writer_model"];
+  const sharedFile = join(".config", "atomic", "goal-select.jsonc");
   let prefillRoot;
   let prefillCwd;
 
@@ -2082,7 +2333,7 @@ describe("goal-select launch-form prefill (module evaluated as Atomic discovery 
 
   function assertBuiltinDefaults(definition, label) {
     for (const [key, value] of Object.entries(builtin)) assert.equal(definition.inputs[key].default, value, `${label}: ${key}`);
-    for (const key of roleKeys) assert.equal(definition.inputs[key].default, undefined, `${label}: ${key}`);
+    for (const key of unprefilled) assert.equal(definition.inputs[key].default, undefined, `${label}: ${key}`);
   }
 
   before(() => {
@@ -2095,93 +2346,130 @@ describe("goal-select launch-form prefill (module evaluated as Atomic discovery 
     rmSync(prefillRoot, { recursive: true, force: true });
   });
 
-  it("keeps the builtin defaults when the shared preset is absent, never reading a project-local policy where Atomic runs, and Atomic's input resolution accepts the definition", async () => {
+  it("keeps the builtin defaults when the shared policy is absent, never reading a project-local policy where Atomic runs, and Atomic's input resolution accepts the definition", async () => {
     const definition = await loadWithHome("absent", {});
     assertBuiltinDefaults(definition, "absent");
     const resolved = resolveInputs(definition.inputs, { objective: "probe" });
     assert.equal(resolved.orchestrator_model, builtin.orchestrator_model);
-    assert.equal(resolved.max_turns, 10);
+    assert.equal(resolved.review_tier, builtin.review_tier);
+    assert.equal("max_turns" in resolved, false, "an empty max_turns leaves the tier's cap");
+    assert.equal("reviewer_model" in resolved, false, "an empty reviewer_model leaves the tier's models");
     assert.equal(resolved.tracker, "none");
     assert.equal("completion_reviewer_model" in resolved, false);
   });
 
-  it("defaults model_policy_path to the home-derived shared sol-astra.json, whatever directory Atomic discovers in", async () => {
+  it("defaults model_policy_path to the home-derived shared goal-select.jsonc, whatever directory Atomic discovers in", async () => {
     const definition = await loadWithHome("default path", {});
-    const expected = join(prefillRoot, "default path", sharedPreset);
+    const expected = join(prefillRoot, "default path", sharedFile);
     assert.equal(definition.inputs.model_policy_path.default, expected);
     assert.equal(resolveInputs(definition.inputs, { objective: "probe" }).model_policy_path, expected);
   });
 
-  it("prefills every supported key from the shared sol-astra.json as real launch-form defaults that Atomic applies", async () => {
+  it("prefills the orchestrator, writer and review tier from the defaults block as real launch-form defaults that Atomic applies", async () => {
     const policy = {
-      orchestrator_model: "  test/prefill-orchestrator  ",
-      reviewer_model: "test/prefill-reviewer",
-      completion_reviewer_model: "test/prefill-completion",
-      evidence_reviewer_model: "test/prefill-evidence",
-      risk_reviewer_model: "test/prefill-risk",
-      writer_model: "test/prefill-writer",
-      max_turns: 4.7,
+      defaults: { orchestrator_model: "  test/default-orchestrator  ", writer_model: "test/default-writer", review_tier: "simple" },
+      review_tiers: { simple: { reviewer_model: "test/simple-reviewer", max_turns: 5 } },
     };
-    const definition = await loadWithHome("json", { [sharedPreset]: JSON.stringify(policy) });
-    const expected = {
-      orchestrator_model: "test/prefill-orchestrator",
-      reviewer_model: "test/prefill-reviewer",
-      completion_reviewer_model: "test/prefill-completion",
-      evidence_reviewer_model: "test/prefill-evidence",
-      risk_reviewer_model: "test/prefill-risk",
-      writer_model: "test/prefill-writer",
-      max_turns: 4,
-    };
+    const definition = await loadWithHome("defaults", { [sharedFile]: JSON.stringify(policy) });
+    const expected = { orchestrator_model: "test/default-orchestrator", writer_model: "test/default-writer", review_tier: "simple" };
     for (const [key, value] of Object.entries(expected)) assert.equal(definition.inputs[key].default, value, key);
+    for (const key of ["reviewer_model", "max_turns"]) assert.equal(definition.inputs[key].default, undefined, `${key}: the tier supplies it when the run starts`);
     const resolved = resolveInputs(definition.inputs, { objective: "probe" });
     for (const [key, value] of Object.entries(expected)) assert.equal(resolved[key], value, `resolved ${key}`);
+    assert.equal(resolveInputs(definition.inputs, { objective: "probe", review_tier: "standard" }).review_tier, "standard");
     assert.equal(resolveInputs(definition.inputs, { objective: "probe", orchestrator_model: "test/typed" }).orchestrator_model, "test/typed");
     assert.equal(resolveInputs(definition.inputs, { objective: "probe", writer_model: "" }).writer_model, "");
-    assert.equal(goalSelect.inputs.orchestrator_model.default, solAstra.orchestrator_model, "other homes keep their own prefill");
+    assert.equal(goalSelect.inputs.orchestrator_model.default, sharedPolicy.defaults.orchestrator_model, "other homes keep their own prefill");
+    assert.equal(goalSelect.inputs.review_tier.default, sharedPolicy.defaults.review_tier, "other homes keep their own prefill");
   });
 
-  it("prefills from a JSONC shared preset, comments and trailing commas included", async () => {
-    const definition = await loadWithHome("jsonc", { [sharedPreset]: jsoncPolicyText });
-    assert.equal(definition.inputs.orchestrator_model.default, jsoncPolicy.orchestrator_model);
-    assert.equal(definition.inputs.reviewer_model.default, jsoncPolicy.reviewer_model);
-    assert.equal(definition.inputs.max_turns.default, 3);
+  it("prefills from the file's top-level keys before its defaults block, and never prefills reviewer_model or max_turns", async () => {
+    const policy = {
+      orchestrator_model: "test/top-orchestrator",
+      reviewer_model: "test/top-reviewer",
+      completion_reviewer_model: "test/top-completion",
+      evidence_reviewer_model: "test/top-evidence",
+      risk_reviewer_model: "test/top-risk",
+      writer_model: "test/top-writer",
+      review_tier: "standard",
+      max_turns: 4.7,
+      defaults: { orchestrator_model: "test/default-orchestrator", writer_model: "test/default-writer", review_tier: "simple" },
+    };
+    const definition = await loadWithHome("top level", { [sharedFile]: JSON.stringify(policy) });
+    const expected = {
+      orchestrator_model: "test/top-orchestrator",
+      completion_reviewer_model: "test/top-completion",
+      evidence_reviewer_model: "test/top-evidence",
+      risk_reviewer_model: "test/top-risk",
+      writer_model: "test/top-writer",
+      review_tier: "standard",
+    };
+    for (const [key, value] of Object.entries(expected)) assert.equal(definition.inputs[key].default, value, key);
+    for (const key of ["reviewer_model", "max_turns"]) assert.equal(definition.inputs[key].default, undefined, `${key}: a top-level value overrides when the run starts instead`);
   });
 
-  it("reads only sol-astra.json from the library: another preset file there changes no prefill", async () => {
-    const definition = await loadWithHome("other preset", { [join(".config", "atomic", "goal-select-models", "kimi-astra.json")]: jsonPolicyText });
-    assertBuiltinDefaults(definition, "other preset");
+  it("prefills from a JSONC shared policy, comments and trailing commas included", async () => {
+    const text = `{
+  // Launch-form defaults.
+  "defaults": {
+    "orchestrator_model": "test/jsonc-default//not-a-comment",
+    // "orchestrator_model": "test/commented-out",
+    "review_tier": "standard", /* the closer follows a trailing comma */
+  },
+}
+`;
+    const definition = await loadWithHome("jsonc", { [sharedFile]: text });
+    assert.equal(definition.inputs.orchestrator_model.default, "test/jsonc-default//not-a-comment");
+    assert.equal(definition.inputs.review_tier.default, "standard");
+    assert.equal(definition.inputs.reviewer_model.default, undefined);
   });
 
-  it("keeps every current default for a malformed shared preset", async () => {
-    const definition = await loadWithHome("malformed", { [sharedPreset]: malformedPolicyText });
+  it("reads only goal-select.jsonc: the old preset library and sibling files change no prefill", async () => {
+    const other = JSON.stringify({ orchestrator_model: "test/other", defaults: { orchestrator_model: "test/other-default", review_tier: "simple" } });
+    const definition = await loadWithHome("other files", {
+      [join(".config", "atomic", "goal-select-models", "sol-astra.json")]: other,
+      [join(".config", "atomic", "goal-select.json")]: other,
+    });
+    assertBuiltinDefaults(definition, "other files");
+  });
+
+  it("keeps every builtin default for a malformed shared policy", async () => {
+    const definition = await loadWithHome("malformed", { [sharedFile]: malformedPolicyText });
     assertBuiltinDefaults(definition, "malformed");
   });
 
-  it("ignores missing keys and wrong-typed values key by key, and non-object or unreadable shared presets entirely", async () => {
+  it("ignores missing keys and wrong-typed values key by key, and non-object or unreadable shared policies entirely", async () => {
     const mixed = await loadWithHome("mixed", {
-      [sharedPreset]: JSON.stringify({ orchestrator_model: 42, reviewer_model: "   ", completion_reviewer_model: null, writer_model: ["x"], risk_reviewer_model: "test/only-risk", max_turns: "5" }),
+      [sharedFile]: JSON.stringify({
+        orchestrator_model: 42,
+        completion_reviewer_model: null,
+        writer_model: ["x"],
+        risk_reviewer_model: "test/only-risk",
+        review_tier: "gold",
+        defaults: { orchestrator_model: "   ", review_tier: 2, writer_model: "test/default-writer" },
+      }),
     });
     assert.equal(mixed.inputs.orchestrator_model.default, builtin.orchestrator_model);
-    assert.equal(mixed.inputs.reviewer_model.default, builtin.reviewer_model);
+    assert.equal(mixed.inputs.review_tier.default, builtin.review_tier);
     assert.equal(mixed.inputs.completion_reviewer_model.default, undefined);
-    assert.equal(mixed.inputs.writer_model.default, undefined);
+    assert.equal(mixed.inputs.writer_model.default, "test/default-writer", "a wrong-typed top-level writer falls through to defaults");
     assert.equal(mixed.inputs.risk_reviewer_model.default, "test/only-risk");
-    assert.equal(mixed.inputs.max_turns.default, 10);
-    for (const [name, maxTurns] of [["zero", 0], ["negative", -3], ["fraction", 0.5]]) {
-      const definition = await loadWithHome(name, { [sharedPreset]: JSON.stringify({ max_turns: maxTurns }) });
-      assert.equal(definition.inputs.max_turns.default, 10, name);
+    for (const [name, defaults] of [["null defaults", null], ["string defaults", "complex"], ["array defaults", ["simple"]]]) {
+      assertBuiltinDefaults(await loadWithHome(name, { [sharedFile]: JSON.stringify({ defaults }) }), name);
     }
     for (const [name, text] of [["array", "[1, 2]"], ["string", '"test/x"'], ["null", "null"]]) {
-      assertBuiltinDefaults(await loadWithHome(name, { [sharedPreset]: text }), name);
+      assertBuiltinDefaults(await loadWithHome(name, { [sharedFile]: text }), name);
     }
-    const unreadable = join(prefillRoot, "unreadable", sharedPreset);
+    const unreadable = join(prefillRoot, "unreadable", sharedFile);
     mkdirSync(unreadable, { recursive: true });
     assertBuiltinDefaults(await loadWithHome("unreadable", {}), "unreadable");
   });
 
   it("still re-reads the policy before every turn: prefilled launch values are only the fallback", async () => {
-    const definition = await loadWithHome("refresh", { [sharedPreset]: JSON.stringify({ orchestrator_model: "test/prefill-orchestrator", reviewer_model: "test/prefill-reviewer", max_turns: 3 }) });
-    const sharedFile = join(prefillRoot, "refresh", sharedPreset);
+    const definition = await loadWithHome("refresh", {
+      [sharedFile]: JSON.stringify({ defaults: { orchestrator_model: "test/prefill-orchestrator", review_tier: "simple" }, review_tiers: { simple: { reviewer_model: "test/prefill-reviewer" } } }),
+    });
+    const sharedPath = join(prefillRoot, "refresh", sharedFile);
     const dir = join(prefillRoot, "refresh cwd");
     git("init", "--quiet", "-b", "main", dir);
     git("-C", dir, "commit", "--quiet", "--allow-empty", "-m", "Prefill commit");
@@ -2190,20 +2478,27 @@ describe("goal-select launch-form prefill (module evaluated as Atomic discovery 
       definition,
       inputs: { branch_checkout_dir: "" },
       onTask: (name) => {
-        if (name === "orchestrator-1") writeJson(sharedFile, { orchestrator_model: "test/turn-2-orchestrator" });
+        if (name === "orchestrator-1") writeJson(sharedPath, { defaults: { orchestrator_model: "test/edited-default", review_tier: "standard" }, review_tiers: { simple: { reviewer_model: "test/turn-2-reviewer" } } });
+        if (name === "orchestrator-2") writeJson(sharedPath, { orchestrator_model: "test/turn-3-orchestrator", review_tiers: { simple: { reviewer_model: "test/turn-2-reviewer" } } });
         return {};
       },
-      review: (name) => (name.endsWith("-1") ? keepGoing : approve),
+      review: (name) => (name.endsWith("-3") ? approve : keepGoing),
     });
-    assert.equal(ctx.inputs.max_turns, 3);
-    assert.equal(ctx.inputs.model_policy_path, sharedFile);
+    assert.equal(ctx.inputs.orchestrator_model, "test/prefill-orchestrator");
+    assert.equal(ctx.inputs.review_tier, "simple");
+    assert.equal(ctx.inputs.max_turns, undefined);
+    assert.equal(ctx.inputs.model_policy_path, sharedPath);
     const result = await definition.run(ctx);
     assert.equal(result.status, "complete");
-    const byName = Object.fromEntries(modelStages(calls).map((stage) => [stage.name, stage.options]));
+    const stages = modelStages(calls);
+    assert.deepEqual(stages.map((stage) => stage.name), ["orchestrator-1", "reviewer-1", "orchestrator-2", "reviewer-2", "orchestrator-3", "reviewer-3"], "an edited defaults.review_tier does not displace the launch tier");
+    const byName = Object.fromEntries(stages.map((stage) => [stage.name, stage.options]));
     assert.equal(byName["orchestrator-1"].model, "test/prefill-orchestrator");
-    assert.equal(byName["orchestrator-2"].model, "test/turn-2-orchestrator");
-    assert.equal(byName["completion-reviewer-1"].model, "test/prefill-reviewer");
-    assert.equal(byName["completion-reviewer-2"].model, "test/prefill-reviewer", "the prefilled launch reviewer is the fallback once the policy drops reviewer_model");
+    assert.equal(byName["orchestrator-2"].model, "test/prefill-orchestrator", "an edited defaults block does not displace the prefilled launch value");
+    assert.equal(byName["orchestrator-3"].model, "test/turn-3-orchestrator", "a top-level key does");
+    assert.equal(byName["reviewer-1"].model, "test/prefill-reviewer");
+    assert.equal(byName["reviewer-2"].model, "test/turn-2-reviewer", "the tier's models are re-read each turn");
+    assert.equal(byName["reviewer-3"].model, "test/turn-2-reviewer");
   });
 });
 

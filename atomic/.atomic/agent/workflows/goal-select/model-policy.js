@@ -2,15 +2,42 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const SHARED_POLICY_DIR = [".config", "atomic", "goal-select-models"];
-const SHARED_DEFAULT_PRESET = "sol-astra.json";
+// The shared policy: defaults for the orchestrator and tier, and the three
+// review tiers. A project policy file may override any of it per run.
+const SHARED_POLICY = [".config", "atomic", "goal-select.jsonc"];
+
+export const REVIEW_TIERS = ["simple", "standard", "complex"];
+export const DEFAULT_REVIEW_TIER = "complex";
+export const DEFAULT_MAX_TURNS = 3;
+// What each tier means when the policy file does not say: the panel is the
+// reviewer roles that run, in this order, and quorum is how many must
+// approve. Models come from the policy's tier entry or its launch inputs.
+export const REVIEW_PANELS = {
+  simple: { roles: ["reviewer"], quorum: 1 },
+  standard: { roles: ["completion", "risk"], quorum: 2 },
+  complex: { roles: ["completion", "evidence", "risk"], quorum: 2 },
+};
 
 export function sharedPolicyDir() {
-  return join(homedir(), ...SHARED_POLICY_DIR);
+  return join(homedir(), ".config", "atomic");
 }
 
 export function defaultPolicyPath() {
-  return join(sharedPolicyDir(), SHARED_DEFAULT_PRESET);
+  return join(homedir(), ...SHARED_POLICY);
+}
+
+// The shared file's tier presets and defaults, which every policy file
+// inherits unless it carries its own.
+export function sharedPolicyLayers() {
+  try {
+    const parsed = parseModelPolicy(readFileSync(defaultPolicyPath(), "utf8"));
+    return {
+      defaults: parsed?.defaults !== null && typeof parsed?.defaults === "object" ? parsed.defaults : {},
+      review_tiers: parsed?.review_tiers !== null && typeof parsed?.review_tiers === "object" ? parsed.review_tiers : {},
+    };
+  } catch {
+    return { defaults: {}, review_tiers: {} };
+  }
 }
 
 export function modelPolicyPaths(input) {
@@ -44,21 +71,52 @@ export function launchDefaults() {
   const [policyPath] = modelPolicyPaths(undefined);
   const { policy } = readModelPolicyFile(policyPath);
   const defaults = {};
+  const fallbacks = policy?.defaults ?? {};
+  // Only the orchestrator and writer have a defaults layer; reviewer roles
+  // come from the tier, so a prefilled role would silently beat it.
+  const fallbackKeys = new Set(["orchestrator_model", "writer_model"]);
   for (const [key, alias] of LAUNCH_MODEL_KEYS) {
-    const model = policyModel(policy?.[key]) ?? policyModel(policy?.[alias]);
+    const model = policyModel(policy?.[key]) ?? policyModel(policy?.[alias]) ?? (fallbackKeys.has(key) ? policyModel(fallbacks[key]) ?? policyModel(fallbacks[alias]) : undefined);
     if (model !== undefined) defaults[key] = model;
   }
   const maxTurns = policyMaxTurns(policy?.max_turns);
   if (maxTurns !== undefined) defaults.max_turns = maxTurns;
+  const tier = policyTier(policy?.review_tier) ?? policyTier(fallbacks.review_tier);
+  if (tier !== undefined) defaults.review_tier = tier;
   return defaults;
 }
 
-function policyModel(value) {
+export function policyModel(value) {
   return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
 }
 
-function policyMaxTurns(value) {
+export function policyMaxTurns(value) {
   return typeof value === "number" && Number.isFinite(value) && value >= 1 ? Math.floor(value) : undefined;
+}
+
+export function policyTier(value) {
+  return typeof value === "string" && REVIEW_TIERS.includes(value.trim()) ? value.trim() : undefined;
+}
+
+// The review tier's entry from a parsed policy, with the roles its panel
+// runs: `reviewer_model` serves any role without its own model.
+export function policyReviewTier(policy, tier) {
+  const entry = policy?.review_tiers?.[tier];
+  const panel = REVIEW_PANELS[tier];
+  const roles = entry?.panel === 1 || entry?.panel === 2 || entry?.panel === 3 ? REVIEW_PANELS[["simple", "standard", "complex"][entry.panel - 1]].roles : panel.roles;
+  const reviewer = policyModel(entry?.reviewer_model) ?? policyModel(entry?.reviewer);
+  return {
+    tier,
+    roles,
+    quorum: typeof entry?.quorum === "number" && entry.quorum >= 1 && entry.quorum <= roles.length ? Math.floor(entry.quorum) : Math.min(panel.quorum, roles.length),
+    models: {
+      reviewer,
+      completion: policyModel(entry?.completion_reviewer_model) ?? policyModel(entry?.completion_reviewer),
+      evidence: policyModel(entry?.evidence_reviewer_model) ?? policyModel(entry?.evidence_reviewer),
+      risk: policyModel(entry?.risk_reviewer_model) ?? policyModel(entry?.risk_reviewer),
+    },
+    maxTurns: policyMaxTurns(entry?.max_turns),
+  };
 }
 
 const JSON_WHITESPACE = new Set([" ", "\t", "\n", "\r"]);

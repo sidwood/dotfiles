@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { keepContext } from "@bastani/atomic/workflows";
 import { createRequire } from "node:module";
-import { modelPolicyFile, parseModelPolicy } from "./model-policy.js";
+import { DEFAULT_MAX_TURNS as TIER_DEFAULT_MAX_TURNS, DEFAULT_REVIEW_TIER, modelPolicyFile, parseModelPolicy, policyModel, policyReviewTier, policyTier, sharedPolicyLayers } from "./model-policy.js";
 
 // Atomic's bundler renames its content-hashed chunk-*.js files on every
 // release, so each import site below finds its chunk by the names it needs
@@ -274,21 +274,38 @@ function cleanModel(value) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
+// Top-level keys are overrides for every run that reads the file; `defaults`
+// are fallbacks behind the launch inputs and the tier; `review_tiers` holds
+// the tier presets. The result is plain data: Atomic records it per turn.
 function readModelPolicy(selection) {
+  // A project or malformed policy still runs with the shared tiers and
+  // defaults; only its own keys override them.
+  const shared = sharedPolicyLayers();
+  let parsed;
   try {
-    const parsed = parseModelPolicy(readFileSync(modelPolicyFile(selection.policyPath, selection.policyFallbackPath), "utf8"));
-    const reviewer = cleanModel(parsed.reviewer_model) ?? cleanModel(parsed.reviewer);
-    return {
-      orchestrator: cleanModel(parsed.orchestrator_model) ?? cleanModel(parsed.orchestrator),
-      completionReviewer: cleanModel(parsed.completion_reviewer_model) ?? cleanModel(parsed.completion_reviewer) ?? reviewer,
-      evidenceReviewer: cleanModel(parsed.evidence_reviewer_model) ?? cleanModel(parsed.evidence_reviewer) ?? reviewer,
-      riskReviewer: cleanModel(parsed.risk_reviewer_model) ?? cleanModel(parsed.risk_reviewer) ?? reviewer,
-      writer: cleanModel(parsed.writer_model) ?? cleanModel(parsed.writer),
-      maxTurns: policyMaxTurns(parsed.max_turns)
-    };
+    parsed = parseModelPolicy(readFileSync(modelPolicyFile(selection.policyPath, selection.policyFallbackPath), "utf8"));
   } catch {
-    return {};
+    parsed = {};
   }
+  if (parsed === null || typeof parsed !== "object") parsed = {};
+  const reviewer = cleanModel(parsed.reviewer_model) ?? cleanModel(parsed.reviewer);
+  const fallbacks = parsed.defaults !== null && typeof parsed.defaults === "object" ? parsed.defaults : shared.defaults;
+  return {
+    orchestrator: cleanModel(parsed.orchestrator_model) ?? cleanModel(parsed.orchestrator),
+    reviewer,
+    completionReviewer: cleanModel(parsed.completion_reviewer_model) ?? cleanModel(parsed.completion_reviewer) ?? reviewer,
+    evidenceReviewer: cleanModel(parsed.evidence_reviewer_model) ?? cleanModel(parsed.evidence_reviewer) ?? reviewer,
+    riskReviewer: cleanModel(parsed.risk_reviewer_model) ?? cleanModel(parsed.risk_reviewer) ?? reviewer,
+    writer: cleanModel(parsed.writer_model) ?? cleanModel(parsed.writer),
+    maxTurns: policyMaxTurns(parsed.max_turns),
+    reviewTier: policyTier(parsed.review_tier),
+    defaults: {
+      orchestrator: policyModel(fallbacks.orchestrator_model) ?? policyModel(fallbacks.orchestrator),
+      writer: policyModel(fallbacks.writer_model) ?? policyModel(fallbacks.writer),
+      reviewTier: policyTier(fallbacks.review_tier)
+    },
+    reviewTiers: parsed.review_tiers !== null && typeof parsed.review_tiers === "object" ? parsed.review_tiers : shared.review_tiers
+  };
 }
 function policyMaxTurns(value) {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return;
@@ -306,15 +323,46 @@ function assignedModelConfig(base, assigned) {
 async function resolveTurnModels(ctx, selection, turn) {
   const args = selection.policyFallbackPath === undefined ? { path: selection.policyPath, turn } : { path: selection.policyPath, fallback_path: selection.policyFallbackPath, turn };
   const policy = await ctx.tool(`resolve-models-${turn}`, args, async () => readModelPolicy(selection), { timeoutMs: 10000 });
+  const defaults = policy.defaults ?? {};
+  const tier = policy.reviewTier ?? selection.reviewTier ?? defaults.reviewTier ?? DEFAULT_REVIEW_TIER;
+  const preset = policyReviewTier({ review_tiers: policy.reviewTiers }, tier);
   const reviewer = selection.reviewer;
+  const role = (fileModel, launchModel, presetModel) => fileModel ?? launchModel ?? reviewer ?? presetModel ?? preset.models.reviewer;
   return {
-    orchestrator: assignedModelConfig(orchestratorModelConfig, policy.orchestrator ?? selection.orchestrator),
-    completion: assignedModelConfig(reviewerModelConfig, policy.completionReviewer ?? selection.completionReviewer ?? reviewer),
-    evidence: assignedModelConfig(reviewerModelConfig, policy.evidenceReviewer ?? selection.evidenceReviewer ?? reviewer),
-    risk: assignedModelConfig(reviewerModelConfig, policy.riskReviewer ?? selection.riskReviewer ?? reviewer),
-    writer: policy.writer ?? selection.writer,
-    maxTurns: policy.maxTurns
+    orchestrator: assignedModelConfig(orchestratorModelConfig, policy.orchestrator ?? selection.orchestrator ?? defaults.orchestrator),
+    reviewer: assignedModelConfig(reviewerModelConfig, role(policy.reviewer, undefined, undefined)),
+    completion: assignedModelConfig(reviewerModelConfig, role(policy.completionReviewer, selection.completionReviewer, preset.models.completion)),
+    evidence: assignedModelConfig(reviewerModelConfig, role(policy.evidenceReviewer, selection.evidenceReviewer, preset.models.evidence)),
+    risk: assignedModelConfig(reviewerModelConfig, role(policy.riskReviewer, selection.riskReviewer, preset.models.risk)),
+    writer: policy.writer ?? selection.writer ?? defaults.writer,
+    maxTurns: policy.maxTurns ?? selection.maxTurns ?? preset.maxTurns ?? TIER_DEFAULT_MAX_TURNS,
+    tier,
+    roles: preset.roles,
+    quorum: preset.quorum
   };
+}
+// A model id without its effort suffix, for comparing lineages.
+function modelLineage(model) {
+  return typeof model === "string" ? model.replace(/:[a-z]+$/u, "") : undefined;
+}
+// A reviewer never judges its own writer: refuse a panel that puts the
+// writer's model on it.
+function assertReviewerLineage(turnModels) {
+  const writer = modelLineage(turnModels.writer);
+  if (writer === undefined) return;
+  for (const roleName of turnModels.roles) {
+    const model = turnModels[roleName]?.model;
+    if (modelLineage(model) === writer) {
+      throw new Error(`Review tier ${turnModels.tier} puts the writer's model (${model}) on the review panel as ${roleName}; choose another tier, writer or reviewer model.`);
+    }
+  }
+}
+// A serious finding the objective requires, left open by this round.
+function seriousOpenFindings(reviews) {
+  return reviews.flatMap((review) => review.findings ?? []).filter((finding) => typeof finding.priority === "number" && finding.priority <= 1 && finding.objective_alignment !== "beyond_objective" && finding.objective_alignment !== "contradicts_objective");
+}
+function openFindingLines(reviews) {
+  return reviews.flatMap((review) => (review.findings ?? []).map((finding) => `- [P${finding.priority ?? "?"}] ${finding.title} (${review.reviewer}): ${finding.body}`));
 }
 function writerModelNote(model) {
   if (!model) return "";
@@ -326,7 +374,6 @@ When you delegate implementation with the subagent tool, pass model: "${model}".
 </keepContext>`;
 }
 
-var DEFAULT_MAX_TURNS = 10;
 var DEFAULT_REVIEW_QUORUM = 2;
 var DEFAULT_BLOCKER_THRESHOLD = 3;
 var LEDGER_FILENAME = "goal-ledger.json";
@@ -548,19 +595,41 @@ function reduceGoalDecision(ledger, turnReviews, options) {
     };
   }
   if (options.turn >= options.maxTurns) {
-    const baseReason = `Orchestrator attempt budget reached without reviewer quorum. Remaining work: ${collectRemainingWork(turnReviews)}`;
+    // One extra round, once, when this round left a serious finding open.
+    const serious = seriousOpenFindings(turnReviews);
+    if (options.turn === options.maxTurns && !options.extraRoundGranted && serious.length > 0) {
+      const titles = serious.map((finding) => finding.title).join("; ");
+      return {
+        status: "active",
+        blockerObservation: observation,
+        decision: {
+          ...reducerSummary(turnReviews, false, "implementation"),
+          turn: options.turn,
+          decision: "continue",
+          extra_round: true,
+          reason: `Review rounds used (${options.maxTurns}); one extra round granted for open serious findings: ${titles}`,
+          complete_votes: completeVotes,
+          review_quorum: options.reviewQuorum,
+          ...observation ? { blocker: observation.blocker } : {}
+        }
+      };
+    }
+    // The cap is a handover, not a stop: the work lands with its open
+    // findings listed, and the next reviewer finishes it or escalates.
+    const baseReason = `Review rounds used (${options.turn}) without reviewer quorum; handed over with open findings. Remaining work: ${collectRemainingWork(turnReviews)}`;
     const evidence = convergence_escalation_evidence(options.convergence ?? []);
     return {
-      status: "needs_human",
+      status: "handover",
       blockerObservation: observation,
       decision: {
-        ...reducerSummary(turnReviews, false, "needs_human"),
+        ...reducerSummary(turnReviews, false, "handover"),
         turn: options.turn,
-        decision: "needs_human",
+        decision: "handover",
         reason: [baseReason, ...evidence].join(`
 `),
         complete_votes: completeVotes,
         review_quorum: options.reviewQuorum,
+        open_findings: openFindingLines(turnReviews),
         ...observation ? { blocker: observation.blocker } : {}
       }
     };
@@ -639,7 +708,8 @@ function renderFinalReport(ledger, ledgerPath, remainingWork) {
     "Review findings classified beyond_objective or contradicts_objective are non-blocking and must not be promoted into follow-up objectives without checking them against the acceptance criteria.",
     "",
     "## Remaining work if incomplete",
-    ledger.status === "complete" ? "none" : remainingWork
+    ledger.status === "complete" ? "none" : remainingWork,
+    ...ledger.status === "handover" ? ["", "## Open findings at handover", ...lastDecision?.open_findings?.length ? lastDecision.open_findings : ["- none recorded"]] : []
   ].join(`
 `);
 }
@@ -825,6 +895,7 @@ function renderReviewerPrompt(args) {
     ["calibration", REVIEWER_CALIBRATION_RULES],
     ["code_delta_review", REVIEW_CODE_DELTA_CONTRACT],
     ["reviewer_coordination", REVIEWER_INTERCOM_COORDINATION_PROTOCOL],
+    ["review_panel", args.panelSize === 1 ? "You are the only reviewer this round: there are no sibling reviewers to discover, so skip the evidence exchange and cover contract fidelity, evidence validity and adversarial risk yourself. Your verdict alone decides the round." : `This round's panel has ${args.panelSize} reviewers and needs ${args.reviewQuorum} to approve.`],
     ["regression_evidence", REGRESSION_EVIDENCE_CONTRACT],
     ["evidence_closure", EVIDENCE_CLOSURE_POLICY],
     ["goal_framework", GOAL_METHOD_REFERENCE],
@@ -992,6 +1063,30 @@ function reviewerExecutionFailedDecision(input) {
     diagnostics: input.reviews.flatMap((review) => review.parse_diagnostics)
   };
 }
+// The reviewer roles a panel can run. The simple tier's single reviewer
+// owns all three concerns; the standard tier folds evidence into completion.
+var REVIEWER_ROLES = {
+  reviewer: {
+    stage: "reviewer",
+    role: "Reviewer: owns clause-by-clause contract fidelity, evidence validity for the current checkout, and adversarial boundary checks, as the only reviewer of this round.",
+    focus: "Map every objective clause to a concrete independent check and verify exact exported API/type/build contracts and literal examples directly. Validate receipts, commands, tests, and artifacts rather than trusting summaries, confirming evidence is current, tied to this checkout, and includes the command and observed outcome. Probe state transitions, configuration precedence, permissive inputs, regressions, scope shrinkage, and repository convention violations. Mark complete only when every required deliverable, invariant, command, artifact, and referenced spec item is proven by current evidence."
+  },
+  completion: {
+    stage: "completion-reviewer",
+    role: "Completion Reviewer: owns clause-by-clause contract fidelity, especially exact exported API, type, and build requirements and literal examples.",
+    focus: "Map every objective clause to a concrete independent check. Verify exact exported API/type/build contracts and literal examples directly; mark complete only when every required deliverable, invariant, command, artifact, and referenced spec item is proven by current evidence."
+  },
+  evidence: {
+    stage: "evidence-reviewer",
+    role: "Evidence Reviewer: owns evidence validity for the current checkout and proves independently derived contract probes actually ran.",
+    focus: "Validate receipts, commands, tests, and artifacts rather than trusting summaries. Confirm evidence is current, relevant, broad enough, tied to this checkout, and includes the command/scenario and observed outcome for each applicable independent probe; mark continue when it is missing, stale, indirect, or narrower than the objective."
+  },
+  risk: {
+    stage: "risk-reviewer",
+    role: "Risk Reviewer: owns adversarial boundary checks across transition matrices, configuration precedence, feature-flag coupling, permissive inputs, and over-implementation.",
+    focus: "Probe state transitions, configuration paths and precedence, low-level API behavior across feature flags, and contract-permitted edge inputs. Also hunt for regressions, scope shrinkage, repository convention violations, unsafe assumptions, and blockers that are real repeated impasses rather than ordinary remaining work."
+  }
+};
 // Failures of the machine around the run, not of the work under review. A
 // run that dies on one must stay resumable: recording needs_human for it
 // makes the next resume stop before any stage runs, and the only way
@@ -1051,8 +1146,8 @@ async function runGoalWorkflow(ctx, options) {
   }
   const objective = rawObjective;
   const acceptanceCriteria = inputs.acceptance_criteria?.trim() || objective;
-  let maxTurns = positiveInteger(inputs.max_turns, DEFAULT_MAX_TURNS);
-  const reviewQuorum = DEFAULT_REVIEW_QUORUM;
+  let maxTurns = positiveInteger(inputs.max_turns, TIER_DEFAULT_MAX_TURNS);
+  let reviewQuorum = DEFAULT_REVIEW_QUORUM;
   let blockerThreshold = Math.min(DEFAULT_BLOCKER_THRESHOLD, maxTurns);
   const comparisonBaseBranch = normalizeBranchInput(inputs.base_branch, "origin/main");
   const artifactDir = await createGoalArtifactDirectory(ctx);
@@ -1075,21 +1170,28 @@ async function runGoalWorkflow(ctx, options) {
       maxTurns = turnModels.maxTurns;
       blockerThreshold = Math.min(DEFAULT_BLOCKER_THRESHOLD, maxTurns);
     }
-    if (!replayingDecidedTurn && turn > maxTurns) {
-      const baseReason = `Orchestrator attempt budget reached (${maxTurns}) before turn ${turn}. Remaining work: ${collectRemainingWork(latestReviews)}`;
+    reviewQuorum = turnModels.quorum;
+    if (!replayingDecidedTurn)
+      assertReviewerLineage(turnModels);
+    const extraRoundGranted = ledger.decisions.some((decision) => decision.extra_round === true);
+    if (!replayingDecidedTurn && turn > maxTurns + (extraRoundGranted ? 1 : 0)) {
+      // The cap moved below the turns already used (a policy edit mid-run):
+      // hand over with the last round's findings, as the reducer would.
+      const baseReason = `Review rounds used (${turn - 1}) reached a cap of ${maxTurns} without reviewer quorum; handed over with open findings. Remaining work: ${collectRemainingWork(latestReviews)}`;
       terminalRemainingWork = collectRemainingWork(latestReviews);
-      ledger.status = "needs_human";
+      ledger.status = "handover";
       ledger.decisions.push({
         turn,
-        decision: "needs_human",
+        decision: "handover",
         reason: baseReason,
         complete_votes: latestReviews.filter((review) => review.decision === "complete").length,
         review_quorum: reviewQuorum,
         parsed: latestReviews.every((review) => review.parsed),
         approved: false,
         stopReviewLoop: false,
-        nextAction: "needs_human",
+        nextAction: "handover",
         finalActionRemaining: false,
+        open_findings: openFindingLines(latestReviews),
         diagnostics: [baseReason]
       });
       appendLifecycleEvent(ledger, "status_decided", baseReason, turn);
@@ -1179,17 +1281,19 @@ async function runGoalWorkflow(ctx, options) {
         comparisonBaseBranch,
         reviewQuorum,
         blockerThreshold,
-        createPr
+        createPr,
+        panelSize: turnModels.roles.length
       }),
       reads: [ledgerPath, orchestratorReceiptPath],
       cwd: workflowStartCwd,
       ...modelConfig
     });
-    const reviewerSteps = [
-      reviewerStep(`completion-reviewer-${turn}`, "Completion Reviewer: owns clause-by-clause contract fidelity, especially exact exported API, type, and build requirements and literal examples.", "Map every objective clause to a concrete independent check. Verify exact exported API/type/build contracts and literal examples directly; mark complete only when every required deliverable, invariant, command, artifact, and referenced spec item is proven by current evidence.", turnModels.completion),
-      reviewerStep(`evidence-reviewer-${turn}`, "Evidence Reviewer: owns evidence validity for the current checkout and proves independently derived contract probes actually ran.", "Validate receipts, commands, tests, and artifacts rather than trusting summaries. Confirm evidence is current, relevant, broad enough, tied to this checkout, and includes the command/scenario and observed outcome for each applicable independent probe; mark continue when it is missing, stale, indirect, or narrower than the objective.", turnModels.evidence),
-      reviewerStep(`risk-reviewer-${turn}`, "Risk Reviewer: owns adversarial boundary checks across transition matrices, configuration precedence, feature-flag coupling, permissive inputs, and over-implementation.", "Probe state transitions, configuration paths and precedence, low-level API behavior across feature flags, and contract-permitted edge inputs. Also hunt for regressions, scope shrinkage, repository convention violations, unsafe assumptions, and blockers that are real repeated impasses rather than ordinary remaining work.", turnModels.risk)
-    ];
+    const reviewerSteps = turnModels.roles.map((roleName) => {
+      const spec = REVIEWER_ROLES[roleName];
+      const focus = roleName === "completion" && !turnModels.roles.includes("evidence") ? `${spec.focus} ${REVIEWER_ROLES.evidence.focus}` : spec.focus;
+      const roleText = roleName === "completion" && !turnModels.roles.includes("evidence") ? `${spec.role} Also ${REVIEWER_ROLES.evidence.role.replace(/^Evidence Reviewer: /u, "")}` : spec.role;
+      return reviewerStep(`${spec.stage}-${turn}`, roleText, focus, turnModels[roleName]);
+    });
     let reviewResults;
     let reviewerBatchFailed = false;
     let reviewerExecutionDiagnostic;
@@ -1299,6 +1403,7 @@ ${failureText(err)}`))
       maxTurns,
       reviewQuorum,
       blockerThreshold,
+      extraRoundGranted,
       nextActionOnComplete: createPr ? "pull-request" : "finish",
       convergence: ledger.convergence
     });

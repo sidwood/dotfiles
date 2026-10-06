@@ -1,9 +1,0 @@
-{
-  "orchestrator_model": "openai-codex/gpt-6.1-sol:high",
-  "reviewer_model": "anthropic/claude-fable-5-1:high",
-  "completion_reviewer_model": "anthropic/claude-fable-5-1:xhigh",
-  "evidence_reviewer_model": "anthropic/claude-fable-5-1:high",
-  "risk_reviewer_model": "anthropic/claude-fable-5-1:xhigh",
-  "writer_model": "openai-codex/gpt-6.1-sol:high",
-  "max_turns": 10
-}

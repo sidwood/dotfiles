@@ -1,9 +1,0 @@
-{
-  "orchestrator_model": "xai/grok-4.7:high",
-  "reviewer_model": "openai-codex/gpt-6-astra:high",
-  "completion_reviewer_model": "openai-codex/gpt-6-astra:high",
-  "evidence_reviewer_model": "openai-codex/gpt-6-astra:high",
-  "risk_reviewer_model": "openai-codex/gpt-6-astra:xhigh",
-  "writer_model": "xai/grok-4.7:xhigh",
-  "max_turns": 10
-}

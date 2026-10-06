@@ -14,7 +14,7 @@ import {
   previewBranchClonePolicy,
 } from "./goal-select/branch-clone.js";
 import { runGoalWorkflow } from "./goal-select/goal-engine.js";
-import { defaultPolicyPath, launchDefaults, modelPolicyPaths, readModelPolicyFile } from "./goal-select/model-policy.js";
+import { DEFAULT_REVIEW_TIER, defaultPolicyPath, launchDefaults, modelPolicyPaths, readModelPolicyFile } from "./goal-select/model-policy.js";
 import {
   STOP_CHOICE,
   auditGuardCheck,
@@ -113,7 +113,7 @@ async function intakeTrackerIssue(ctx: any, intake: TrackerIntake) {
 export default workflow({
   name: "goal-select",
   description:
-    "Builtin Goal Runner, including its ledger, three reviewer roles, quorum of 2, and reducer, with a model choice for the orchestrator, each reviewer, and the implementation agent. By default every stage works in a new objective-named git bc-add branch clone beside the invoking checkout. A JSONC policy file is read before every turn for models and max_turns; by default that is the shared preset ~/.config/atomic/goal-select-models/sol-astra.json, installed by the dotfiles Stow package and shown as the launch form's model_policy_path default, so every checkout and branch clone reads the same file. Pick another preset by editing the filename in that field; add one by dropping another JSON or JSONC file in that directory. A stage that has already started keeps its model. The launch form's model and max_turns defaults are prefilled from the shared default preset, read when Atomic discovers workflows (session start or /workflow reload). Optionally, the work comes from a Jira or Linear issue fetched read-only through MCP and saved as a snapshot in the checkout's .atomic directory; tracker intake requires the goal-select-tracker-guard Atomic extension (atomic/.atomic/agent/extensions/goal-select-tracker-guard.ts in the dotfiles), which must prove itself active before any MCP call.",
+    "Builtin Goal Runner with three dials: the writer model, the orchestrator model, and a review tier (simple: one reviewer; standard: completion-and-evidence plus risk; complex: the three-role panel). The tier sets the reviewer models, the quorum and the round cap; the cap hands the work over with its open findings rather than stopping. Work comes typed in as objective and acceptance criteria, or from one tracker issue.",
   heartbeatIntervalMinutes: 15,
   inputs: {
     objective: Type.Optional(
@@ -145,10 +145,12 @@ export default workflow({
           "MCP server name for tracker intake. Defaults to atlassian for jira and linear for linear. A server disabled in an MCP config file stops the run; one the config files do not list may still come from a package or extension, so the live connection check decides.",
       }),
     ),
-    max_turns: Type.Number({
-      default: prefill.max_turns ?? 10,
-      description: "Launch cap on orchestrator/review turns before Goal Runner stops as needs_human. Prefilled from a positive max_turns in the shared default preset, otherwise 10. A positive max_turns in the policy file replaces this before each later turn.",
-    }),
+    max_turns: Type.Optional(
+      Type.Number({
+        description:
+          "Cap on orchestrator/review rounds. Leave empty for the review tier's cap (3 unless the policy says otherwise). At the cap the run hands over with its open findings listed; one extra round is granted when the last round left a P0 or P1 open.",
+      }),
+    ),
     base_branch: Type.String({
       default: "origin/main",
       description: "Optional branch reviewers compare the current code delta against (default origin/main).",
@@ -163,46 +165,52 @@ export default workflow({
       description:
         "Whether to run the final pull-request creation stage after reviewer/reducer approval. Defaults to false; prompt text alone does not opt in.",
     }),
+    review_tier: Type.Union([Type.Literal("simple"), Type.Literal("standard"), Type.Literal("complex")], {
+      default: prefill.review_tier ?? DEFAULT_REVIEW_TIER,
+      description:
+        "How the work is reviewed. simple: one reviewer owning contract, evidence and risk (quorum 1). standard: a completion-and-evidence reviewer plus a risk reviewer (both must approve). complex: completion, evidence and risk reviewers (two of three). Each tier's models, quorum and round cap come from the shared policy's review_tiers; a policy file's own top-level reviewer keys override them.",
+    }),
     orchestrator_model: Type.String({
-      default: prefill.orchestrator_model ?? "openai-codex/gpt-6-astra:medium",
+      default: prefill.orchestrator_model ?? "openai-codex/gpt-6.1-sol:medium",
       description:
-        "Orchestrator model, with an optional :thinking suffix. Prefilled from the shared default preset's orchestrator_model; otherwise the builtin Goal default, openai-codex/gpt-6-astra:medium. A policy-file orchestrator_model replaces this before the turn.",
+        "Orchestrator model, with an optional :thinking suffix. Prefilled from the shared policy's orchestrator_model; otherwise openai-codex/gpt-6.1-sol:medium. A policy-file orchestrator_model replaces this before the turn.",
     }),
-    reviewer_model: Type.String({
-      default: prefill.reviewer_model ?? "openai-codex/gpt-6-astra:high",
-      description:
-        "Model for any reviewer role that does not have its own model. Prefilled from the shared default preset's reviewer_model; otherwise the builtin Goal default, openai-codex/gpt-6-astra:high. A policy-file reviewer_model replaces this before the turn.",
-    }),
+    reviewer_model: Type.Optional(
+      Type.String({
+        description:
+          "Override for every reviewer role of the chosen tier. Leave empty to use the tier's models. A policy file's top-level reviewer keys still win over this.",
+      }),
+    ),
     completion_reviewer_model: Type.Optional(
       Type.String({
         ...prefilled(prefill.completion_reviewer_model),
-        description: "Completion reviewer model. Overrides reviewer_model for that role. Prefilled from the shared default preset's completion_reviewer_model when it has one.",
+        description: "Completion reviewer model. Overrides reviewer_model for that role. Prefilled from the shared policy's completion_reviewer_model when it has one.",
       }),
     ),
     evidence_reviewer_model: Type.Optional(
       Type.String({
         ...prefilled(prefill.evidence_reviewer_model),
-        description: "Evidence reviewer model. Overrides reviewer_model for that role. Prefilled from the shared default preset's evidence_reviewer_model when it has one.",
+        description: "Evidence reviewer model. Overrides reviewer_model for that role. Prefilled from the shared policy's evidence_reviewer_model when it has one.",
       }),
     ),
     risk_reviewer_model: Type.Optional(
       Type.String({
         ...prefilled(prefill.risk_reviewer_model),
-        description: "Risk reviewer model. Overrides reviewer_model for that role. Prefilled from the shared default preset's risk_reviewer_model when it has one.",
+        description: "Risk reviewer model. Overrides reviewer_model for that role. Prefilled from the shared policy's risk_reviewer_model when it has one.",
       }),
     ),
     writer_model: Type.Optional(
       Type.String({
         ...prefilled(prefill.writer_model),
         description:
-          "Model the orchestrator must pass when it delegates implementation. Empty leaves the builtin worker pin unchanged. Prefilled from the shared default preset's writer_model when it has one.",
+          "Model the orchestrator must pass when it delegates implementation. Empty leaves the builtin worker pin unchanged. Prefilled from the shared policy's writer_model when it has one.",
       }),
     ),
     model_policy_path: Type.Optional(
       Type.String({
         default: defaultPolicyPath(),
         description:
-          "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas, so alternative models can stay in it commented out. The default is the shared preset library's sol-astra.json at ~/.config/atomic/goal-select-models/sol-astra.json, an absolute path every checkout and auto-created branch clone reads in place, so no project file is chosen and nothing is copied. Pick another preset by editing only the filename in this field (kimi-astra.json, grok-opus.json, glm-grock.json, glm-sol.json, sol-opus-astra.json, opus-fable.json, sol-fable.json, opus-astra.json); add one by dropping another JSON or JSONC file into that directory, with no list to update. A missing or malformed shared file is not skipped for another file; that turn uses the launch inputs. Any supplied path, including an empty or whitespace string and a legacy project-local path such as .atomic/goal-select-models.json or .atomic/goal-select-models.jsonc, is read exactly as given. A relative path resolves from the selected checkout; in auto mode a relative file the new clone lacks is copied from the seed once, when the clone is created. Model keys: orchestrator_model, reviewer_model, completion_reviewer_model, evidence_reviewer_model, risk_reviewer_model, writer_model. A present model key replaces the launch input for that turn. A positive max_turns replaces the turn cap before the next turn starts; omit it to keep the current cap. Launch-form prefill always reads the shared default preset when Atomic discovers workflows, not this path.",
+          "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas. Its defaults block seeds the launch form, its review_tiers block defines the tiers, and any top-level model key or max_turns in it overrides every run that reads it. The default is the shared ~/.config/atomic/goal-select.jsonc. A relative path is read inside the checkout, so a project may keep its own file; a file without review_tiers or defaults inherits the shared ones.",
       }),
     ),
     resolve_only: Type.Boolean({
@@ -215,6 +223,7 @@ export default workflow({
     status: Type.Optional(
       Type.Union([
         Type.Literal("complete"),
+        Type.Literal("handover"),
         Type.Literal("blocked"),
         Type.Literal("needs_human"),
         Type.Literal("active"),
@@ -278,6 +287,8 @@ export default workflow({
       evidenceReviewer: cleanModel(ctx.inputs.evidence_reviewer_model),
       riskReviewer: cleanModel(ctx.inputs.risk_reviewer_model),
       writer: cleanModel(ctx.inputs.writer_model),
+      reviewTier: ctx.inputs.review_tier,
+      maxTurns: typeof ctx.inputs.max_turns === "number" && ctx.inputs.max_turns >= 1 ? Math.floor(ctx.inputs.max_turns) : undefined,
     });
     let checkoutDir: string;
     if (isAutoCheckout(ctx.inputs.branch_checkout_dir)) {

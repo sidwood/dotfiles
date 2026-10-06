@@ -1,9 +1,0 @@
-{
-  "orchestrator_model": "anthropic/claude-opus-5-5:high",
-  "reviewer_model": "openai-codex/gpt-6-astra:high",
-  "completion_reviewer_model": "openai-codex/gpt-6-astra:xhigh",
-  "evidence_reviewer_model": "openai-codex/gpt-6-astra:high",
-  "risk_reviewer_model": "openai-codex/gpt-6-astra:xhigh",
-  "writer_model": "anthropic/claude-opus-5-5:xhigh",
-  "max_turns": 10
-}
