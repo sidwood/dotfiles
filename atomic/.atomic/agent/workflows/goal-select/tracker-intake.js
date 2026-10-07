@@ -38,6 +38,7 @@ export function trackerIntake(inputs, cwd) {
     search: spec.search,
     server: inputs.tracker_mcp_server?.trim() || spec.server,
     request: inputs.tracker_issue?.trim() ?? "",
+    model: inputs.tracker_model?.trim() || undefined,
     cwd,
   };
 }
@@ -152,6 +153,7 @@ export function guardCheckStageOptions(intake) {
     ].join("\n"),
     cwd: intake.cwd,
     tools: [TRACKER_GUARD_TOOL],
+    ...stageModel(intake),
   };
 }
 
@@ -161,7 +163,14 @@ export function trackerStageOptions(intake, prompt) {
     cwd: intake.cwd,
     schema: trackerIntakeSchema,
     tools: [TRACKER_GUARD_TOOL, TOOL_SEARCH_TOOL, ...trackerReadTools(scopeOf(intake))],
+    ...stageModel(intake),
   };
+}
+
+// A pinned tracker model has no fallback, like the Goal stages: a stage runs on
+// the model it names or fails. Unpinned stages keep the session's model.
+function stageModel(intake) {
+  return intake.model ? { model: intake.model, fallbackModels: [] } : {};
 }
 
 function trackerCalls(intake) {

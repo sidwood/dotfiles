@@ -145,6 +145,12 @@ export default workflow({
           "MCP server name for tracker intake. Defaults to atlassian for jira and linear for linear. A server disabled in an MCP config file stops the run; one the config files do not list may still come from a package or extension, so the live connection check decides.",
       }),
     ),
+    tracker_model: Type.Optional(
+      Type.String({
+        description:
+          "Model for the tracker guard check, intake and fetch stages, with an optional :thinking suffix. Empty runs them on the launching session's current model.",
+      }),
+    ),
     max_turns: Type.Optional(
       Type.Number({
         description:

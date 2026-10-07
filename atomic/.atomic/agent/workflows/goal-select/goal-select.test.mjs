@@ -2746,6 +2746,23 @@ describe("goal-select tracker intake (native MCP transcript fixtures and fake wo
     assert.equal(resolved.objective, undefined);
   });
 
+  it("runs the tracker stages on tracker_model when one is given, and on the session's model otherwise", async () => {
+    const intake = await import(new URL("./tracker-intake.js", import.meta.url).href);
+    assert.equal(goalSelect.inputs.tracker_model.default, undefined);
+    const pinned = intake.trackerIntake({ tracker: "jira", tracker_model: " anthropic/claude-sonnet-5-5:medium " }, trackerSeed);
+    for (const options of [intake.guardCheckStageOptions(pinned), intake.trackerStageOptions(pinned, "unused")]) {
+      assert.equal(options.model, "anthropic/claude-sonnet-5-5:medium");
+      assert.deepEqual(options.fallbackModels, []);
+    }
+    for (const tracker_model of [undefined, "", "  "]) {
+      const unpinned = intake.trackerIntake({ tracker: "jira", tracker_model }, trackerSeed);
+      for (const options of [intake.guardCheckStageOptions(unpinned), intake.trackerStageOptions(unpinned, "unused")]) {
+        assert.equal("model" in options, false);
+        assert.equal("fallbackModels" in options, false);
+      }
+    }
+  });
+
   it("keeps the manual path: tracker none needs a typed objective, runs no tracker step and puts the typed text in the ledger", async () => {
     for (const objective of [undefined, "", "   "]) {
       for (const resolve_only of [false, true]) {
