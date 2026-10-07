@@ -209,6 +209,7 @@ link_agent_memory() {
   # (MoonshotAI/kimi-cli#2152). Add "kimi|$HOME/.kimi/AGENTS.md" when it lands.
   local harnesses=(
     "claude|$HOME/.claude/CLAUDE.md"
+    "claude-work|$HOME/.claude-work/CLAUDE.md"
     "codex|$HOME/.codex/AGENTS.md"
     "grok|$HOME/.grok/AGENTS.md"
     "opencode|$HOME/.config/opencode/AGENTS.md"
@@ -217,6 +218,7 @@ link_agent_memory() {
     "pi|$HOME/.pi/agent/AGENTS.md"
     "dsh|${DSH_HOME:-$HOME/.dsh}/AGENTS.md"
     "atomic|${ATOMIC_CODING_AGENT_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.atomic/agent}}/AGENTS.md"
+    "atomic-work|$HOME/.atomic-work/agent/AGENTS.md"
   )
 
   echo "Linking global agent memory"
