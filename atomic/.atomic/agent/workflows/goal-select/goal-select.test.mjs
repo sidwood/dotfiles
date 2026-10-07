@@ -996,6 +996,35 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.deepEqual(stageNames(midRun.calls), ["orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"], "a policy edit that breaks the lineage stops the run before turn 2");
     });
 
+    it("runs re-verifiers on reverify_model from the policy, the session's model without one, and never on the writer's model", async () => {
+      const blockingFirst = (name) => (name === "reviewer-1" ? blocking(readme) : approve);
+      const reverifyModels = (calls) => modelStages(calls).filter((stage) => stage.name.startsWith("reverify-")).map((stage) => [stage.options.model, stage.options.fallbackModels]);
+
+      const unpinned = tierRun("reverify unpinned", { inputs: { review_tier: "simple", writer_model: "test/writer:high" }, review: blockingFirst });
+      await goalSelect.run(unpinned.ctx);
+      assert.ok(reverifyModels(unpinned.calls).length > 0, "the blocking finding was re-verified");
+      for (const [model, fallbacks] of reverifyModels(unpinned.calls)) {
+        assert.equal(model, undefined);
+        assert.equal(fallbacks, undefined);
+      }
+
+      const tierPinned = { review_tiers: { ...tierPolicy.review_tiers, simple: { ...tierPolicy.review_tiers.simple, reverify_model: "test/tier-reverify:medium" } } };
+      for (const [label, policy, expected] of [
+        ["tier", tierPinned, "test/tier-reverify:medium"],
+        ["defaults", { ...tierPolicy, defaults: { reverify_model: "test/default-reverify" } }, "test/default-reverify"],
+        ["top level over tier", { ...tierPinned, reverify_model: "test/override-reverify" }, "test/override-reverify"],
+      ]) {
+        const pinned = tierRun(`reverify ${label}`, { policy, inputs: { review_tier: "simple", writer_model: "test/writer:high" }, review: blockingFirst });
+        await goalSelect.run(pinned.ctx);
+        assert.ok(reverifyModels(pinned.calls).length > 0, label);
+        for (const pair of reverifyModels(pinned.calls)) assert.deepEqual(pair, [expected, []], label);
+      }
+
+      const refused = tierRun("reverify writer", { policy: { ...tierPolicy, reverify_model: "test/writer:low" }, inputs: { review_tier: "simple", writer_model: "test/writer:high" } });
+      await assert.rejects(goalSelect.run(refused.ctx), /^Error: Review tier simple re-verifies findings on the writer's model \(test\/writer:low\);/);
+      assert.deepEqual(modelStages(refused.calls), [], "no stage of turn 1 ran");
+    });
+
     it("tells a single reviewer it has no siblings, and every panel its size and quorum", async () => {
       const panel = (calls, name) => goalStages(calls).find((stage) => stage.name === name).options.task.match(/<review_panel>\n([^]*?)\n<\/review_panel>/)?.[1];
       const simple = tierRun("simple prompt", { inputs: { review_tier: "simple" } });

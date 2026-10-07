@@ -114,6 +114,7 @@ export function policyReviewTier(policy, tier) {
       completion: policyModel(entry?.completion_reviewer_model) ?? policyModel(entry?.completion_reviewer),
       evidence: policyModel(entry?.evidence_reviewer_model) ?? policyModel(entry?.evidence_reviewer),
       risk: policyModel(entry?.risk_reviewer_model) ?? policyModel(entry?.risk_reviewer),
+      reverify: policyModel(entry?.reverify_model),
     },
     maxTurns: policyMaxTurns(entry?.max_turns),
   };

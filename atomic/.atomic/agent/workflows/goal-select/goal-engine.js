@@ -223,11 +223,13 @@ function readModelPolicy(selection) {
     evidenceReviewer: cleanModel(parsed.evidence_reviewer_model) ?? cleanModel(parsed.evidence_reviewer) ?? reviewer,
     riskReviewer: cleanModel(parsed.risk_reviewer_model) ?? cleanModel(parsed.risk_reviewer) ?? reviewer,
     writer: cleanModel(parsed.writer_model) ?? cleanModel(parsed.writer),
+    reverify: cleanModel(parsed.reverify_model),
     maxTurns: policyMaxTurns(parsed.max_turns),
     reviewTier: policyTier(parsed.review_tier),
     defaults: {
       orchestrator: policyModel(fallbacks.orchestrator_model) ?? policyModel(fallbacks.orchestrator),
       writer: policyModel(fallbacks.writer_model) ?? policyModel(fallbacks.writer),
+      reverify: policyModel(fallbacks.reverify_model),
       reviewTier: policyTier(fallbacks.review_tier)
     },
     reviewTiers: parsed.review_tiers !== null && typeof parsed.review_tiers === "object" ? parsed.review_tiers : shared.review_tiers
@@ -261,6 +263,8 @@ async function resolveTurnModels(ctx, selection, turn) {
     evidence: assignedModelConfig(reviewerModelConfig, role(policy.evidenceReviewer, selection.evidenceReviewer, preset.models.evidence)),
     risk: assignedModelConfig(reviewerModelConfig, role(policy.riskReviewer, selection.riskReviewer, preset.models.risk)),
     writer: policy.writer ?? selection.writer ?? defaults.writer,
+    // Unset runs re-verification on the launching session's model.
+    reverify: policy.reverify ?? preset.models.reverify ?? defaults.reverify,
     maxTurns: policy.maxTurns ?? selection.maxTurns ?? preset.maxTurns ?? TIER_DEFAULT_MAX_TURNS,
     tier,
     roles: preset.roles,
@@ -281,6 +285,10 @@ function assertReviewerLineage(turnModels) {
     if (modelLineage(model) === writer) {
       throw new Error(`Review tier ${turnModels.tier} puts the writer's model (${model}) on the review panel as ${roleName}; choose another tier, writer or reviewer model.`);
     }
+  }
+  // Re-verification can demote a reviewer's finding, so it judges the writer too.
+  if (modelLineage(turnModels.reverify) === writer) {
+    throw new Error(`Review tier ${turnModels.tier} re-verifies findings on the writer's model (${turnModels.reverify}); choose another reverify_model or writer.`);
   }
 }
 // A serious finding the objective requires, left open by this round.
@@ -1291,7 +1299,8 @@ ${failureText(err)}`))
     const reverifyResults = [];
     const reverifyContext = {
       task: async (name, taskOptions) => {
-        const result = await ctx.task(name, { ...taskOptions, cwd: workflowStartCwd });
+        const pinned = turnModels.reverify === undefined ? {} : { model: turnModels.reverify, fallbackModels: [] };
+        const result = await ctx.task(name, { ...taskOptions, cwd: workflowStartCwd, ...pinned });
         reverifyResults.push(result);
         return result;
       }
