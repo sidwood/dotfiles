@@ -234,5 +234,7 @@
     "**/.forgejo/workflows/*.yml",
     "**/.forgejo/workflows/*.yaml"
   ],
-  "cursor.composer.queueMessageDefaultBehavior": "steer"
+  "cursor.composer.queueMessageDefaultBehavior": "steer",
+  "remote.autoForwardPorts": false,
+  "remote.restoreForwardedPorts": false
 }
