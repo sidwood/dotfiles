@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { keepContext } from "@bastani/atomic/workflows";
 import { createRequire } from "node:module";
-import { DEFAULT_MAX_TURNS as TIER_DEFAULT_MAX_TURNS, DEFAULT_REVIEW_TIER, modelPolicyFile, parseModelPolicy, policyModel, policyReviewTier, policyTier, sharedPolicyLayers } from "./model-policy.js";
+import { DEFAULT_MAX_TURNS as TIER_DEFAULT_MAX_TURNS, DEFAULT_REVIEW_TIER, modelLine, modelPolicyFile, parseModelPolicy, policyModel, policyReviewTier, policyTier, sharedPolicyLayers, writerFallbacksFor } from "./model-policy.js";
+import { delegatedFallbackGate, delegatedTaskIds, delegatedTasks, describeDelegatedTask, judgeLines, stopResumable, writerAfter, writerAfterMove, writerCandidates, writerFallbackChain } from "./writer-fallback.js";
 
 // Atomic's bundler renames its content-hashed chunk-*.js files on every
 // release, so each import site below finds its chunk by the names it needs
@@ -207,9 +208,10 @@ function readModelPolicy(selection) {
   // A project or malformed policy still runs with the shared tiers and
   // defaults; only its own keys override them.
   const shared = sharedPolicyLayers();
+  const file = modelPolicyFile(selection.policyPath, selection.policyFallbackPath);
   let parsed;
   try {
-    parsed = parseModelPolicy(readFileSync(modelPolicyFile(selection.policyPath, selection.policyFallbackPath), "utf8"));
+    parsed = parseModelPolicy(readFileSync(file, "utf8"));
   } catch {
     parsed = {};
   }
@@ -223,6 +225,8 @@ function readModelPolicy(selection) {
     evidenceReviewer: cleanModel(parsed.evidence_reviewer_model) ?? cleanModel(parsed.evidence_reviewer) ?? reviewer,
     riskReviewer: cleanModel(parsed.risk_reviewer_model) ?? cleanModel(parsed.risk_reviewer) ?? reviewer,
     writer: cleanModel(parsed.writer_model) ?? cleanModel(parsed.writer),
+    // Unlike a mistyped model key, a malformed chain stops the turn here.
+    writerFallbacks: writerFallbacksFor(parsed, file),
     reverify: cleanModel(parsed.reverify_model),
     maxTurns: policyMaxTurns(parsed.max_turns),
     reviewTier: policyTier(parsed.review_tier),
@@ -248,21 +252,34 @@ function assignedModelConfig(base, assigned) {
     fallbackModels: base.fallbackModels.filter((item) => item !== assigned)
   };
 }
-async function resolveTurnModels(ctx, selection, turn) {
+function sessionModelOf(ctx) {
+  const model = ctx.models?.currentModel;
+  return typeof model?.id === "string" && model.provider !== undefined ? `${model.provider}/${model.id}` : undefined;
+}
+// `again` names a later reading of the same turn's policy, recorded like the
+// first: Atomic replays a recorded reading, so only a new name reads the file.
+async function resolveTurnModels(ctx, selection, turn, again) {
   const args = selection.policyFallbackPath === undefined ? { path: selection.policyPath, turn } : { path: selection.policyPath, fallback_path: selection.policyFallbackPath, turn };
-  const policy = await ctx.tool(`resolve-models-${turn}`, args, async () => readModelPolicy(selection), { timeoutMs: 10000 });
+  const policy = await ctx.tool(again === undefined ? `resolve-models-${turn}` : `resolve-models-${turn}-again-${again}`, args, async () => readModelPolicy(selection), { timeoutMs: 10000 });
   const defaults = policy.defaults ?? {};
   const tier = policy.reviewTier ?? selection.reviewTier ?? defaults.reviewTier ?? DEFAULT_REVIEW_TIER;
   const preset = policyReviewTier({ review_tiers: policy.reviewTiers }, tier);
   const reviewer = selection.reviewer;
   const role = (fileModel, launchModel, presetModel) => fileModel ?? launchModel ?? reviewer ?? presetModel ?? preset.models.reviewer;
+  const writer = policy.writer ?? selection.writer ?? defaults.writer;
   return {
     orchestrator: assignedModelConfig(orchestratorModelConfig, policy.orchestrator ?? selection.orchestrator ?? defaults.orchestrator),
     reviewer: assignedModelConfig(reviewerModelConfig, role(policy.reviewer, undefined, undefined)),
     completion: assignedModelConfig(reviewerModelConfig, role(policy.completionReviewer, selection.completionReviewer, preset.models.completion)),
     evidence: assignedModelConfig(reviewerModelConfig, role(policy.evidenceReviewer, selection.evidenceReviewer, preset.models.evidence)),
     risk: assignedModelConfig(reviewerModelConfig, role(policy.riskReviewer, selection.riskReviewer, preset.models.risk)),
-    writer: policy.writer ?? selection.writer ?? defaults.writer,
+    writer,
+    // The policy's chain for this writer's line; a turn recorded before
+    // chains existed replays with none.
+    writerFallbacks: policy.writerFallbacks?.[modelLine(writer)] ?? [],
+    // Where Atomic says what the launching session runs on: an unset
+    // reverify_model re-verifies there.
+    sessionModel: sessionModelOf(ctx),
     // Unset runs re-verification on the launching session's model.
     reverify: policy.reverify ?? preset.models.reverify ?? defaults.reverify,
     maxTurns: policy.maxTurns ?? selection.maxTurns ?? preset.maxTurns ?? TIER_DEFAULT_MAX_TURNS,
@@ -271,23 +288,19 @@ async function resolveTurnModels(ctx, selection, turn) {
     quorum: preset.quorum
   };
 }
-// A model id without its effort suffix, for comparing lineages.
-function modelLineage(model) {
-  return typeof model === "string" ? model.replace(/:[a-z]+$/u, "") : undefined;
-}
 // A reviewer never judges its own writer: refuse a panel that puts the
 // writer's model on it.
 function assertReviewerLineage(turnModels) {
-  const writer = modelLineage(turnModels.writer);
+  const writer = modelLine(turnModels.writer);
   if (writer === undefined) return;
   for (const roleName of turnModels.roles) {
     const model = turnModels[roleName]?.model;
-    if (modelLineage(model) === writer) {
+    if (modelLine(model) === writer) {
       throw new Error(`Review tier ${turnModels.tier} puts the writer's model (${model}) on the review panel as ${roleName}; choose another tier, writer or reviewer model.`);
     }
   }
   // Re-verification can demote a reviewer's finding, so it judges the writer too.
-  if (modelLineage(turnModels.reverify) === writer) {
+  if (modelLine(turnModels.reverify) === writer) {
     throw new Error(`Review tier ${turnModels.tier} re-verifies findings on the writer's model (${turnModels.reverify}); choose another reverify_model or writer.`);
   }
 }
@@ -305,7 +318,220 @@ function writerModelNote(model) {
 <keepContext>
 Writer model for this turn: ${model}
 Every change to the checkout in this turn is written by an implementation agent on that model: delegate with the subagent tool and pass model: "${model}". That includes a small fix after a review, a test expectation and a follow-up commit. You plan, delegate, verify and write the receipt; you do not edit files or commit yourself, because the reviewers may share your model line and must not review their own line's work. Do not leave the implementation agent on the builtin worker model. If the agent ends on a different model than the one requested, say so in the receipt.
+This replaces any writer model named earlier in this conversation. When a provider fails (no credit, a usage limit, an outage) the agent's task still comes back as completed, with little or no output and no error. If an agent comes back without its work you may start another on the same writer model, but never finish the work yourself and never start an agent on another model: when the writer model keeps failing, say so in the receipt and end your turn. The workflow reads each agent's transcript, moves the writer to the next model its policy allows and continues this turn. It also closes the run before review if an agent wrote files on a model line that reviews this turn, whatever model that agent was asked for, so name the writer model on every agent that edits or commits.
 </keepContext>`;
+}
+// What a continued orchestrator is told about the writer it lost.
+function writerChangeNote(move) {
+  const what = move.kind === "fallback"
+    ? `The implementation agent asked for ${move.from} did not do its work on that model, though its task came back as completed (${move.reason}).`
+    : `This run stopped in this turn because the writer's model was not available and no fallback writer was left (${move.reason}). It has been resumed, so that provider should be available again.`;
+  return taggedPrompt([["writer_change", [
+    what,
+    "Whatever that agent changed is still in the checkout. Continue this same turn with the writer model named below: start a fresh implementation agent on it, have it read the checkout's state first (git status, git log and the diff against the base branch) and carry on from there, then verify and write the receipt as before."
+  ].join(`
+`)]]);
+}
+// A delegated task counts as a writer when it was asked for a model on the
+// writer's chain, or when its transcript shows it writing files of the
+// checkout, whatever it was asked for. Only the first can be the ground for
+// moving the writer: a task that named no model has no model to have failed.
+// What a writer did must be established before review; `unknown` says what
+// of it could not be read.
+function classifyDelegation(task, writerLines) {
+  const asked = task.requested !== undefined && writerLines.has(modelLine(task.requested));
+  const writer = asked || task.wrote.length > 0;
+  return { ...task, asked, writer, ...writer && task.unread !== undefined ? { unknown: task.unread } : {} };
+}
+// Why a task asked for a chain model did not do its work on it. Atomic
+// reports both cases as completed: a model that failed with no fallback
+// allowed, and an agent started on the orchestrator's model because the
+// requested model's provider has no credentials, which no gate sees.
+function writerFailure(task) {
+  if (task.error !== undefined) return `stopped on a model error: ${task.error}`;
+  if (task.started !== undefined && modelLine(task.started) !== modelLine(task.requested)) {
+    return `never ran on it: Atomic started the agent on ${task.started}, as it does when the requested model's provider has no credentials`;
+  }
+  return undefined;
+}
+function delegationEntry(turn, stage, task) {
+  return {
+    turn,
+    stage,
+    task: task.task,
+    agent: task.agent,
+    writer: task.writer,
+    asked: task.asked,
+    requested: task.requested ?? null,
+    started: task.started ?? null,
+    resolved: task.resolved ?? null,
+    thinking: task.thinking ?? null,
+    models: task.models,
+    wrote: task.wrote,
+    ...task.error === undefined ? {} : { error: task.error },
+    ...task.unknown === undefined ? {} : { unknown: task.unknown },
+    summary: describeDelegatedTask(task)
+  };
+}
+// Records a stage's own tasks, and reads again any recorded task whose
+// outcome was not established: an agent that had not ended has since.
+function syncDelegations(ledger, turn, stage, own, seen) {
+  ledger.delegations ??= [];
+  for (const task of seen) {
+    const at = ledger.delegations.findIndex((entry) => entry.task === task.task);
+    if (at === -1) {
+      if (own.includes(task)) ledger.delegations.push(delegationEntry(turn, stage, task));
+    } else if (ledger.delegations[at].unknown !== undefined) {
+      const recorded = ledger.delegations[at];
+      ledger.delegations[at] = {
+        ...delegationEntry(recorded.turn, recorded.stage, task),
+        ...task.unknown !== undefined && recorded.acknowledged === true ? { acknowledged: true } : {}
+      };
+    }
+  }
+}
+// The recorded writing, of this turn or any before it, that a line judging
+// this turn did. The panel is resolved each turn and can change, and what
+// an earlier turn wrote is still in the checkout.
+function lineageCrossings(ledger, turn, judges) {
+  return (ledger.delegations ?? []).flatMap((entry) => {
+    const model = entry.turn <= turn ? (entry.wrote ?? []).find((wrote) => judges.has(modelLine(wrote))) : undefined;
+    return model === undefined ? [] : [{ entry, model, why: judges.get(modelLine(model)) }];
+  });
+}
+// The writers whose outcome is not established and that nobody has resumed past.
+function unknownWriters(ledger) {
+  return (ledger.delegations ?? []).filter((entry) => entry.unknown !== undefined && entry.acknowledged !== true);
+}
+// Why a turn may not go to review, if it may not. A model line never
+// reviews its own work, so writing by a line on this turn's panel closes
+// the run whatever the task asked for and whichever turn it wrote in; and
+// a writer whose outcome could not be read is not taken as having done well.
+function preReviewRefusal(ledger, turn, judges) {
+  const crossed = lineageCrossings(ledger, turn, judges);
+  if (crossed.length > 0) {
+    return {
+      kind: "lineage",
+      tasks: crossed.map(({ entry }) => entry.task),
+      reason: `Turn ${turn} was not sent to review: ${crossed.map(({ entry, model, why }) => `${entry.agent} ${entry.task.split(":")[0]} (turn ${entry.turn}, asked for ${entry.requested ?? "no model"}) wrote files on ${model}, a model line that is ${why}`).join("; ")}. A model line never reviews its own work: review this change on a tier whose reviewers differ, or have it rewritten.`
+    };
+  }
+  const unknown = unknownWriters(ledger);
+  if (unknown.length > 0) {
+    return {
+      kind: "unknown",
+      tasks: unknown.map((entry) => entry.task),
+      reason: `Turn ${turn} was not sent to review: ${unknown.map((entry) => `what ${entry.task.startsWith("stage:") ? `${entry.stage} delegated` : `${entry.agent} ${entry.task.split(":")[0]} (turn ${entry.turn}, asked for ${entry.requested ?? "no model"}) did`} is not established: ${entry.unknown}`).join("; ")}. Check what was changed in the checkout and on which model. Resuming this run reads the evidence again, and sends the turn to review unless a reviewer's own line is then found to have written.`
+    };
+  }
+  return undefined;
+}
+// A run closed before review has no review to replay. Its closing decision
+// comes off, in memory, so that its turn runs again from the check that
+// closed it; the check closes it again unless its reason is gone.
+function reopenPreReviewClosure(ledger) {
+  const closing = ledger.decisions.at(-1);
+  if (ledger.status !== "needs_human" || closing?.pre_review === undefined) return undefined;
+  ledger.decisions.pop();
+  ledger.status = "active";
+  return closing;
+}
+// Runs one turn's orchestrator, moving the writer down its fallback chain
+// when an implementation agent's model fails. Each move continues the turn
+// in a further stage forked from the last, and is written to the ledger
+// first, so a resumed run replays the same stages instead of deciding again.
+async function runOrchestratorTurn(ctx, { ledger, ledgerPath, turn, turnModels, replaying, forkedFrom, checkout, resumedClosure, firstStage, continuedStage }) {
+  const candidates = writerCandidates(turnModels);
+  const chain = writerFallbackChain(turnModels);
+  const writerLines = new Set([turnModels.writer, ...chain.declared].map(modelLine).filter((line) => line !== undefined));
+  const judges = judgeLines(turnModels);
+  ledger.writer_moves ??= [];
+  ledger.delegations ??= [];
+  const decided = ledger.writer_moves.filter((move) => move.turn === turn);
+  let writer = writerAfter(ledger.writer_moves.filter((move) => move.turn < turn), candidates);
+  let orchestrator;
+  let lastMove;
+  for (let attempt = 0; ; attempt += 1) {
+    const stage = attempt === 0 ? firstStage(writer) : continuedStage(writer, orchestrator, lastMove, attempt);
+    const source = attempt === 0 ? forkedFrom : orchestrator.sessionFile;
+    orchestrator = await ctx.task(stage.name, stage.options);
+    if (decided[attempt] !== undefined) {
+      lastMove = decided[attempt];
+      writer = writerAfterMove(lastMove, candidates);
+      continue;
+    }
+    if (replaying) return { orchestrator };
+    // The audit. A stage whose own transcript cannot be read says nothing
+    // of what it delegated, and neither does an audit that fails: either
+    // is recorded as one writer of unknown outcome, which closes the turn
+    // before review and is checked again on resume. Left to throw, it
+    // would close the turn as a failure of the orchestrator, and a resume
+    // would take the turn to its reviewers without this audit.
+    let seen = [];
+    let own = [];
+    let unread;
+    try {
+      const read = delegatedTasks(orchestrator.sessionFile, checkout);
+      if (read === undefined) {
+        unread = `the stage's transcript could not be read (${orchestrator.sessionFile})`;
+      } else {
+        seen = read.map((task) => classifyDelegation(task, writerLines));
+        // The stage's own launches: not those of the stage it forked from,
+        // which a ledger written before delegations were recorded does not hold.
+        const inherited = new Set(delegatedTaskIds(source));
+        own = seen.filter((task) => !inherited.has(task.task) && (ledger.delegations.find((entry) => entry.task === task.task)?.stage ?? stage.name) === stage.name);
+        syncDelegations(ledger, turn, stage.name, own, seen);
+      }
+    } catch (error) {
+      own = [];
+      unread = `the audit of the stage's transcript failed (${error instanceof Error ? error.message : String(error)})`;
+    }
+    const unreadStage = ledger.delegations.find((entry) => entry.task === `stage:${stage.name}`);
+    if (unread !== undefined && unreadStage === undefined) {
+      ledger.delegations.push({ turn, stage: stage.name, task: `stage:${stage.name}`, agent: "orchestrator", writer: true, asked: false, requested: null, started: null, resolved: null, thinking: null, models: [], wrote: [], unknown: unread, summary: `what ${stage.name} delegated is not established: ${unread}` });
+    } else if (unread === undefined && unreadStage?.unknown !== undefined) {
+      delete unreadStage.unknown;
+      delete unreadStage.acknowledged;
+      unreadStage.summary = `${stage.name}'s transcript has since been read`;
+    }
+    // Resuming a run closed for a writer of unknown outcome is the word
+    // that it was looked at: what is still unread no longer holds review up.
+    if (resumedClosure?.pre_review === "unknown" && resumedClosure.turn === turn) {
+      for (const entry of ledger.delegations) {
+        if (entry.unknown !== undefined && resumedClosure.pre_review_tasks?.includes(entry.task)) entry.acknowledged = true;
+      }
+    }
+    // What closes the turn is said by the caller, before review.
+    if (preReviewRefusal(ledger, turn, judges) !== undefined) return { orchestrator };
+    // Parallel writers are one launch: any of the last launch's writers
+    // failing is a failure, whichever of them was recorded last.
+    const asked = own.filter((task) => task.asked);
+    const launch = asked.at(-1)?.task.split(":")[0];
+    const failed = asked.filter((task) => task.task.split(":")[0] === launch).flatMap((task) => {
+      const failure = writerFailure(task);
+      return failure === undefined ? [] : [{ task, failure }];
+    });
+    if (failed.length === 0) return { orchestrator };
+    const last = failed.at(-1).task;
+    // Only ever down the chain, so the stages a turn can add are bounded
+    // even when the orchestrator asks for a model other than the one named.
+    const reached = Math.max(candidates.indexOf(writer), ...failed.map(({ task }) => candidates.findIndex((model) => modelLine(model) === modelLine(task.requested))));
+    const next = candidates[reached + 1];
+    const reason = failed.map(({ task, failure }) => `${task.agent} on ${task.requested} ${failure}`).join("; ");
+    lastMove = next === undefined ? { turn, attempt, kind: "stop", from: last.requested, reason } : { turn, attempt, kind: "fallback", from: last.requested, to: next, reason };
+    ledger.writer_moves.push(lastMove);
+    if (next !== undefined) {
+      writer = next;
+      appendLifecycleEvent(ledger, "writer_fallback", `Writer moved from ${last.requested} to ${next}: ${reason}`, turn);
+      await writeGoalLedger(ledgerPath, ledger);
+      continue;
+    }
+    const refused = chain.refused.length === 0 ? "" : ` Refused as fallbacks: ${chain.refused.map((entry) => `${entry.model}, ${entry.reason}`).join("; ")}.`;
+    const stop = `goal-select stopped in turn ${turn} with the work unfinished: ${reason}. No fallback writer is left after ${last.requested} (the policy allows ${candidates.length > 1 ? candidates.slice(1).join(", then ") : "none"} for ${turnModels.writer}).${refused} The goal ledger at ${ledgerPath} names the model behind every delegated task. Put the provider right, then resume this run: the turn continues from ${turnModels.writer}.`;
+    appendLifecycleEvent(ledger, "writer_stopped", stop, turn);
+    await writeGoalLedger(ledgerPath, ledger);
+    return { orchestrator, stop };
+  }
 }
 
 var DEFAULT_REVIEW_QUORUM = 2;
@@ -365,7 +591,9 @@ function modelVisibleLedger(ledger) {
     decisions: ledger.decisions.map(withoutTurn2),
     lifecycle: ledger.lifecycle.map(withoutTurn2),
     reverification: ledger.reverification ?? [],
-    convergence: ledger.convergence ?? []
+    convergence: ledger.convergence ?? [],
+    delegations: ledger.delegations ?? [],
+    writer_moves: ledger.writer_moves ?? []
   };
 }
 function goalLedgerStatePath(ledgerPath) {
@@ -416,7 +644,9 @@ async function createGoalLedger(objective, acceptanceCriteria, artifactDir) {
     decisions: [],
     lifecycle: [],
     reverification: [],
-    convergence: []
+    convergence: [],
+    delegations: [],
+    writer_moves: []
   };
   appendLifecycleEvent(ledger, "created", "Goal created.", 0);
   await writeGoalLedger(ledgerPath, ledger);
@@ -1075,7 +1305,8 @@ function reopenAfterInfrastructureFailure(ledger) {
   if (closing.length === 0)
     return false;
   const errorsOf = (decision) => ledger.reviews.filter((review) => review.turn === decision.turn && !review.parsed);
-  const infrastructure = (decision) => isInfrastructureFailure([decision.reason ?? "", ...decision.diagnostics ?? [], ...errorsOf(decision).flatMap((review) => review.parse_diagnostics ?? [])].join(`
+  // A closure made before review quotes agents and models; it is never one of those.
+  const infrastructure = (decision) => decision.pre_review === undefined && isInfrastructureFailure([decision.reason ?? "", ...decision.diagnostics ?? [], ...errorsOf(decision).flatMap((review) => review.parse_diagnostics ?? [])].join(`
 `));
   if (!closing.every(infrastructure))
     return false;
@@ -1109,15 +1340,59 @@ async function runGoalWorkflow(ctx, options) {
   let latestReviewReportPath;
   let terminalRemainingWork;
   let previousOrchestratorSessionFile;
+  // Closes the run for a person: the ledger says why and no later stage runs.
+  const closeForHuman = async (turn, baseReason, closure, turnsReached = turn) => {
+    terminalRemainingWork = baseReason;
+    const reason = [baseReason, ...convergence_escalation_evidence(ledger.convergence ?? [])].join(`
+`);
+    latestReviews = [];
+    latestReviewArtifactPaths = [];
+    latestReviewReportPath = undefined;
+    ledger.turns = turnsReached;
+    ledger.status = "needs_human";
+    ledger.decisions.push({
+      turn,
+      decision: "needs_human",
+      reason,
+      complete_votes: 0,
+      review_quorum: reviewQuorum,
+      parsed: false,
+      approved: false,
+      stopReviewLoop: false,
+      nextAction: "needs_human",
+      finalActionRemaining: false,
+      diagnostics: [baseReason],
+      // Marks a closure made before review, which a resume checks again.
+      ...closure === undefined ? {} : { pre_review: closure.kind, pre_review_tasks: closure.tasks }
+    });
+    appendLifecycleEvent(ledger, "status_decided", reason, turn);
+    await writeGoalLedger(ledgerPath, ledger);
+  };
   if (reopenAfterInfrastructureFailure(ledger))
     await writeGoalLedger(ledgerPath, ledger);
+  const resumedClosure = reopenPreReviewClosure(ledger);
   // A resume re-enters here with the ledger of the interrupted run. Turns the
   // reducer already decided are replayed (Atomic returns their recorded stage
   // results) to rebuild the loop's state without recording them twice.
   const decidedTurns = ledger.decisions.reduce((latest, decision) => Math.max(latest, decision.turn), 0);
   for (let turn = 1; ledger.status === "active" || turn <= decidedTurns; turn += 1) {
     const replayingDecidedTurn = turn <= decidedTurns;
-    const turnModels = await resolveTurnModels(ctx, modelSelection, turn);
+    let turnModels = await resolveTurnModels(ctx, modelSelection, turn);
+    // A turn closed before review for a reviewer's own line had its panel
+    // read once, and Atomic would replay that reading for ever. Whoever
+    // resumes the run may have changed the panel, so the turn's policy is
+    // read again, and that reading stands for the turn from then on.
+    ledger.model_reads ??= {};
+    if (resumedClosure?.pre_review === "lineage" && resumedClosure.turn === turn) {
+      ledger.model_reads[turn] = (ledger.model_reads[turn] ?? 0) + 1;
+      // Saved before the new reading is made and checked, with the closure
+      // still standing: a reading that fails its checks is recorded by
+      // Atomic all the same, and would otherwise be the one every later
+      // resume replays, whatever the corrected file says.
+      await writeGoalLedger(ledgerPath, { ...ledger, status: "needs_human", decisions: [...ledger.decisions, resumedClosure] });
+    }
+    if (ledger.model_reads[turn] !== undefined)
+      turnModels = await resolveTurnModels(ctx, modelSelection, turn, ledger.model_reads[turn]);
     if (turnModels.maxTurns !== undefined) {
       maxTurns = turnModels.maxTurns;
       blockerThreshold = Math.min(DEFAULT_BLOCKER_THRESHOLD, maxTurns);
@@ -1150,7 +1425,14 @@ async function runGoalWorkflow(ctx, options) {
       await writeGoalLedger(ledgerPath, ledger);
       break;
     }
+    // A line on this turn's panel that already wrote, in an earlier turn or
+    // before a closure this run was resumed from: nothing of the turn runs.
     const turnAlreadyStarted = ledger.lifecycle.some((event) => event.event === "work_turn_started" && event.turn === turn);
+    const standing = replayingDecidedTurn ? undefined : preReviewRefusal(ledger, turn, judgeLines(turnModels));
+    if (standing?.kind === "lineage") {
+      await closeForHuman(turn, standing.reason, standing, turnAlreadyStarted ? turn : ledger.turns);
+      break;
+    }
     if (!replayingDecidedTurn && !turnAlreadyStarted) {
       appendLifecycleEvent(ledger, "work_turn_started", "Orchestrator started.", turn);
       await writeGoalLedger(ledgerPath, ledger);
@@ -1165,61 +1447,85 @@ async function runGoalWorkflow(ctx, options) {
       latestReviewArtifactPaths,
       workflowStartCwd
     }) : renderForkedGoalOrchestratorPrompt(ledger, ledgerPath, latestReviewArtifactPaths);
-    const orchestratorPromptWithWriter = orchestratorPrompt + writerModelNote(turnModels.writer);
-    let orchestrator;
-    try {
-      orchestrator = await ctx.task(`orchestrator-${turn}`, {
-        prompt: orchestratorPromptWithWriter,
+    const orchestratorStage = (name, prompt, forkOptions, writer) => ({
+      name,
+      options: {
+        prompt: prompt + writerModelNote(writer),
         reads: [ledgerPath, ...latestReviewArtifactPaths],
         output: orchestratorReceiptPath,
         outputMode: "file-only",
         cwd: workflowStartCwd,
         ...turnModels.orchestrator,
-        ...orchestratorForkOptions
-      });
+        // Inherited by every agent this stage delegates to.
+        isFallbackModelAllowed: delegatedFallbackGate(turnModels),
+        ...forkOptions
+      }
+    });
+    let orchestrator;
+    let writerStop;
+    try {
+      ({ orchestrator, stop: writerStop } = await runOrchestratorTurn(ctx, {
+        ledger,
+        ledgerPath,
+        turn,
+        turnModels,
+        replaying: replayingDecidedTurn,
+        forkedFrom: previousOrchestratorSessionFile,
+        checkout: workflowStartCwd,
+        resumedClosure,
+        firstStage: (writer) => orchestratorStage(`orchestrator-${turn}`, orchestratorPrompt, orchestratorForkOptions, writer),
+        continuedStage: (writer, previous, move, attempt) => {
+          const forkOptions = forkContinuationOptions(previous.sessionFile);
+          const forked = forkOptions.forkFromSessionFile !== undefined;
+          const prompt = forked ? renderForkedGoalOrchestratorPrompt(ledger, ledgerPath, latestReviewArtifactPaths) : orchestratorPrompt;
+          return orchestratorStage(`orchestrator-${turn}-continued-${attempt}`, `${prompt}
+
+${writerChangeNote(move)}`, forked ? forkOptions : orchestratorForkOptions, writer);
+        }
+      }));
     } catch (err) {
       if (isInfrastructureFailure(failureText(err)))
         throw err;
       const message = err instanceof Error ? err.message : String(err);
-      const baseReason = `Orchestrator failed before producing a receipt: ${message}`;
-      terminalRemainingWork = baseReason;
-      const reason = [baseReason, ...convergence_escalation_evidence(ledger.convergence ?? [])].join(`
-`);
-      latestReviews = [];
-      latestReviewArtifactPaths = [];
-      latestReviewReportPath = undefined;
-      ledger.turns = turn;
-      ledger.status = "needs_human";
-      ledger.decisions.push({
-        turn,
-        decision: "needs_human",
-        reason,
-        complete_votes: 0,
-        review_quorum: reviewQuorum,
-        parsed: false,
-        approved: false,
-        stopReviewLoop: false,
-        nextAction: "needs_human",
-        finalActionRemaining: false,
-        diagnostics: [baseReason]
-      });
-      appendLifecycleEvent(ledger, "status_decided", reason, turn);
-      await writeGoalLedger(ledgerPath, ledger);
+      await closeForHuman(turn, `Orchestrator failed before producing a receipt: ${message}`);
       break;
     }
+    // Outside the try: Atomic's exit is a signal the catch above must not see.
+    if (writerStop !== undefined)
+      return stopResumable(ctx, writerStop);
     previousOrchestratorSessionFile = orchestrator.sessionFile;
     if (!replayingDecidedTurn) {
       ledger.turns = turn;
+      const delegated = (ledger.delegations ?? []).filter((entry) => entry.turn === turn);
       const receiptAlreadyRecorded = ledger.receipts.some((receipt) => receipt.turn === turn && receipt.artifact_path === orchestratorReceiptPath);
       if (!receiptAlreadyRecorded) {
         ledger.receipts.push({
           turn,
           stage: orchestrator.name ?? orchestrator.stageName,
           artifact_path: orchestratorReceiptPath,
-          summary: `Orchestrator receipt artifact: ${orchestratorReceiptPath}`
+          summary: `Orchestrator receipt artifact: ${orchestratorReceiptPath}${delegated.length === 0 ? "" : `. Delegated tasks: ${delegated.map((entry) => entry.summary).join("; ")}`}`
         });
         appendLifecycleEvent(ledger, "receipt_recorded", "Orchestrator receipt recorded.", turn);
       }
+    }
+    // Before any reviewer is dispatched, and on a replayed turn too: a
+    // closed turn's reviewers never ran, so a replay would start them.
+    const refusal = preReviewRefusal(ledger, turn, judgeLines(turnModels));
+    if (refusal !== undefined && (!replayingDecidedTurn || refusal.kind === "lineage")) {
+      if (replayingDecidedTurn && ledger.status === "needs_human") {
+        // Already closed, by a decision this turn's replay must not undo.
+        terminalRemainingWork = refusal.reason;
+        latestReviews = [];
+        latestReviewArtifactPaths = [];
+        latestReviewReportPath = undefined;
+      } else {
+        await closeForHuman(turn, refusal.reason, refusal);
+      }
+      break;
+    }
+    if (!replayingDecidedTurn) {
+      if (resumedClosure?.turn === turn)
+        appendLifecycleEvent(ledger, "reopened", `Reopened after a closure before review (${resumedClosure.pre_review}): ${resumedClosure.pre_review === "lineage" ? "no line on this turn's panel wrote" : "the resume answers for what could not be read"}, and the turn goes to review.`, turn);
       await writeGoalLedger(ledgerPath, ledger);
     }
     const reviewerStep = (name, reviewerRole, focus, modelConfig) => ({

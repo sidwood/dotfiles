@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { tmpdir } from "node:os";
@@ -358,5 +359,217 @@ describe("goal-select with Atomic's native MCP client (real SDK sessions, local 
     } finally {
       for (const path of [join(cwd, ".atomic"), join(cwd, ".mcp.json"), join(agentDir, "trust.json")]) rmSync(path, { recursive: true, force: true });
     }
+  });
+});
+
+describe("goal-select's writer fallback gate in Atomic's own sessions (real SDK sessions and the real subagent tool, scripted local models; no workflow run, Intercom broker or model request)", () => {
+  const fallbackAgentDir = join(root, "agent-fallback");
+  const sessionsDir = join(root, "fallback-sessions");
+  // The checkout the delegated agent works in: a repository that keeps
+  // Atomic's own folder out of Git, as the projects goal-select runs on do.
+  const checkout = join(root, "fallback-checkout");
+  const PROVIDERS = ["fx-writer", "fx-chat", "fx-review", "fx-next"];
+  // A provider Atomic knows but holds no credentials for.
+  const LOCKED = "fx-locked";
+  const usageLimit = "The usage limit has been reached";
+  // The turn the gate is built for: fx-chat orchestrates, fx-review reviews.
+  const turnModels = { roles: ["reviewer"], reviewer: { model: "fx-review/m:high" }, orchestrator: { model: "fx-chat/m:medium" }, writer: "fx-writer/m:max" };
+  let cores;
+  let writerFallback;
+  let requests;
+  let sessions = 0;
+
+  before(async () => {
+    mkdirSync(join(fallbackAgentDir, "agents"), { recursive: true });
+    mkdirSync(join(checkout, "src"), { recursive: true });
+    execFileSync("git", ["init", "--quiet", checkout], { env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" } });
+    writeFileSync(join(checkout, ".gitignore"), ".atomic/\n");
+    // Without same-model retries a failed model moves straight to its fallback.
+    writeJson(join(fallbackAgentDir, "settings.json"), { retry: { enabled: false } });
+    writeFileSync(
+      join(fallbackAgentDir, "agents", "scribe.md"),
+      ["---", "name: scribe", "description: Minimal implementation agent for the fallback tests.", "systemPromptMode: replace", "inheritProjectContext: false", "inheritSkills: false", "tools: read, write", "---", "", "You are scribe. Reply briefly.", ""].join("\n"),
+    );
+    cores = Object.fromEntries(PROVIDERS.map((provider) => [provider, piAi.createFauxCore({ provider, api: `${provider}-api`, models: [{ id: "m" }] })]));
+    writerFallback = await import(new URL("./writer-fallback.js", import.meta.url).href);
+  });
+
+  after(() => {
+    process.env.ATOMIC_CODING_AGENT_DIR = agentDir;
+  });
+
+  // Every provider answers each request with what the test scripted for it.
+  function script(answers) {
+    requests = [];
+    for (const provider of PROVIDERS) {
+      cores[provider].setResponses(
+        Array.from({ length: 8 }, () => (context, _options, _state, model) => {
+          requests.push(`${model.provider}/${model.id}`);
+          return answers[provider](context);
+        }),
+      );
+    }
+  }
+  const failing = () => piAi.fauxAssistantMessage("", { stopReason: "error", errorMessage: usageLimit });
+  const saying = (text) => () => piAi.fauxAssistantMessage(text);
+  const firstUserText = (context) => {
+    const first = context.messages.find((message) => message.role === "user");
+    return typeof first?.content === "string" ? first.content : (first?.content ?? []).map((part) => part.text ?? "").join("");
+  };
+
+  // A session as goal-select's orchestrator stage has it, without Intercom so
+  // that delegating starts no broker process.
+  async function fallbackSession({ model, fallbackModels, gate }) {
+    process.env.ATOMIC_CODING_AGENT_DIR = fallbackAgentDir;
+    const settingsManager = atomic.SettingsManager.create(checkout, fallbackAgentDir);
+    const scriptedProviders = {
+      name: "goal-select-fallback-providers",
+      factory: (pi) => {
+        for (const provider of PROVIDERS) {
+          pi.registerProvider(provider, {
+            name: `${provider} scripted test model`,
+            baseUrl: "http://127.0.0.1:9",
+            apiKey: "local-test-only",
+            api: `${provider}-api`,
+            models: [{ id: "m", name: provider, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 100_000, maxTokens: 1_000 }],
+            streamSimple: cores[provider].streamSimple,
+          });
+        }
+        pi.registerProvider(LOCKED, {
+          name: "scripted test model without credentials",
+          baseUrl: "http://127.0.0.1:9",
+          api: `${LOCKED}-api`,
+          models: [{ id: "m", name: LOCKED, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, contextWindow: 100_000, maxTokens: 1_000 }],
+          streamSimple: cores["fx-writer"].streamSimple,
+        });
+      },
+    };
+    const resourceLoader = new atomic.DefaultResourceLoader({
+      cwd: checkout,
+      agentDir: fallbackAgentDir,
+      settingsManager,
+      extensionFactories: [...builtInExtensions, scriptedProviders],
+      builtinPackagePaths: atomic.getBuiltinPackagePaths({ intercom: false }),
+    });
+    await resourceLoader.reload();
+    const modelRuntime = await atomic.ModelRuntime.create({ credentials: atomic.AuthStorage.inMemory(), modelsPath: null });
+    sessions += 1;
+    const runId = "goal-select-fallback-run";
+    const sessionManager = atomic.SessionManager.create(checkout, sessionsDir, { internal: true, workflow: { runId, stageId: `stage-${sessions}`, stageName: "orchestrator-1" } });
+    const { session } = await atomic.createAgentSession({
+      cwd: checkout,
+      agentDir: fallbackAgentDir,
+      settingsManager,
+      resourceLoader,
+      modelRuntime,
+      sessionManager,
+      builtins: { intercom: false },
+      fallbackModels,
+      ...(gate ? { isFallbackModelAllowed: gate } : {}),
+      subagentPolicy: STAGE_POLICY,
+      orchestrationContext: { kind: "workflow-stage", workflowRunId: runId, workflowStageId: `stage-${sessions}`, workflowStageName: "orchestrator-1", constraints: { disableWorkflowTool: true } },
+    });
+    const [provider, id] = model.split("/");
+    await session.setModel(modelRuntime.getModel(provider, id));
+    return { session, sessionFile: sessionManager.getSessionFile() };
+  }
+
+  // The orchestrator, on fx-chat, delegates the change to scribe on fx-writer
+  // and waits for it; fx-writer's provider is out of quota. Whatever model
+  // the agent then runs on writes `files`, as given, and reports.
+  async function delegate(gate, requested = "fx-writer/m", files = ["src/change.txt"]) {
+    let orchestratorTurns = 0;
+    script({
+      "fx-writer": failing,
+      "fx-review": saying("written by the reviewer's model"),
+      "fx-next": saying("written by the next model"),
+      "fx-chat": (context) => {
+        if (!firstUserText(context).includes("Delegate the change.")) {
+          if (context.messages.some((message) => message.role === "toolResult")) return piAi.fauxAssistantMessage("written by the orchestrator's model");
+          return piAi.fauxAssistantMessage(files.map((path) => piAi.fauxToolCall("write", { path, content: "changed\n" })), { stopReason: "toolUse" });
+        }
+        orchestratorTurns += 1;
+        if (orchestratorTurns > 1) return piAi.fauxAssistantMessage("receipt");
+        return piAi.fauxAssistantMessage(piAi.fauxToolCall("subagent", { agent: "scribe", task: "Write the change.", model: requested, context: "fresh", wait: { kind: "foreground", budgetMs: 20_000 } }), { stopReason: "toolUse" });
+      },
+    });
+    const { session, sessionFile } = await fallbackSession({ model: "fx-chat/m", fallbackModels: [], gate });
+    // Under a test runner Atomic gives a delegated agent a stub session;
+    // these tests are about the real one.
+    const runner = { NODE_TEST_CONTEXT: process.env.NODE_TEST_CONTEXT, NODE_ENV: process.env.NODE_ENV };
+    delete process.env.NODE_TEST_CONTEXT;
+    delete process.env.NODE_ENV;
+    try {
+      await session.prompt("Delegate the change.");
+    } finally {
+      for (const [key, value] of Object.entries(runner)) {
+        if (value !== undefined) process.env[key] = value;
+      }
+    }
+    await session.dispose();
+    const [result] = toolResults(sessionFile).filter((message) => message.toolName === "subagent");
+    assert.equal(result.isError, false, JSON.stringify(result.content));
+    return { sessionFile, text: result.content.map((block) => block.text ?? "").join("\n"), tasks: writerFallback.delegatedTasks(sessionFile, checkout) };
+  }
+
+  it("skips a fallback the gate refuses without running it, and runs the next one it allows", async () => {
+    const refusals = [];
+    const allow = writerFallback.delegatedFallbackGate(turnModels);
+    const gate = (model, effort) => {
+      const allowed = allow(model, effort);
+      if (!allowed) refusals.push(`${model.provider}/${model.id}`);
+      return allowed;
+    };
+    script({ "fx-writer": failing, "fx-review": saying("reviewer"), "fx-chat": saying("orchestrator"), "fx-next": saying("next") });
+    const { session } = await fallbackSession({ model: "fx-writer/m", fallbackModels: ["fx-review/m:high", "fx-chat/m", "fx-next/m"], gate });
+    await session.prompt("Write the change.");
+    assert.equal(`${session.model.provider}/${session.model.id}`, "fx-next/m");
+    await session.dispose();
+    assert.deepEqual(refusals, ["fx-review/m", "fx-chat/m"], "Atomic asked the gate about each candidate in order");
+    assert.deepEqual(requests, ["fx-writer/m", "fx-next/m"], "no request reached the reviewer's or the orchestrator's model");
+  });
+
+  it("left alone, Atomic moves a delegated agent whose provider fails onto the orchestrator's model and reports it as completed", async () => {
+    const { text, tasks } = await delegate(undefined);
+    assert.match(text, /written by the orchestrator's model/);
+    assert.deepEqual(requests.filter((model) => model === "fx-writer/m").length, 1);
+    assert.equal(tasks.length, 1);
+    const [task] = tasks;
+    assert.deepEqual([task.agent, task.requested, task.started, task.resolved, task.models, task.wrote, task.error, task.unread], ["scribe", "fx-writer/m", "fx-writer/m", "fx-chat/m", ["fx-chat/m"], ["fx-chat/m"], undefined, undefined], "the transcript audit names the model that wrote, which the request did not");
+    assert.equal(readFileSync(join(checkout, "src", "change.txt"), "utf8"), "changed\n", "Atomic's own write tool wrote the file the audit read from the transcript");
+  });
+
+  it("with goal-select's gate on the orchestrator's session, the delegated agent inherits it and stays off the orchestrator's model", async () => {
+    const { text, tasks } = await delegate(writerFallback.delegatedFallbackGate(turnModels));
+    assert.deepEqual(requests, ["fx-chat/m", "fx-writer/m", "fx-chat/m"], "the orchestrator, the agent's one failed request, the orchestrator again: the agent never ran on fx-chat");
+    assert.match(text, /"kind":"completed"/, "Atomic still reports the stopped agent as completed");
+    assert.doesNotMatch(text, /written by/);
+    const [task] = tasks;
+    assert.deepEqual([task.agent, task.requested, task.resolved, task.models, task.wrote, task.error, task.unread], ["scribe", "fx-writer/m", "fx-writer/m", [], [], usageLimit, undefined], "only the agent's transcript shows that its model failed");
+    assert.equal(writerFallback.describeDelegatedTask(task), `scribe ${task.task.split(":")[0]} asked for fx-writer/m, produced no turn, wrote no file, ended on fx-writer/m with a model error (${usageLimit})`);
+    assert.equal(existsSync(join(fallbackAgentDir, "intercom", "broker.sock")), false, "no Intercom broker was started");
+  });
+
+  it("cannot stop Atomic starting an agent on the orchestrator's model when the requested model's provider has no credentials; the audit shows it", async () => {
+    const { text, tasks } = await delegate(writerFallback.delegatedFallbackGate(turnModels), `${LOCKED}/m`, ["src/started-elsewhere.txt"]);
+    assert.match(text, /written by the orchestrator's model/, "the agent's first and only model was the orchestrator's: a start, not a fallback");
+    assert.equal(requests.includes("fx-writer/m"), false, "the locked provider was never asked");
+    const [task] = tasks;
+    assert.deepEqual([task.requested, task.started, task.resolved, task.models, task.wrote, task.error], [`${LOCKED}/m`, "fx-chat/m", "fx-chat/m", ["fx-chat/m"], ["fx-chat/m"], undefined]);
+  });
+
+  it("reads from a real transcript which files an agent wrote: those of the checkout that Git keeps, not its notes or scratch", async () => {
+    const outside = join(root, "evidence", "review.md");
+    mkdirSync(join(root, "evidence"), { recursive: true });
+    mkdirSync(join(checkout, ".atomic"), { recursive: true });
+    const notes = await delegate(undefined, "fx-writer/m", [join(checkout, ".atomic", "progress.md"), outside]);
+    assert.match(notes.text, /written by the orchestrator's model/);
+    assert.equal(readFileSync(outside, "utf8"), "changed\n");
+    assert.deepEqual([notes.tasks[0].models, notes.tasks[0].wrote], [["fx-chat/m"], []], "it ran on the orchestrator's model and wrote nothing a reviewer reads");
+    const both = await delegate(undefined, "fx-writer/m", [join(checkout, ".atomic", "second-progress.md"), join(checkout, "src", "second.txt")]);
+    assert.deepEqual(both.tasks[0].wrote, ["fx-chat/m"], "one file of the checkout among its notes is enough");
+    // Atomic refuses to overwrite a file the session has not read; a refused write wrote nothing.
+    const refused = await delegate(undefined, "fx-writer/m", [join(checkout, "src", "second.txt")]);
+    assert.deepEqual([refused.tasks[0].models, refused.tasks[0].wrote], [["fx-chat/m"], []]);
   });
 });

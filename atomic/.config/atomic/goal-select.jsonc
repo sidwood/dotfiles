@@ -2,7 +2,8 @@
 //
 // A launch chooses a writer model and a review tier; the orchestrator comes
 // from defaults unless the launch sets it. The file is read again before
-// every turn, so an edit applies to running work.
+// every turn, so an edit applies to running work. writer_fallbacks says
+// where a writer goes when its provider fails.
 //
 // Precedence, highest first: a top-level model key in this file or in a
 // project policy file (an override for every run that reads it), the launch
@@ -38,5 +39,18 @@
       "risk_reviewer_model": "openai/gpt-6-astra:xhigh",
       "max_turns": 3
     }
+  },
+  // When a writer's provider fails (no credit, a usage limit, an outage) the
+  // run moves the writer to the next model listed for its model line, in
+  // order. A model on the chosen tier's review panel, or re-verifying its
+  // findings, is passed over: a model line never reviews its own work. With
+  // nothing left the run stops and can be resumed once the provider is put
+  // right. Keys are provider/model without an effort. OpenAI writers have no
+  // fallback.
+  "writer_fallbacks": {
+    "xai/grok-4.7": ["kimi-coding/k3:max", "zai/glm-5.3:max", "anthropic/claude-sonnet-5-5:max"],
+    "kimi-coding/k3": ["zai/glm-5.3:max", "anthropic/claude-sonnet-5-5:max"],
+    "zai/glm-5.3": ["anthropic/claude-sonnet-5-5:max"],
+    "anthropic/claude-opus-5-5": ["openai/gpt-6.1-sol:xhigh"]
   }
 }

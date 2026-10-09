@@ -14,7 +14,7 @@ import {
   previewBranchClonePolicy,
 } from "./goal-select/branch-clone.js";
 import { runGoalWorkflow } from "./goal-select/goal-engine.js";
-import { DEFAULT_REVIEW_TIER, defaultPolicyPath, launchDefaults, modelPolicyPaths, readModelPolicyFile } from "./goal-select/model-policy.js";
+import { DEFAULT_REVIEW_TIER, defaultPolicyPath, launchDefaults, modelPolicyPaths, readModelPolicyFile, writerFallbacksFor } from "./goal-select/model-policy.js";
 import {
   STOP_CHOICE,
   auditGuardCheck,
@@ -209,19 +209,19 @@ export default workflow({
       Type.String({
         ...prefilled(prefill.writer_model),
         description:
-          "Model the orchestrator must pass when it delegates implementation. Empty leaves the builtin worker pin unchanged. Prefilled from the shared policy's writer_model when it has one.",
+          "Model the orchestrator must pass when it delegates implementation. Empty leaves the builtin worker pin unchanged. Prefilled from the shared policy's writer_model when it has one. When its provider fails, the writer moves down the policy's writer_fallbacks for this model line, never onto a reviewer's model line or the orchestrator's model; with no fallback left the run stops and can be resumed. Any delegated agent that writes files on a model line reviewing the turn closes the run before review, whatever model it was asked for.",
       }),
     ),
     model_policy_path: Type.Optional(
       Type.String({
         default: defaultPolicyPath(),
         description:
-          "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas. Its defaults block seeds the launch form, its review_tiers block defines the tiers, and any top-level model key or max_turns in it overrides every run that reads it. The default is the shared ~/.config/atomic/goal-select.jsonc. A relative path is read inside the checkout, so a project may keep its own file; a file without review_tiers or defaults inherits the shared ones.",
+          "JSONC file read before every turn: JSON plus // and /* */ comments and trailing commas. Its defaults block seeds the launch form, its review_tiers block defines the tiers, its writer_fallbacks block lists each writer model line's fallback models in order, and any top-level model key or max_turns in it overrides every run that reads it. The default is the shared ~/.config/atomic/goal-select.jsonc. A relative path is read inside the checkout, so a project may keep its own file; a file without review_tiers, defaults or writer_fallbacks inherits the shared ones. A malformed writer_fallbacks stops the run.",
       }),
     ),
     resolve_only: Type.Boolean({
       default: false,
-      description: "Resolve turn-1 models and stop. Does not run Goal. policy_source names the policy file turn 1 reads, or null when there is none. In auto mode it previews the planned clone path, branch and policy source without creating the clone. With a tracker it checks only the MCP config files and the guard extension; no intake stage runs and no issue is fetched.",
+      description: "Resolve turn-1 models and stop. Does not run Goal. policy_source names the policy file turn 1 reads, or null when there is none, and writer_fallbacks the chains it runs with. In auto mode it previews the planned clone path, branch and policy source without creating the clone. With a tracker it checks only the MCP config files and the guard extension; no intake stage runs and no issue is fetched.",
     }),
   },
   outputs: {
@@ -330,6 +330,7 @@ export default workflow({
             launch: selection,
             policy: preview.policy,
             policy_source: preview.source,
+            writer_fallbacks: writerFallbacksFor(preview.policy, preview.source ?? undefined),
             ...(trackerPreview ? { tracker: trackerPreview } : {}),
           }),
         };
@@ -365,6 +366,7 @@ export default workflow({
           launch: selection,
           policy: resolved.policy,
           policy_source: resolved.source,
+          writer_fallbacks: writerFallbacksFor(resolved.policy, resolved.source ?? undefined),
           ...(trackerPreview ? { tracker: trackerPreview } : {}),
         }),
       };

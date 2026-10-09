@@ -298,6 +298,30 @@ session start or `/workflow reload`. After editing the preset, run
 `model_policy_path` does not affect the form, and missing, malformed or
 wrongly typed values keep the built-in defaults.
 
+A writer whose provider fails (no credit, a usage limit, an outage) moves down
+the policy's `writer_fallbacks` chain for its model line. Atomic alone would
+move a delegated agent onto the orchestrator's model, so each orchestrator
+stage carries a fallback gate its agents inherit: none falls back onto the
+orchestrator's model, onto a model line that reviews or re-verifies the turn,
+or onto the launching session's model while the policy names no
+`reverify_model`. After the stage the workflow reads each agent's transcript:
+the model it asked for, the models that ran, and those that wrote files of the
+checkout (an accepted edit or write to a file Git does not ignore; writing
+done only through the shell is not seen). When a writer's model failed it
+continues the turn in a further stage (`orchestrator-<turn>-continued-<n>`) on
+the next model the tier allows; with no fallback left the run ends failed and
+resumable, and a resume continues that turn from the launch writer. The goal
+ledger (`delegations`, `writer_moves`) and the receipt record all of it.
+
+The run closes `needs_human` before any reviewer starts when a model line on
+the turn's panel wrote files, in that turn or an earlier one and whatever
+model the agent was asked for, and when what a writer did cannot be read.
+Resuming a run closed for a reviewer's own line reads the turn's policy again
+and closes again unless the panel no longer holds that line; resuming one
+closed for an unread writer reads the evidence again and then sends the turn
+to review. A project policy without `writer_fallbacks` inherits the shared
+file's; a malformed one stops the run.
+
 Atomic starts workflow stages without switching on its `codemode` MCP
 discovery tool, so a stage cannot reach MCP tools that ordinary sessions
 reach. `atomic/.atomic/agent/extensions/goal-select-mcp-discovery.ts` turns

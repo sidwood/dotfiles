@@ -34,6 +34,8 @@ export function sharedPolicyLayers() {
     return {
       defaults: parsed?.defaults !== null && typeof parsed?.defaults === "object" ? parsed.defaults : {},
       review_tiers: parsed?.review_tiers !== null && typeof parsed?.review_tiers === "object" ? parsed.review_tiers : {},
+      // Left as written: writerFallbacksFor validates it where a run reads it.
+      writer_fallbacks: parsed?.writer_fallbacks,
     };
   } catch {
     return { defaults: {}, review_tiers: {} };
@@ -118,6 +120,55 @@ export function policyReviewTier(policy, tier) {
     },
     maxTurns: policyMaxTurns(entry?.max_turns),
   };
+}
+
+const MODEL_EFFORTS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+// provider/model with no effort suffix; the model part may hold slashes.
+const MODEL_LINE = /^[^\s/:]+\/[^\s:]+$/u;
+
+// A model id without its effort suffix: `:high` and `:xhigh` of one model
+// are the same line, and two models of one provider are different lines.
+export function modelLine(model) {
+  return typeof model === "string" ? model.trim().replace(/:[a-z]+$/u, "") : undefined;
+}
+
+// `writer_fallbacks`: for each writer model line, the models the writer
+// moves to, in order, when its provider fails. A mistake here would send
+// work to the wrong model or to none, so it stops the run instead of being
+// skipped like a mistyped model key.
+export function policyWriterFallbacks(value, where = "the model policy") {
+  if (value === undefined) return {};
+  const fail = (detail) => {
+    throw new Error(`${where}: writer_fallbacks ${detail}`);
+  };
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail('must be an object keyed by writer model line, such as { "xai/grok-4.7": ["kimi-coding/k3:max"] }.');
+  }
+  const chains = {};
+  for (const [key, entries] of Object.entries(value)) {
+    if (!MODEL_LINE.test(key)) fail(`key "${key}" is not a model line: write provider/model without an effort suffix.`);
+    if (!Array.isArray(entries)) fail(`"${key}" must list its fallback models in order, as an array.`);
+    const seen = new Set([key]);
+    chains[key] = entries.map((entry, index) => {
+      const model = typeof entry === "string" ? entry.trim() : "";
+      const [, line, effort] = /^(.*?)(?::([a-z]+))?$/u.exec(model);
+      if (!MODEL_LINE.test(line)) fail(`"${key}" entry ${index + 1} must be a model id such as "kimi-coding/k3:max", not ${JSON.stringify(entry)}.`);
+      if (effort !== undefined && !MODEL_EFFORTS.includes(effort)) fail(`"${key}" entry "${model}" has an unknown effort "${effort}"; use one of ${MODEL_EFFORTS.join(", ")}.`);
+      if (line === key) fail(`"${key}" lists its own model line ("${model}") as a fallback.`);
+      if (seen.has(line)) fail(`"${key}" lists the model line ${line} twice.`);
+      seen.add(line);
+      return model;
+    });
+  }
+  return chains;
+}
+
+// The chains a parsed policy file runs with: its own map, or the shared
+// file's when it has none, as with review_tiers and defaults. An empty map
+// of its own switches the shared chains off.
+export function writerFallbacksFor(policy, source) {
+  const own = policy !== null && typeof policy === "object" && Object.hasOwn(policy, "writer_fallbacks");
+  return own ? policyWriterFallbacks(policy.writer_fallbacks, source ?? "the model policy") : policyWriterFallbacks(sharedPolicyLayers().writer_fallbacks, defaultPolicyPath());
 }
 
 const JSON_WHITESPACE = new Set([" ", "\t", "\n", "\r"]);

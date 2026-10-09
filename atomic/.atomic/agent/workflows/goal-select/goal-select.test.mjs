@@ -198,7 +198,8 @@ async function loadGoalSelectFrom(dir) {
 }
 const goalSelect = await loadGoalSelectFrom(root);
 const { branchCloneName, createBranchClone, objectiveSlug, planBranchClone } = await import(new URL("./branch-clone.js", import.meta.url).href);
-const { defaultPolicyPath, modelPolicyPaths, parseModelPolicy, sharedPolicyDir } = await import(new URL("./model-policy.js", import.meta.url).href);
+const { defaultPolicyPath, modelLine, modelPolicyPaths, parseModelPolicy, policyWriterFallbacks, sharedPolicyDir } = await import(new URL("./model-policy.js", import.meta.url).href);
+const writerFallback = await import(new URL("./writer-fallback.js", import.meta.url).href);
 const { Type } = await import("typebox");
 const guard = await import(new URL("../../extensions/goal-select-tracker-guard.ts", import.meta.url).href);
 const { STOP_CHOICE: STOP_CHOICE_TEXT } = await import(new URL("./tracker-intake.js", import.meta.url).href);
@@ -491,7 +492,9 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     const shipped = fileURLToPath(new URL("../../../../.config/atomic/goal-select.jsonc", import.meta.url));
     const text = readFileSync(shipped, "utf8");
     assert.match(text, /^\s*\/\//m, "the shipped file keeps its comments");
-    assert.deepEqual(parseModelPolicy(text), sharedPolicy);
+    // Its writer_fallbacks block is checked with the writer fallback chain.
+    const { writer_fallbacks: _chains, ...dials } = parseModelPolicy(text);
+    assert.deepEqual(dials, sharedPolicy);
   });
 
   it("resolves an omitted model_policy_path to the shared goal-select.jsonc under resolve_only and on a real turn 1, reading no project file", async () => {
@@ -701,6 +704,8 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
   it("runs the orchestrator, every reviewer, re-verifiers and the pull-request stage in the selected clone", async () => {
     const policyPath = join(clone, ".atomic", "routing-policy.json");
     const sessionFile = join(root, "orchestrator-1.jsonl");
+    // A stage's transcript is there to be read: one that is named and missing closes the run.
+    writeJson(sessionFile, { type: "session", version: 3, id: "orchestrator-1", cwd: clone });
     writeJson(policyPath, { orchestrator_model: "test/routing-orchestrator" });
     const { ctx, calls } = fakeContext({
       cwd: seed,
@@ -1234,6 +1239,1107 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.equal(result.status, "needs_human");
       assert.equal(stageNames(second.calls).includes("orchestrator-3"), false);
       assert.deepEqual(state.read().decisions, closed.decisions);
+    });
+  });
+
+  describe("writer fallback chain", () => {
+    const SOL = "openai/gpt-6.1-sol";
+    const ASTRA = "openai/gpt-6-astra";
+    const GROK = "xai/grok-4.7:xhigh";
+    const KIMI = "kimi-coding/k3:max";
+    const GLM = "zai/glm-5.3:max";
+    const SONNET = "anthropic/claude-sonnet-5-5:max";
+    const OPUS = "anthropic/claude-opus-5-5:xhigh";
+    // The standing order, as the shared policy carries it.
+    const standingOrder = {
+      "xai/grok-4.7": [KIMI, GLM, SONNET],
+      "kimi-coding/k3": [GLM, SONNET],
+      "zai/glm-5.3": [SONNET],
+      "anthropic/claude-opus-5-5": [`${SOL}:xhigh`],
+    };
+    const chainPolicy = { ...sharedPolicy, writer_fallbacks: standingOrder };
+    // The standard tier's Sol reviewer as the shared policy names it, effort and all.
+    const SOL_REVIEWER = sharedPolicy.review_tiers.standard.reviewer_model;
+    const usageLimit = "403 You've reached your 5-hour usage limit.";
+    const noCredit = "403 Your team has run out of credits.";
+    const line = (model) => model.replace(/:[a-z]+$/u, "");
+    // One assistant turn of a delegated agent: [model line, error, what it did].
+    // A healthy writer's turn edits a file of the checkout.
+    const ok = (model) => [line(model), undefined, { edit: ["src/feature.ts"] }];
+    const reading = (model) => [line(model), undefined, { read: ["README.md"] }];
+    const did = (model, actions) => [line(model), undefined, actions];
+    const failed = (model, error) => [line(model), error];
+    const model = (id) => ({ provider: id.split("/")[0], id: line(id).split("/").slice(1).join("/") });
+    const ledgerOf = (run) => JSON.parse(readFileSync(join(JSON.parse(run.record.get("tool:artifact-root:1")), "goal-ledger-state.json"), "utf8"));
+    const orchestrators = (run) => run.stages.filter((stage) => stage.name.startsWith("orchestrator-"));
+    const stageNames = (run) => run.stages.map((stage) => stage.name);
+    const freshStages = (run) => run.fresh.filter((key) => key.startsWith("stage:")).map((key) => key.split(":")[1]);
+    const writerNamed = (stage) => stage.options.prompt.match(/Writer model for this turn: (\S+)\n/)?.[1];
+
+    before(() => {
+      // As in a project that keeps Atomic's own files out of Git.
+      writeFileSync(join(git("-C", clone, "rev-parse", "--absolute-git-dir"), "info", "exclude"), ".atomic/\n*.log\n", { flag: "a" });
+    });
+
+    // What a stage and the agents it delegated to leave on disk under Atomic
+    // 0.9.27: the stage's transcript with each subagent launch and its task
+    // records, a delivery record per agent, and the agent's own transcript
+    // with its tool calls and their results.
+    function transcripts() {
+      const dir = mkdtempSync(join(root, "sessions-"));
+      const history = [];
+      let launched = 0;
+      let called = 0;
+      const lines = (path, entries) => {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(path, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`);
+      };
+      const message = (content, timestamp = "2026-10-09T01:00:02.000Z") => ({ type: "message", id: randomUUID().slice(0, 8), timestamp, message: content });
+      function turnEntries([ran, error, actions = {}], timestamp) {
+        const calls = [
+          ...(actions.read ?? []).map((path) => ({ name: "read", arguments: { path } })),
+          ...(actions.write ?? []).map((path) => ({ name: "write", arguments: { path, content: "text\n" } })),
+          ...(actions.refusedWrite ?? []).map((path) => ({ name: "write", arguments: { path, content: "text\n" }, refused: true })),
+          ...((actions.edit ?? []).length > 0 ? [{ name: "edit", arguments: { input: actions.edit.map((path) => `[${path}#A1B2]\nreplace 1..1:\n+changed`).join("\n") } }] : []),
+          ...((actions.failedEdit ?? []).length > 0 ? [{ name: "edit", arguments: { input: actions.failedEdit.map((path) => `[${path}#A1B2]\nreplace 1..1:\n+changed`).join("\n") }, refused: true }] : []),
+          ...(actions.bash ?? []).map((command) => ({ name: "bash", arguments: { command } })),
+        ].map((call) => ({ ...call, id: `call_${(called += 1)}` }));
+        return [
+          message({ role: "assistant", provider: ran.split("/")[0], model: ran.split("/").slice(1).join("/"), content: calls.map(({ id, name, arguments: args }) => ({ type: "toolCall", id, name, arguments: args })), stopReason: error ? "error" : calls.length > 0 ? "toolUse" : "stop", ...(error ? { errorMessage: error } : {}) }, timestamp),
+          ...calls.map((call) => message({ role: "toolResult", toolCallId: call.id, toolName: call.name, isError: call.refused === true, content: [] }, timestamp)),
+        ];
+      }
+      // `delivered` false leaves no delivery record, as for an agent that has
+      // not ended; a string is written as the record, unreadable as JSON.
+      // `transcript` false leaves the record naming a file that is not there.
+      function agent(id, index, stageFile, { agent: name = "worker", turns, thinking = "max", forkedFrom, delivered = true, transcript = true, inStageFolder = false }) {
+        const file = inStageFolder ? join(stageFile.replace(/\.jsonl$/u, ""), id, `run-${index}`, "session.jsonl") : join(dir, "agents", `${id}-${index}.jsonl`);
+        if (transcript) {
+          lines(file, [
+            { type: "session", version: 3, id: `${id}-${index}`, timestamp: "2026-10-09T01:00:00.000Z", cwd: clone, ...(forkedFrom ? { parentSession: join(dir, "parent.jsonl") } : {}) },
+            ...(forkedFrom ? turnEntries(ok(forkedFrom), "2026-10-09T00:59:00.000Z") : []),
+            { type: "session_info", timestamp: "2026-10-09T01:00:00.100Z", name: `subagent-${name}-${id}-${index + 1}` },
+            ...turns.flatMap((turn) => turnEntries(turn, "2026-10-09T01:00:01.000Z")),
+          ]);
+        }
+        const record = join(dir, "subagent-artifacts", `${id}_${name}_${index}_meta.json`);
+        if (delivered === true) writeJson(record, { path: `${id}/${name}_${index + 1}`, status: "ok", model: turns.at(-1)?.[0], thinking, sessionFile: file });
+        else if (typeof delivered === "string") writeJsonText(record, delivered);
+        return file;
+      }
+      // One subagent call: a single agent, or `parallel` agents that share
+      // the launch.
+      function launch(spec, stageFile) {
+        launched += 1;
+        const id = `task${String(launched).padStart(4, "0")}`;
+        const specs = spec.parallel ?? [spec];
+        for (const [index, each] of specs.entries()) agent(id, index, stageFile, each);
+        const request = ({ agent: name = "worker", requested }) => ({ agent: name, task: "Do the work.", ...(requested ? { model: requested } : {}) });
+        const records = (kind) => specs.map((each, index) => ({ launchOperationId: `${id}:${index}`, agentName: each.agent ?? "worker", model: (kind === "running" ? each.turns[0] : each.turns.at(-1))?.[0] ?? line(each.requested ?? "auto/auto"), thinking: each.thinking ?? "max", execution: { kind } }));
+        return {
+          id,
+          entries: [
+            message({ role: "assistant", content: [{ type: "toolCall", id: `launch-${id}`, name: "subagent", arguments: spec.parallel ? { tasks: specs.map(request) } : request(spec) }] }),
+            message({ role: "toolResult", toolCallId: `launch-${id}`, toolName: "subagent", details: { mode: spec.parallel ? "parallel" : "single", results: [], taskRecords: records("running") } }),
+            message({ role: "assistant", content: [{ type: "toolCall", id: `wait-${id}`, name: "subagent", arguments: { action: "wait", id: "task-1" } }] }),
+            message({ role: "toolResult", toolCallId: `wait-${id}`, toolName: "subagent", details: { mode: "management", results: [], taskRecords: records("settled") } }),
+          ],
+        };
+      }
+      // Each stage forks from the last, so its transcript opens with theirs.
+      function stage(name, launches) {
+        const file = join(dir, `${name}.jsonl`);
+        const made = launches.map((spec) => launch(spec, file));
+        history.push(...made.flatMap((entry) => entry.entries));
+        lines(file, [{ type: "session", version: 3, id: name, timestamp: "2026-10-09T01:00:00.000Z", cwd: clone }, ...history]);
+        return { file, ids: made.map((entry) => entry.id) };
+      }
+      return { dir, stage, agent };
+    }
+
+    // A run whose orchestrator stages leave the scripted transcripts behind;
+    // a stage the script does not name delegates one healthy writer on the
+    // model its prompt names. The context replays as Atomic does: it keys
+    // what a run recorded by kind, name and how many times that name has
+    // run, and on resume returns the record instead of running the tool or
+    // stage again. `fresh` lists what a pass really ran, `stages` every
+    // stage it asked for.
+    function chainRun(name, { policy = chainPolicy, inputs = {}, script = {}, exit = false, review = () => approve, sessionModel, record = new Map(), made = transcripts(), runId = `goal-select-test-${randomUUID()}` } = {}) {
+      const path = join(clone, ".atomic", `chain ${name}.jsonc`);
+      // null leaves the policy file as an earlier pass or the test wrote it.
+      if (policy !== null) writeJson(path, policy);
+      const exits = [];
+      const fresh = [];
+      const stages = [];
+      const counts = new Map();
+      const keyOf = (kind, node) => {
+        const count = (counts.get(`${kind}:${node}`) ?? 0) + 1;
+        counts.set(`${kind}:${node}`, count);
+        return `${kind}:${node}:${count}`;
+      };
+      const recorded = async (key, runIt) => {
+        if (!record.has(key)) {
+          record.set(key, JSON.stringify((await runIt()) ?? null));
+          fresh.push(key);
+        }
+        return JSON.parse(record.get(key)) ?? undefined;
+      };
+      const signal = new AbortController().signal;
+      const ctx = {
+        runId,
+        cwd: seed,
+        inputs: launchInputs({ branch_checkout_dir: clone, model_policy_path: path, ...inputs }),
+        ...(sessionModel ? { models: { currentModel: model(sessionModel) } } : {}),
+        tool: (toolName, _args, fn) => recorded(keyOf("tool", toolName), () => fn({ signal })),
+        task(stage, options) {
+          stages.push({ name: stage, options });
+          return recorded(keyOf("stage", stage), async () => {
+            if (stage.startsWith("reverify-")) return { name: stage, text: `${stage} done`, structured: { score: 15, evidence: ["Confirmed."] } };
+            if (!stage.startsWith("orchestrator-")) return { name: stage, text: `${stage} done` };
+            const named = options.prompt.match(/Writer model for this turn: (\S+)\n/)?.[1];
+            const launches = typeof script[stage] === "function" ? script[stage](named) : (script[stage] ?? (named === undefined ? [] : [{ requested: named, turns: [ok(named)] }]));
+            return { name: stage, text: `${stage} done`, sessionFile: Array.isArray(launches) ? made.stage(stage, launches).file : launches.sessionFile };
+          });
+        },
+        parallel(steps) {
+          return Promise.all(
+            steps.map((step) => {
+              stages.push({ name: step.name, options: step });
+              return recorded(keyOf("stage", step.name), async () => ({ name: step.name, text: "{}", structured: review(step.name) }));
+            }),
+          );
+        },
+        async chain() {
+          throw new Error("goal-select does not chain stages");
+        },
+      };
+      if (exit) {
+        ctx.exit = (options) => {
+          exits.push(options);
+          throw Object.assign(new Error("workflow exit"), { exit: options });
+        };
+      }
+      return { ctx, stages, fresh, exits, record, made, runId, policyPath: path };
+    }
+    // The same run id again, with everything the interrupted pass recorded.
+    // `forget` drops records, for a node whose result was not kept.
+    const resumeOf = (first, name, { forget = [], ...options } = {}) => {
+      for (const key of forget) first.record.delete(key);
+      return chainRun(name, { ...options, record: first.record, made: first.made, runId: first.runId });
+    };
+
+    it("reads writer_fallbacks as each writer line's ordered models, and none when the map is absent", () => {
+      assert.deepEqual(policyWriterFallbacks(standingOrder, "policy"), standingOrder);
+      assert.deepEqual(policyWriterFallbacks({ "a/b": [" c/d:high ", "e/f"], "g/h": [] }, "policy"), { "a/b": ["c/d:high", "e/f"], "g/h": [] }, "entries are trimmed; an empty chain is allowed");
+      assert.deepEqual(policyWriterFallbacks(undefined, "policy"), {});
+      assert.equal(modelLine(`${SOL}:xhigh`), modelLine(`${SOL}:high`), "efforts of one model are one line");
+      assert.notEqual(modelLine(`${SOL}:high`), modelLine(`${ASTRA}:high`), "two models of one provider are two lines");
+    });
+
+    it("ships the standing order in the shared policy file, where only the complex tier lets Opus fall back to Sol", () => {
+      const shipped = parseModelPolicy(readFileSync(new URL("../../../../.config/atomic/goal-select.jsonc", import.meta.url), "utf8"));
+      assert.deepEqual(policyWriterFallbacks(shipped.writer_fallbacks, "goal-select.jsonc"), standingOrder);
+      const turn = (tier, writer) => {
+        const { reviewer_model: reviewer, risk_reviewer_model: risk = reviewer } = shipped.review_tiers[tier];
+        const roles = { simple: ["reviewer"], standard: ["completion", "risk"], complex: ["completion", "evidence", "risk"] }[tier];
+        return { writer, writerFallbacks: shipped.writer_fallbacks[modelLine(writer)] ?? [], roles, reviewer: { model: reviewer }, completion: { model: reviewer }, evidence: { model: reviewer }, risk: { model: risk } };
+      };
+      for (const [tier, writer, allowed] of [
+        ["complex", OPUS, [`${SOL}:xhigh`]],
+        ["standard", OPUS, []],
+        ["simple", OPUS, []],
+        ["complex", GROK, [KIMI, GLM, SONNET]],
+        ["standard", GROK, [KIMI, GLM, SONNET]],
+        ["simple", KIMI, [GLM, SONNET]],
+        ["complex", GLM, [SONNET]],
+        ["complex", SONNET, []],
+        ["complex", `${SOL}:xhigh`, []],
+      ]) {
+        assert.deepEqual(writerFallback.writerFallbackChain(turn(tier, writer)).allowed, allowed, `${tier} ${writer}`);
+      }
+    });
+
+    it("fails loudly on a malformed writer_fallbacks, naming the file and the entry", () => {
+      for (const [value, message] of [
+        [[], /^Error: policy\.jsonc: writer_fallbacks must be an object keyed by writer model line/],
+        ["xai/grok-4.7", /must be an object keyed by writer model line/],
+        [null, /must be an object keyed by writer model line/],
+        [{ grok: [KIMI] }, /key "grok" is not a model line: write provider\/model without an effort suffix\.$/],
+        [{ [GROK]: [KIMI] }, /key "xai\/grok-4\.7:xhigh" is not a model line/],
+        [{ fallbacks: { "xai/grok-4.7": [KIMI] } }, /key "fallbacks" is not a model line/],
+        [{ "xai/grok-4.7": KIMI }, /"xai\/grok-4\.7" must list its fallback models in order, as an array\.$/],
+        [{ "xai/grok-4.7": [KIMI, 7] }, /"xai\/grok-4\.7" entry 2 must be a model id such as "kimi-coding\/k3:max", not 7\.$/],
+        [{ "xai/grok-4.7": ["kimi"] }, /entry 1 must be a model id .* not "kimi"\.$/],
+        [{ "xai/grok-4.7": [""] }, /entry 1 must be a model id/],
+        [{ "xai/grok-4.7": ["kimi-coding/k3:maxx"] }, /entry "kimi-coding\/k3:maxx" has an unknown effort "maxx"; use one of off, minimal, low, medium, high, xhigh, max\.$/],
+        [{ "xai/grok-4.7": ["xai/grok-4.7:high"] }, /"xai\/grok-4\.7" lists its own model line \("xai\/grok-4\.7:high"\) as a fallback\.$/],
+        [{ "xai/grok-4.7": [KIMI, "kimi-coding/k3:high"] }, /lists the model line kimi-coding\/k3 twice\.$/],
+      ]) {
+        assert.throws(() => policyWriterFallbacks(value, "policy.jsonc"), message, JSON.stringify(value));
+      }
+    });
+
+    it("stops a run whose policy file has a malformed writer_fallbacks before any stage, and shows the chains in resolve_only", async () => {
+      const broken = chainRun("malformed", { policy: { ...sharedPolicy, writer_fallbacks: { "xai/grok-4.7": ["kimi-coding/k3:maxx"] } }, inputs: { writer_model: GROK } });
+      const policyPath = join(clone, ".atomic", "chain malformed.jsonc");
+      await assert.rejects(goalSelect.run(broken.ctx), (error) => {
+        assert.ok(error.message.startsWith(`${policyPath}: writer_fallbacks "xai/grok-4.7" entry "kimi-coding/k3:maxx" has an unknown effort "maxx"`), error.message);
+        return true;
+      });
+      assert.deepEqual(broken.stages, [], "no stage ran");
+      await assert.rejects(resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: policyPath }), /writer_fallbacks "xai\/grok-4\.7" entry "kimi-coding\/k3:maxx" has an unknown effort/);
+
+      writeJson(policyPath, chainPolicy);
+      assert.deepEqual((await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: policyPath })).writer_fallbacks, standingOrder);
+    });
+
+    it("inherits the shared file's chains in a project policy without its own, and lets an empty map switch them off", async () => {
+      const projectPath = join(clone, ".atomic", "chain project.jsonc");
+      const preview = async (project) => {
+        writeJson(projectPath, project);
+        return (await resolveOnly(seed, { branch_checkout_dir: clone, model_policy_path: projectPath })).writer_fallbacks;
+      };
+      assert.deepEqual(await preview({ review_tiers: sharedPolicy.review_tiers }), {}, "no map anywhere: no fallbacks");
+      writeJson(sharedDefaultPath, chainPolicy);
+      try {
+        assert.deepEqual(await preview({ review_tiers: sharedPolicy.review_tiers }), standingOrder, "inherited from the shared file");
+        assert.deepEqual(await preview({ writer_fallbacks: {} }), {}, "an empty map of its own switches them off");
+        assert.deepEqual(await preview({ writer_fallbacks: { "xai/grok-4.7": [GLM] } }), { "xai/grok-4.7": [GLM] }, "its own map replaces the shared one whole");
+        writeJson(sharedDefaultPath, { ...sharedPolicy, writer_fallbacks: { grok: [] } });
+        await assert.rejects(preview({ review_tiers: sharedPolicy.review_tiers }), (error) => {
+          assert.ok(error.message.startsWith(`${sharedDefaultPath}: writer_fallbacks key "grok" is not a model line`), error.message);
+          return true;
+        });
+        assert.equal((await loadGoalSelectFrom(root)).name, "goal-select", "a malformed shared chain does not stop Atomic loading the workflow");
+      } finally {
+        writeJson(sharedDefaultPath, sharedPolicy);
+      }
+    });
+
+    it("sets a fallback on a reviewer's line aside per tier: Opus may fall back to Sol on the complex tier and not on the standard tier", async () => {
+      const turn = (tier) => ({
+        tier,
+        writer: OPUS,
+        writerFallbacks: standingOrder["anthropic/claude-opus-5-5"],
+        orchestrator: { model: `${SOL}:medium` },
+        roles: tier === "complex" ? ["completion", "evidence", "risk"] : ["completion", "risk"],
+        completion: { model: tier === "complex" ? `${ASTRA}:high` : SOL_REVIEWER },
+        evidence: { model: `${ASTRA}:high` },
+        risk: { model: `${ASTRA}:xhigh` },
+      });
+      assert.deepEqual(writerFallback.writerFallbackChain(turn("complex")), { declared: [`${SOL}:xhigh`], allowed: [`${SOL}:xhigh`], refused: [] });
+      assert.deepEqual(writerFallback.writerFallbackChain(turn("standard")), {
+        declared: [`${SOL}:xhigh`],
+        allowed: [],
+        refused: [{ model: `${SOL}:xhigh`, reason: `on the review panel as completion (${SOL_REVIEWER})` }],
+      });
+      assert.deepEqual(writerFallback.writerCandidates(turn("complex")), [OPUS, `${SOL}:xhigh`]);
+      assert.deepEqual(writerFallback.writerCandidates(turn("standard")), [OPUS]);
+      assert.deepEqual(writerFallback.writerFallbackChain({ ...turn("complex"), reverify: `${SOL}:low` }).refused, [{ model: `${SOL}:xhigh`, reason: `re-verifies findings (${SOL}:low)` }], "the re-verifier judges the writer too");
+
+      const script = { "orchestrator-1": [{ requested: OPUS, turns: [failed(OPUS, usageLimit)] }] };
+      const complex = chainRun("opus complex", { inputs: { review_tier: "complex", writer_model: OPUS }, script });
+      assert.equal((await goalSelect.run(complex.ctx)).status, "complete");
+      assert.deepEqual(stageNames(complex), ["orchestrator-1", "orchestrator-1-continued-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
+      assert.deepEqual(orchestrators(complex).map(writerNamed), [OPUS, `${SOL}:xhigh`], "the continued stage is told the policy's model and effort");
+
+      const standard = chainRun("opus standard", { inputs: { review_tier: "standard", writer_model: OPUS }, script });
+      await assert.rejects(goalSelect.run(standard.ctx), (error) => {
+        assert.ok(error.message.includes(`No fallback writer is left after ${OPUS} (the policy allows none for ${OPUS}).`), error.message);
+        assert.ok(error.message.includes(`Refused as fallbacks: ${SOL}:xhigh, on the review panel as completion (${SOL_REVIEWER}).`), error.message);
+        return true;
+      });
+      assert.deepEqual(stageNames(standard), ["orchestrator-1"], "Sol never wrote and nothing was reviewed");
+    });
+
+    it("bars a fallback onto the launching session's model under a policy that names no reverify_model, since that model then re-verifies", async () => {
+      const script = { "orchestrator-1": [{ requested: OPUS, turns: [failed(OPUS, usageLimit)] }] };
+      // A project policy with a defaults block of its own does not inherit the shared file's re-verifier.
+      const ownDefaults = { ...chainPolicy, defaults: { orchestrator_model: sharedPolicy.defaults.orchestrator_model, review_tier: "complex" } };
+      const unpinned = chainRun("opus session model", { policy: ownDefaults, inputs: { review_tier: "complex", writer_model: OPUS }, script, sessionModel: SOL });
+      await assert.rejects(goalSelect.run(unpinned.ctx), (error) => {
+        assert.ok(error.message.includes(`Refused as fallbacks: ${SOL}:xhigh, re-verifies findings as the launching session's model, no reverify_model being set (${SOL}).`), error.message);
+        return true;
+      });
+      assert.deepEqual(stageNames(unpinned), ["orchestrator-1"]);
+
+      // The shared defaults name Astra, so the session's model judges nothing and the policy's fallback stands.
+      assert.equal(chainPolicy.defaults.reverify_model, `${ASTRA}:high`);
+      for (const [label, policy] of [["the shared defaults", chainPolicy], ["its own key", { ...ownDefaults, reverify_model: `${ASTRA}:high` }]]) {
+        const pinned = chainRun(`opus session model pinned by ${label}`, { policy, inputs: { review_tier: "complex", writer_model: OPUS }, script, sessionModel: SOL });
+        assert.equal((await goalSelect.run(pinned.ctx)).status, "complete", label);
+        assert.deepEqual(orchestrators(pinned).map(writerNamed), [OPUS, `${SOL}:xhigh`], `a re-verifier named by ${label} on another line lets the policy's fallback through`);
+      }
+
+      // A launch writer on the session's model has that exposure today; it is not refused here.
+      const launch = chainRun("sol writer session model", { policy: ownDefaults, inputs: { review_tier: "complex", writer_model: `${SOL}:xhigh` }, sessionModel: SOL });
+      assert.equal((await goalSelect.run(launch.ctx)).status, "complete");
+      assert.equal(orchestrators(launch)[0].options.isFallbackModelAllowed(model("anthropic/claude-opus-5-5"), "xhigh"), true);
+
+      const kimiOrchestrator = { ...sharedPolicy, defaults: { orchestrator_model: "kimi-coding/k3:high", review_tier: "complex" } };
+      const gated = chainRun("gate session model", { policy: kimiOrchestrator, inputs: { review_tier: "complex", writer_model: GROK, orchestrator_model: "" }, sessionModel: SOL });
+      await goalSelect.run(gated.ctx);
+      assert.equal(orchestrators(gated)[0].options.isFallbackModelAllowed(model(SOL), "high"), false, "nor may a delegated agent fall back onto it");
+      const gatedPinned = chainRun("gate session model pinned", { policy: { ...kimiOrchestrator, reverify_model: `${ASTRA}:high` }, inputs: { review_tier: "complex", writer_model: GROK, orchestrator_model: "" }, sessionModel: SOL });
+      await goalSelect.run(gatedPinned.ctx);
+      assert.equal(orchestrators(gatedPinned)[0].options.isFallbackModelAllowed(model(SOL), "high"), true, "with the re-verifier named, the session's model is no judge");
+    });
+
+    it("gives the orchestrator a fallback gate its delegated agents inherit: no reviewer's line, and not the orchestrator's own model that Atomic appends", async () => {
+      const run = chainRun("gate", { inputs: { review_tier: "standard", writer_model: KIMI } });
+      assert.equal((await goalSelect.run(run.ctx)).status, "complete");
+      const [orchestrator, ...reviewers] = run.stages;
+      const gate = orchestrator.options.isFallbackModelAllowed;
+      assert.equal(orchestrator.options.model, `${SOL}:medium`);
+      assert.deepEqual(orchestrator.options.fallbackModels, [], "the stage's own chain stays empty");
+      for (const effort of ["medium", "high", "xhigh", undefined]) {
+        assert.equal(gate(model(SOL), effort), false, `the orchestrator's model, which is also the completion reviewer's line, at ${effort}`);
+        assert.equal(gate(model(ASTRA), effort), false, `the risk reviewer's line at ${effort}`);
+      }
+      for (const allowed of [GLM, SONNET, KIMI, "openai/gpt-6.1-sol-fast"]) assert.equal(gate(model(allowed), "max"), true, allowed);
+      assert.ok(reviewers.length > 0 && reviewers.every((stage) => stage.options.isFallbackModelAllowed === undefined), "reviewer stages are unchanged");
+
+      const kimiOrchestrator = { ...sharedPolicy, defaults: { ...sharedPolicy.defaults, orchestrator_model: "kimi-coding/k3:high" } };
+      const other = chainRun("gate kimi orchestrator", { policy: kimiOrchestrator, inputs: { review_tier: "complex", writer_model: GROK, orchestrator_model: "" } });
+      await goalSelect.run(other.ctx);
+      const otherGate = other.stages[0].options.isFallbackModelAllowed;
+      assert.equal(otherGate(model(KIMI), "max"), false, "whatever model orchestrates is the one Atomic appends");
+      assert.equal(otherGate(model(SOL), "high"), true, "Sol is neither orchestrator nor reviewer here");
+      assert.equal(otherGate(model(ASTRA), "high"), false);
+      assert.equal(writerFallback.delegatedFallbackGate({ roles: ["reviewer"], reviewer: { model: "a/b:high" }, orchestrator: { model: "c/d" }, reverify: "e/f:low" })("e/f:max"), false, "a model id string is judged by its line");
+    });
+
+    it("moves the writer down the chain in policy order when its model fails, keeps it there for later turns, and records who wrote", async () => {
+      const run = chainRun("walk", {
+        inputs: { review_tier: "complex", writer_model: GROK, max_turns: 2 },
+        review: (name) => (name.endsWith("-1") ? keepGoing : approve),
+        script: {
+          "orchestrator-1": [{ agent: "grok-fixer", requested: GROK, turns: [ok(GROK), failed(GROK, noCredit)], thinking: "xhigh" }],
+          "orchestrator-1-continued-1": [{ requested: KIMI, turns: [ok(KIMI), failed(KIMI, usageLimit)] }],
+        },
+      });
+      const result = await goalSelect.run(run.ctx);
+      assert.equal(result.status, "complete");
+      assert.deepEqual(stageNames(run), [
+        "orchestrator-1",
+        "orchestrator-1-continued-1",
+        "orchestrator-1-continued-2",
+        "completion-reviewer-1",
+        "evidence-reviewer-1",
+        "risk-reviewer-1",
+        "orchestrator-2",
+        "completion-reviewer-2",
+        "evidence-reviewer-2",
+        "risk-reviewer-2",
+      ]);
+      const stages = orchestrators(run);
+      assert.deepEqual(stages.map(writerNamed), [GROK, KIMI, GLM, GLM], "Grok, then Kimi, then GLM, which also writes turn 2");
+      assert.ok(stages.every((stage) => typeof stage.options.isFallbackModelAllowed === "function"), "every orchestrator stage of the run carries the gate");
+      assert.ok(stages.every((stage) => stage.options.prompt.includes("never finish the work yourself and never start an agent on another model")), "and is told to leave the move to the workflow");
+      assert.ok(stages.every((stage) => stage.options.prompt.includes("name the writer model on every agent that edits or commits")), "and what an unnamed writer costs");
+      const continued = stages[1].options;
+      assert.match(continued.prompt, /<writer_change>\nThe implementation agent asked for xai\/grok-4\.7:xhigh did not do its work on that model, though its task came back as completed/);
+      assert.ok(continued.prompt.includes(noCredit), "the continued stage is told the provider's own error");
+      const sessionOf = (stage) => JSON.parse(run.record.get(`stage:${stage}:1`)).sessionFile;
+      assert.deepEqual([continued.context, continued.forkFromSessionFile], ["fork", sessionOf("orchestrator-1")], "it continues the stage it follows");
+      assert.deepEqual([stages[2].options.context, stages[2].options.forkFromSessionFile], ["fork", sessionOf("orchestrator-1-continued-1")]);
+
+      const ledger = ledgerOf(run);
+      assert.deepEqual(ledger.writer_moves.map((move) => [move.turn, move.attempt, move.kind, move.from, move.to]), [[1, 0, "fallback", GROK, KIMI], [1, 1, "fallback", KIMI, GLM]]);
+      assert.deepEqual(
+        ledger.delegations.map((entry) => [entry.turn, entry.stage, entry.agent, entry.writer, entry.requested, entry.resolved, entry.models, entry.wrote, entry.error]),
+        [
+          [1, "orchestrator-1", "grok-fixer", true, GROK, "xai/grok-4.7", ["xai/grok-4.7"], ["xai/grok-4.7"], noCredit],
+          [1, "orchestrator-1-continued-1", "worker", true, KIMI, "kimi-coding/k3", ["kimi-coding/k3"], ["kimi-coding/k3"], usageLimit],
+          [1, "orchestrator-1-continued-2", "worker", true, GLM, "zai/glm-5.3", ["zai/glm-5.3"], ["zai/glm-5.3"], undefined],
+          [2, "orchestrator-2", "worker", true, GLM, "zai/glm-5.3", ["zai/glm-5.3"], ["zai/glm-5.3"], undefined],
+        ],
+        "each task once, though every later transcript opens with the earlier ones",
+      );
+      const moved = ledger.lifecycle.filter((event) => event.event === "writer_fallback").map((event) => event.summary);
+      assert.equal(moved.length, 2);
+      assert.ok(moved[0].startsWith(`Writer moved from ${GROK} to ${KIMI}: grok-fixer on ${GROK} stopped on a model error: ${noCredit}`), moved[0]);
+      assert.ok(moved[1].startsWith(`Writer moved from ${KIMI} to ${GLM}: `), moved[1]);
+      const [first] = ledger.receipts;
+      assert.ok(first.summary.includes(`grok-fixer ${ledger.delegations[0].task.split(":")[0]} asked for ${GROK}, ran on xai/grok-4.7, wrote files on xai/grok-4.7, ended on ${GROK} with a model error (${noCredit})`), first.summary);
+      assert.ok(first.summary.includes(`asked for ${GLM}, ran on zai/glm-5.3, wrote files on zai/glm-5.3, ended on ${GLM}`), first.summary);
+      assert.ok(result.result.includes(first.summary), "the final report carries it");
+      assert.deepEqual(JSON.parse(readFileSync(result.ledger_path, "utf8")).delegations, ledger.delegations, "reviewers read the same record");
+    });
+
+    it("stops resumable when the chain is used up, records why, and a resume replays what ran and continues that turn from the launch writer", async () => {
+      const script = {
+        "orchestrator-1": [{ requested: KIMI, turns: [failed(KIMI, usageLimit)] }],
+        "orchestrator-1-continued-1": [{ requested: GLM, turns: [failed(GLM, "500 upstream error")] }],
+        "orchestrator-1-continued-2": [{ requested: SONNET, turns: [ok(SONNET), failed(SONNET, "invalid api key")] }],
+      };
+      const first = chainRun("exhausted", { inputs: { review_tier: "complex", writer_model: KIMI }, script, exit: true });
+      await assert.rejects(goalSelect.run(first.ctx), (error) => {
+        assert.deepEqual(error.exit, first.exits[0]);
+        return true;
+      });
+      const [stop] = first.exits;
+      assert.deepEqual([stop.status, stop.resumable], ["failed", true], "Atomic keeps a failed, resumable exit in its resume catalog");
+      assert.ok(stop.reason.startsWith(`goal-select stopped in turn 1 with the work unfinished: worker on ${SONNET} stopped on a model error: invalid api key. No fallback writer is left after ${SONNET} (the policy allows ${GLM}, then ${SONNET} for ${KIMI}).`), stop.reason);
+      assert.ok(stop.reason.endsWith(`Put the provider right, then resume this run: the turn continues from ${KIMI}.`), stop.reason);
+      assert.deepEqual(stageNames(first), ["orchestrator-1", "orchestrator-1-continued-1", "orchestrator-1-continued-2"], "no reviewer ran and nothing else wrote");
+      const stopped = ledgerOf(first);
+      assert.equal(stopped.status, "active", "no decision closes the ledger, so a resume continues it");
+      assert.deepEqual(stopped.decisions, []);
+      assert.deepEqual(stopped.receipts, []);
+      assert.deepEqual(stopped.writer_moves.map((move) => [move.kind, move.from, move.to]), [["fallback", KIMI, GLM], ["fallback", GLM, SONNET], ["stop", SONNET, undefined]]);
+      assert.equal(stopped.delegations.length, 3);
+      assert.equal(stopped.lifecycle.at(-1).event, "writer_stopped");
+
+      const second = resumeOf(first, "exhausted", { inputs: { review_tier: "complex", writer_model: KIMI }, script, exit: true });
+      const result = await goalSelect.run(second.ctx);
+      assert.equal(result.status, "complete");
+      assert.deepEqual(second.exits, []);
+      assert.deepEqual(stageNames(second), [
+        "orchestrator-1",
+        "orchestrator-1-continued-1",
+        "orchestrator-1-continued-2",
+        "orchestrator-1-continued-3",
+        "completion-reviewer-1",
+        "evidence-reviewer-1",
+        "risk-reviewer-1",
+      ]);
+      assert.deepEqual(second.fresh, ["stage:orchestrator-1-continued-3:1", "stage:completion-reviewer-1:1", "stage:evidence-reviewer-1:1", "stage:risk-reviewer-1:1"], "every tool and stage the first pass recorded was replayed by name and count, not run again");
+      const resumed = orchestrators(second).at(-1);
+      assert.equal(writerNamed(resumed), KIMI, "back at the top of the chain");
+      assert.match(resumed.options.prompt, /<writer_change>\nThis run stopped in this turn because the writer's model was not available and no fallback writer was left/);
+      const finished = ledgerOf(second);
+      assert.equal(finished.writer_moves.length, 3, "the replayed stages decide nothing again");
+      assert.deepEqual(finished.delegations.map((entry) => [entry.requested, entry.error]), [[KIMI, usageLimit], [GLM, "500 upstream error"], [SONNET, "invalid api key"], [KIMI, undefined]]);
+      assert.equal(finished.receipts.length, 1);
+    });
+
+    it("stops the same way with no chain in the policy, and throws the reason where the runtime has no exit", async () => {
+      const run = chainRun("no chain", {
+        policy: sharedPolicy,
+        inputs: { review_tier: "complex", writer_model: KIMI },
+        script: { "orchestrator-1": [{ requested: KIMI, turns: [ok(KIMI), failed(KIMI, usageLimit)] }] },
+      });
+      await assert.rejects(goalSelect.run(run.ctx), (error) => {
+        assert.ok(error.message.startsWith(`goal-select stopped in turn 1 with the work unfinished: worker on ${KIMI} stopped on a model error: ${usageLimit}. No fallback writer is left after ${KIMI} (the policy allows none for ${KIMI}).`), error.message);
+        return true;
+      });
+      assert.deepEqual(stageNames(run), ["orchestrator-1"]);
+      assert.equal(ledgerOf(run).status, "active");
+    });
+
+    it("only moves down the chain when the orchestrator keeps asking for a model that is not the one named", async () => {
+      const stubborn = () => [{ requested: GROK, turns: [failed(GROK, noCredit)], thinking: "xhigh" }];
+      const run = chainRun("stubborn", {
+        inputs: { review_tier: "complex", writer_model: GROK },
+        script: { "orchestrator-1": stubborn, "orchestrator-1-continued-1": stubborn, "orchestrator-1-continued-2": stubborn, "orchestrator-1-continued-3": stubborn },
+      });
+      await assert.rejects(goalSelect.run(run.ctx), /No fallback writer is left after xai\/grok-4\.7:xhigh/);
+      assert.deepEqual(orchestrators(run).map(writerNamed), [GROK, KIMI, GLM, SONNET], "one stage per writer the policy allows, then the stop");
+    });
+
+    it("decides a failure over the last launch: one of two parallel writers failing moves the writer, whichever was recorded last", async () => {
+      for (const [label, parallel] of [
+        ["the failed one first", [{ requested: KIMI, turns: [ok(KIMI), failed(KIMI, usageLimit)] }, { requested: KIMI, turns: [ok(KIMI)] }]],
+        ["the failed one last", [{ requested: KIMI, turns: [ok(KIMI)] }, { requested: KIMI, turns: [failed(KIMI, usageLimit)] }]],
+      ]) {
+        const run = chainRun(`parallel ${label}`, { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [{ parallel }] } });
+        assert.equal((await goalSelect.run(run.ctx)).status, "complete", label);
+        assert.deepEqual(orchestrators(run).map(writerNamed), [KIMI, GLM], label);
+        const [move] = ledgerOf(run).writer_moves;
+        assert.equal(move.reason, `worker on ${KIMI} stopped on a model error: ${usageLimit}`, label);
+        assert.deepEqual(ledgerOf(run).delegations.slice(0, 2).map((entry) => entry.task.split(":")[1]), ["0", "1"], "two tasks of one launch");
+      }
+
+      // An earlier launch that failed is behind the orchestrator once it has launched again and that launch held.
+      const recovered = chainRun("parallel recovered", {
+        inputs: { review_tier: "complex", writer_model: KIMI },
+        script: { "orchestrator-1": [{ parallel: [{ requested: KIMI, turns: [failed(KIMI, "529 overloaded")] }, { requested: KIMI, turns: [ok(KIMI)] }] }, { requested: KIMI, turns: [ok(KIMI)] }] },
+      });
+      assert.equal((await goalSelect.run(recovered.ctx)).status, "complete");
+      assert.deepEqual(orchestrators(recovered).map(writerNamed), [KIMI]);
+
+      // Both writers of the last launch down, on two models of the chain: on from the further one.
+      const both = chainRun("parallel both", {
+        inputs: { review_tier: "complex", writer_model: GROK },
+        script: { "orchestrator-1": [{ parallel: [{ requested: KIMI, turns: [failed(KIMI, usageLimit)] }, { requested: GROK, turns: [failed(GROK, noCredit)], thinking: "xhigh" }] }] },
+      });
+      assert.equal((await goalSelect.run(both.ctx)).status, "complete");
+      assert.deepEqual(orchestrators(both).map(writerNamed), [GROK, GLM], "only ever down the chain");
+    });
+
+    it("treats a writer Atomic started on the orchestrator's model, for want of credentials, as a writer that failed", async () => {
+      // Atomic skips a requested model whose provider has no credentials and
+      // starts the agent on the session's own model: not a fallback, so no
+      // gate sees it. Here the agent got no further than reading.
+      const script = { "orchestrator-1": [{ requested: KIMI, turns: [reading(SOL)], thinking: "high" }] };
+      const moved = chainRun("no credentials", { inputs: { review_tier: "standard", writer_model: KIMI }, script });
+      assert.equal((await goalSelect.run(moved.ctx)).status, "complete");
+      assert.deepEqual(orchestrators(moved).map(writerNamed), [KIMI, GLM]);
+      const [move] = ledgerOf(moved).writer_moves;
+      assert.deepEqual([move.kind, move.from, move.to], ["fallback", KIMI, GLM]);
+      assert.equal(move.reason, `worker on ${KIMI} never ran on it: Atomic started the agent on ${SOL}, as it does when the requested model's provider has no credentials`);
+
+      const last = chainRun("no credentials, no chain", { policy: sharedPolicy, inputs: { review_tier: "complex", writer_model: KIMI }, script });
+      await assert.rejects(goalSelect.run(last.ctx), /never ran on it: Atomic started the agent on openai\/gpt-6\.1-sol.*No fallback writer is left after kimi-coding\/k3:max/);
+
+      // Had it written, on a tier where Sol reviews, that is Sol's own work.
+      const wrote = chainRun("no credentials, reviewer's line", { inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": [{ requested: KIMI, turns: [ok(SOL)], thinking: "high" }] } });
+      assert.equal((await goalSelect.run(wrote.ctx)).status, "needs_human", "it is refused rather than handed to the next writer");
+      assert.deepEqual(stageNames(wrote), ["orchestrator-1"]);
+      assert.deepEqual(ledgerOf(wrote).writer_moves, []);
+    });
+
+    it("carries on when a later launch finished the work, and leaves a run without a writer model as it was", async () => {
+      const retried = chainRun("retried", {
+        inputs: { review_tier: "complex", writer_model: KIMI },
+        script: { "orchestrator-1": [{ requested: KIMI, turns: [failed(KIMI, "529 overloaded")] }, { requested: KIMI, turns: [ok(KIMI)] }, { agent: "codebase-locator", turns: [failed(SOL, usageLimit)], thinking: "low" }] },
+      });
+      assert.equal((await goalSelect.run(retried.ctx)).status, "complete");
+      assert.deepEqual(orchestrators(retried).map((stage) => stage.name), ["orchestrator-1"], "the last writer launch ended well; a helper's failure is not the writer's");
+      assert.deepEqual(ledgerOf(retried).delegations.map((entry) => [entry.agent, entry.writer, entry.asked, entry.requested]), [["worker", true, true, KIMI], ["worker", true, true, KIMI], ["codebase-locator", false, false, null]]);
+
+      const unset = chainRun("no writer", { inputs: { review_tier: "complex" }, script: { "orchestrator-1": [{ turns: [failed(GLM, usageLimit)] }] } });
+      assert.equal((await goalSelect.run(unset.ctx)).status, "complete");
+      assert.equal(writerNamed(orchestrators(unset)[0]), undefined);
+      assert.equal(typeof orchestrators(unset)[0].options.isFallbackModelAllowed, "function", "the gate does not depend on a writer model");
+    });
+
+    it("closes before review when a task wrote on a reviewer's line, whatever model it asked for, and never moves the writer for a task that named none", async () => {
+      // The orchestrator leaves the model off, so the agent runs on the session's model.
+      const unnamed = chainRun("wrote, no model", { inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": [{ turns: [ok(SOL)], thinking: "high" }] } });
+      const closed = await goalSelect.run(unnamed.ctx);
+      assert.equal(closed.status, "needs_human");
+      assert.deepEqual(stageNames(unnamed), ["orchestrator-1"], "no reviewer was dispatched");
+      const [entry] = ledgerOf(unnamed).delegations;
+      assert.deepEqual([entry.writer, entry.asked, entry.requested, entry.wrote], [true, false, null, [SOL]], "it counts as a writer because it wrote, not because of what it asked");
+      assert.equal(
+        closed.remaining_work,
+        `Turn 1 was not sent to review: worker ${entry.task.split(":")[0]} (turn 1, asked for no model) wrote files on ${SOL}, a model line that is on the review panel as completion (${SOL_REVIEWER}). A model line never reviews its own work: review this change on a tier whose reviewers differ, or have it rewritten.`,
+      );
+      const [decision] = ledgerOf(unnamed).decisions;
+      assert.deepEqual([decision.decision, decision.pre_review, decision.pre_review_tasks], ["needs_human", "lineage", [entry.task]]);
+
+      // A model that is on neither the chain nor asked of the workflow, named outright.
+      const offChain = chainRun("wrote, off chain", { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [{ agent: "astra-fixer", requested: `${ASTRA}:xhigh`, turns: [ok(ASTRA)], thinking: "xhigh" }] } });
+      assert.equal((await goalSelect.run(offChain.ctx)).status, "needs_human");
+      assert.deepEqual(stageNames(offChain), ["orchestrator-1"]);
+      assert.deepEqual(ledgerOf(offChain).delegations.map((each) => [each.writer, each.asked, each.wrote]), [[true, false, [ASTRA]]]);
+
+      // The same two, where no reviewer shares the line: recorded, reviewed.
+      const elsewhere = chainRun("wrote, no model, complex", { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [{ turns: [ok(SOL)], thinking: "high" }, { agent: "debugger", requested: "openai-codex/gpt-6-luna", turns: [ok("openai-codex/gpt-6-luna")] }] } });
+      assert.equal((await goalSelect.run(elsewhere.ctx)).status, "complete");
+      assert.deepEqual(ledgerOf(elsewhere).delegations.map((each) => [each.agent, each.writer, each.asked, each.wrote]), [["worker", true, false, [SOL]], ["debugger", true, false, ["openai-codex/gpt-6-luna"]]]);
+
+      // A task that named no model has no model to have failed: no move, whatever became of it.
+      for (const [label, turns] of [["its model failed", [failed(GLM, usageLimit)]], ["it wrote and then its model failed", [ok(GLM), failed(GLM, usageLimit)]], ["it ran on a model that is not the writer's", [ok(GLM)]]]) {
+        const run = chainRun(`no model, ${label}`, { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [{ turns }] } });
+        assert.equal((await goalSelect.run(run.ctx)).status, "complete", label);
+        assert.deepEqual(orchestrators(run).map((stage) => stage.name), ["orchestrator-1"], label);
+        assert.deepEqual(ledgerOf(run).writer_moves, [], label);
+      }
+    });
+
+    it("does not take a helper for a writer: explorer and reviewer agents on the session's model leave a healthy standard-tier run alone", async () => {
+      // The shapes of last night's helper transcripts (opus-reviewer 79e61e7d
+      // in unit 5's third turn, and codebase-locator), put on Sol: every
+      // agent launched with progress on writes and edits its progress note
+      // under Atomic's sessions folder, and a reviewing helper writes its
+      // evidence under /tmp and under the checkout's ignored .atomic folder.
+      const progress = (id) => join(home, ".atomic", "agent", "sessions", "--clone--", "subagent-artifacts", "progress", id, "progress.md");
+      const run = chainRun("helpers on the session model", {
+        inputs: { review_tier: "standard", writer_model: KIMI },
+        script: {
+          "orchestrator-1": [
+            { requested: KIMI, turns: [ok(KIMI)] },
+            { agent: "codebase-locator", turns: [did(SOL, { read: ["apps/web/src/pages/Home.vue", "README.md"] }), did(SOL, { bash: ["git log --oneline -5 | grep commit", "rg -n useFocusReturn apps > /tmp/found.txt", "git commit --dry-run", "git commit --allow-empty -m probe", "echo 'git commit'"] }), reading(SOL)], thinking: "low" },
+            {
+              agent: "sol-reviewer",
+              forkedFrom: SOL,
+              turns: [
+                did(SOL, { write: [progress("79e61e7d")] }),
+                did(SOL, { read: ["apps/api/src/billing/gate.ts"], bash: ["git status --short", "git diff origin/main --stat"] }),
+                did(SOL, { edit: [progress("79e61e7d")] }),
+                did(SOL, { write: [join(clone, ".atomic", "sol-completion.spec.ts"), join(clone, ".atomic", "sol-browser-init.js"), "/tmp/unit5-evidence/review.md", "gate.log"] }),
+                did(SOL, { bash: ["pnpm --filter @casefilecrafter/e2e exec playwright test -c .atomic/sol-completion.config.ts > .atomic/logs/sol.log 2>&1; tail -3 .atomic/logs/sol.log"] }),
+                did(SOL, { refusedWrite: ["apps/api/src/billing/gate.ts"] }),
+                reading(SOL),
+              ],
+              thinking: "high",
+            },
+          ],
+        },
+      });
+      const result = await goalSelect.run(run.ctx);
+      assert.equal(result.status, "complete", result.remaining_work);
+      assert.deepEqual(stageNames(run), ["orchestrator-1", "completion-reviewer-1", "risk-reviewer-1"]);
+      assert.deepEqual(
+        ledgerOf(run).delegations.map((entry) => [entry.agent, entry.writer, entry.models, entry.wrote]),
+        [["worker", true, ["kimi-coding/k3"], ["kimi-coding/k3"]], ["codebase-locator", false, [SOL], []], ["sol-reviewer", false, [SOL], []]],
+        "they ran on the reviewer's line and wrote nothing a reviewer reads",
+      );
+    });
+
+    it("counts as writing an accepted edit or write to a file of the checkout that Git does not ignore; nothing else, a commit included", () => {
+      const made = transcripts();
+      const wroteOf = (turns, options = {}) => {
+        const { file } = made.stage(`evidence-${randomUUID().slice(0, 8)}`, [{ turns, ...options }]);
+        return writerFallback.delegatedTasks(file, clone).at(-1).wrote;
+      };
+      for (const [label, actions, wrote] of [
+        ["an edit, by a path relative to the agent's directory", { edit: ["src/feature.ts"] }, true],
+        ["a write, by an absolute path", { write: [join(clone, "docs", "new.md")] }, true],
+        ["one section of several in an edit", { edit: ["/tmp/notes.md", "apps/api/src/gate.ts"] }, true],
+        ["a file at the top of the checkout whose name begins with two dots", { write: ["..feature.js"] }, true],
+        ["the same by an absolute path, in an edit", { edit: [join(clone, "..hidden.ts")] }, true],
+        ["a write Atomic refused", { refusedWrite: ["src/feature.ts"] }, false],
+        ["an edit that failed", { failedEdit: ["src/feature.ts", "apps/api/src/gate.ts"] }, false],
+        ["a commit: the text of a command is not authorship, and committing work is not writing it", { bash: ["git add -A; git commit -m 'Close the gate'", `git -C "${clone}" -c user.name=writer commit --amend --no-edit`] }, false],
+        ["a command that only mentions a commit, or makes an empty one", { bash: ["git commit --dry-run", "git commit --allow-empty -m probe", "echo 'git commit'"] }, false],
+        ["the folder above the checkout, and a file beside it", { write: ["..", "../sibling/notes.ts", join(dirname(clone), "..feature.js")] }, false],
+        ["a file outside the checkout", { write: ["/tmp/evidence/review.md", join(home, "progress.md")] }, false],
+        ["a file of the checkout that Git ignores", { write: [".atomic/notes/acceptance.md", "gate.log"], edit: [join(clone, ".atomic", "probe.spec.ts")] }, false],
+        ["the repository's own folder", { write: [".git/COMMIT_EDITMSG"] }, false],
+        ["a shell redirect, sed -i or a formatter: not seen", { bash: ["echo done > src/feature.ts", "sed -i '' s/a/b/ src/feature.ts", "pnpm format"] }, false],
+        ["shell commands that only read", { bash: ["git log --oneline | grep commit", "git show HEAD # the last commit", "git commit-tree --help", "git status"] }, false],
+        ["reading", { read: ["src/feature.ts"] }, false],
+      ]) {
+        assert.deepEqual(wroteOf([did(KIMI, actions)]), wrote ? ["kimi-coding/k3"] : [], label);
+      }
+      assert.deepEqual(wroteOf([ok(KIMI), reading(SOL), did(GROK, { bash: ["git commit -m x"] }), did(GLM, { write: ["docs/more.md"] })]), ["kimi-coding/k3", "zai/glm-5.3"], "each model that wrote, and not one that only read or committed");
+      assert.deepEqual(wroteOf([reading(SOL)], { forkedFrom: SOL }), [], "a forked agent's transcript opens with its parent's writing, which is not its own");
+      const { file } = made.stage("evidence-no-checkout", [{ turns: [did(KIMI, { write: ["/tmp/evidence/review.md"] })] }]);
+      assert.deepEqual(writerFallback.delegatedTasks(file).at(-1).wrote, ["kimi-coding/k3"], "with no checkout to ask, every file counts");
+      const gone = join(root, "removed clone");
+      assert.deepEqual(writerFallback.delegatedTasks(made.stage("evidence-gone", [{ turns: [did(KIMI, { write: [join(gone, ".atomic", "notes.md")] })] }]).file, gone).at(-1).wrote, ["kimi-coding/k3"], "a checkout Git cannot answer for ignores nothing");
+    });
+
+    it("judges a line by the turns it ran and wrote in, not by where an agent ended or what merely errored or read", async () => {
+      for (const [label, launch, resolved, models, wrote] of [
+        ["an agent admitted on the reviewer's line whose only request failed", { agent: "sol-fixer", requested: `${SOL}:high`, turns: [failed(SOL, usageLimit)], thinking: "high" }, SOL, [], []],
+        ["a writer that ended on the reviewer's line, which only read", { requested: KIMI, turns: [ok(KIMI), reading(SOL)], thinking: "high" }, SOL, ["kimi-coding/k3", SOL], ["kimi-coding/k3"]],
+        ["a writer whose reviewer's-line turn tried a write Atomic refused", { requested: KIMI, turns: [ok(KIMI), did(SOL, { refusedWrite: ["src/feature.ts"] })], thinking: "high" }, SOL, ["kimi-coding/k3", SOL], ["kimi-coding/k3"]],
+      ]) {
+        const run = chainRun(`ran, not wrote: ${label}`, { inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": [{ requested: KIMI, turns: [ok(KIMI)] }, launch] } });
+        assert.equal((await goalSelect.run(run.ctx)).status, "complete", label);
+        const recorded = ledgerOf(run).delegations.at(-1);
+        assert.deepEqual([recorded.resolved, recorded.models, recorded.wrote], [resolved, models, wrote], label);
+      }
+      // The model that took over wrote too: that is the crossing.
+      const run = chainRun("ran and wrote", { inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": [{ requested: KIMI, turns: [ok(KIMI), failed(KIMI, usageLimit), ok(SOL)], thinking: "high", forkedFrom: SOL }] } });
+      const refused = await goalSelect.run(run.ctx);
+      assert.equal(refused.status, "needs_human");
+      const [entry] = ledgerOf(run).delegations;
+      assert.deepEqual([entry.requested, entry.started, entry.resolved, entry.thinking, entry.models, entry.wrote, entry.error], [KIMI, "kimi-coding/k3", SOL, "high", ["kimi-coding/k3", SOL], ["kimi-coding/k3", SOL], undefined]);
+      assert.equal(entry.summary, `worker ${entry.task.split(":")[0]} asked for ${KIMI}, ran on kimi-coding/k3 then ${SOL}, wrote files on kimi-coding/k3 and ${SOL}, ended on ${SOL}:high`);
+      assert.ok(refused.receipts[0].summary.endsWith(`. Delegated tasks: ${entry.summary}`), "the receipt names the model that wrote, not only the one asked for");
+      assert.ok(refused.result.includes(entry.summary), "and so does the final report");
+
+      // On the complex tier Astra reviews, so the same task is recorded and reviewed.
+      const complex = chainRun("ran and wrote, complex", { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [{ requested: KIMI, turns: [ok(KIMI), failed(KIMI, usageLimit), ok(SOL)], thinking: "high" }] } });
+      assert.equal((await goalSelect.run(complex.ctx)).status, "complete");
+
+      // An orchestrator that itself asks for the fallback the tier refuses is caught the same way.
+      const asked = chainRun("asked for a reviewer", {
+        policy: { ...sharedPolicy, writer_fallbacks: { "anthropic/claude-opus-5-5": [`${SOL}:xhigh`] } },
+        inputs: { review_tier: "standard", writer_model: OPUS },
+        script: { "orchestrator-1": [{ requested: OPUS, turns: [ok(OPUS)], thinking: "xhigh" }, { requested: `${SOL}:xhigh`, turns: [ok(SOL)], thinking: "xhigh" }] },
+      });
+      assert.equal((await goalSelect.run(asked.ctx)).status, "needs_human");
+      assert.deepEqual(stageNames(asked), ["orchestrator-1"]);
+    });
+
+    it("keeps a run closed for a reviewer's own line closed on resume, dispatching no reviewer, and reopens it only when the turn's panel, read again, no longer holds that line", async () => {
+      const options = { inputs: { review_tier: "standard", writer_model: KIMI, max_turns: 2 }, script: { "orchestrator-1": [{ turns: [ok(SOL)], thinking: "high" }] } };
+      const first = chainRun("closure resume", options);
+      assert.equal((await goalSelect.run(first.ctx)).status, "needs_human");
+      const closed = ledgerOf(first);
+      assert.deepEqual([closed.status, closed.decisions.length, closed.decisions[0].pre_review], ["needs_human", 1, "lineage"]);
+
+      // What an interruption right after the closure was written leaves, and
+      // what a person resuming the closed run starts from: the ledger closed,
+      // the orchestrator stage recorded, no reviewer ever run. Atomic replays
+      // the turn's first policy reading, so each resume reads the file again
+      // under a new name.
+      for (const attempt of [1, 2]) {
+        const again = resumeOf(first, "closure resume", options);
+        const result = await goalSelect.run(again.ctx);
+        assert.equal(result.status, "needs_human", `resume ${attempt}`);
+        assert.deepEqual(stageNames(again), [], `resume ${attempt}: no stage is asked for, reviewer or other`);
+        assert.deepEqual(again.fresh, [`tool:resolve-models-1-again-${attempt}:1`], `resume ${attempt}: only the policy was read`);
+        const ledger = ledgerOf(again);
+        assert.deepEqual([ledger.status, ledger.decisions.length, ledger.decisions[0].pre_review, ledger.reviews.length], ["needs_human", 1, "lineage", 0], `resume ${attempt}: closed again, once`);
+        assert.equal(result.remaining_work, closed.decisions[0].reason);
+      }
+
+      // The person who resumes it has moved the run to a tier where Astra reviews.
+      writeJson(first.policyPath, { ...chainPolicy, review_tier: "complex" });
+      const outage = "Codex error: The usage limit has been reached";
+      const reopened = resumeOf(first, "closure resume", { ...options, policy: null, review: () => keepGoing, script: { "orchestrator-2": () => { throw new Error(outage); } } });
+      await assert.rejects(goalSelect.run(reopened.ctx), /usage limit has been reached/);
+      assert.deepEqual(reopened.fresh, ["tool:resolve-models-1-again-3:1", "stage:completion-reviewer-1:1", "stage:evidence-reviewer-1:1", "stage:risk-reviewer-1:1", "tool:resolve-models-2:1"], "Astra's panel reviews what Sol wrote in turn 1");
+      const ledger = ledgerOf(reopened);
+      assert.deepEqual(ledger.decisions.map((decision) => [decision.turn, decision.decision, decision.pre_review]), [[1, "continue", undefined]], "the closure is gone, not stacked under the review's decision");
+      assert.ok(ledger.lifecycle.some((event) => event.event === "reopened" && event.summary.startsWith("Reopened after a closure before review (lineage)")));
+
+      // Interrupted in turn 2 and resumed: turn 1 replays under the reading it
+      // was reviewed with, not the first one, which had Sol on the panel.
+      const later = resumeOf(reopened, "closure resume", { ...options, policy: null, review: (name) => (name.endsWith("-1") ? keepGoing : approve) });
+      assert.equal((await goalSelect.run(later.ctx)).status, "complete");
+      assert.deepEqual(later.fresh, ["stage:orchestrator-2:1", "stage:completion-reviewer-2:1", "stage:evidence-reviewer-2:1", "stage:risk-reviewer-2:1"]);
+      assert.deepEqual(stageNames(later).slice(0, 4), ["orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"]);
+    });
+
+    it("dispatches no reviewer on the replay of a turn another failure closed, when a line that wrote is on the panel resolved for it now", async () => {
+      // Sol wrote on the complex tier, where Astra reviews; the reviewers then
+      // failed, which closes the run with that turn decided and unreviewed.
+      const options = { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [{ turns: [ok(SOL)], thinking: "high" }] } };
+      const first = chainRun("replayed turn", { ...options, review: () => { throw new Error("reviewer returned no decision"); } });
+      assert.equal((await goalSelect.run(first.ctx)).status, "needs_human");
+      assert.deepEqual([ledgerOf(first).decisions[0].decision, ledgerOf(first).decisions[0].pre_review], ["needs_human", undefined]);
+      assert.deepEqual(freshStages(first), ["orchestrator-1"], "no review was recorded");
+
+      // Resumed where the turn's panel resolves to the standard tier: its
+      // replay would start reviewers that never ran, with Sol among them.
+      writeJson(first.policyPath, { ...chainPolicy, review_tier: "standard" });
+      const second = resumeOf(first, "replayed turn", { ...options, policy: null, forget: ["tool:resolve-models-1:1"] });
+      const result = await goalSelect.run(second.ctx);
+      assert.equal(result.status, "needs_human");
+      assert.deepEqual(freshStages(second), [], "no reviewer was dispatched");
+      assert.ok(result.remaining_work.includes(`wrote files on ${SOL}, a model line that is on the review panel as completion`), result.remaining_work);
+      assert.equal(ledgerOf(second).decisions.length, 1, "the decision that closed it stands");
+    });
+
+    it("does not take a closure before review for an infrastructure failure, whatever its reason quotes", async () => {
+      // The agent's name reads like a provider's rate-limit status, which the
+      // reopening of infrastructure failures looks for in a closing reason.
+      const options = { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [{ agent: "fix-429-retry", requested: KIMI, turns: [ok(KIMI)], delivered: false }] } };
+      const first = chainRun("closure quoting 429", options);
+      const closed = await goalSelect.run(first.ctx);
+      assert.equal(closed.status, "needs_human");
+      assert.match(closed.remaining_work, /fix-429-retry task0001/);
+      const second = resumeOf(first, "closure quoting 429", options);
+      assert.equal((await goalSelect.run(second.ctx)).status, "complete", "resumed as the closure it is: acknowledged, then reviewed");
+      assert.equal(ledgerOf(second).lifecycle.some((event) => event.summary.startsWith("Reopened after an infrastructure failure")), false);
+    });
+
+    it("checks every earlier turn's recorded writing against the panel of the turn about to be reviewed", async () => {
+      // Turn 1 on the complex tier: Opus fails and Sol, allowed there, writes.
+      // The policy then puts Sol on the panel, and turn 2 would have it
+      // review what it wrote in turn 1.
+      const run = chainRun("panel change", {
+        inputs: { review_tier: "complex", writer_model: OPUS },
+        review: () => keepGoing,
+        script: {
+          "orchestrator-1": [{ requested: OPUS, turns: [failed(OPUS, usageLimit)], thinking: "xhigh" }],
+          "orchestrator-1-continued-1": (named) => {
+            writeJson(run.policyPath, { ...chainPolicy, risk_reviewer_model: `${SOL}:xhigh` });
+            return [{ requested: named, turns: [ok(named)], thinking: "xhigh" }];
+          },
+        },
+      });
+      const result = await goalSelect.run(run.ctx);
+      assert.equal(result.status, "needs_human");
+      assert.deepEqual(stageNames(run), ["orchestrator-1", "orchestrator-1-continued-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"], "turn 1 was reviewed by Astra; turn 2 started nothing");
+      const task = ledgerOf(run).delegations[1].task.split(":")[0];
+      assert.ok(result.remaining_work.startsWith(`Turn 2 was not sent to review: worker ${task} (turn 1, asked for ${SOL}:xhigh) wrote files on ${SOL}, a model line that is on the review panel as risk (${SOL}:xhigh).`), result.remaining_work);
+      assert.deepEqual(ledgerOf(run).decisions.map((decision) => [decision.turn, decision.decision, decision.pre_review]), [[1, "continue", undefined], [2, "needs_human", "lineage"]]);
+      assert.equal(result.turns_completed, 1, "turn 2 did no work");
+
+      // Replaying turn 1 on a resume judges it by its own panel and by what had been written by then.
+      const again = resumeOf(run, "panel change", { policy: null, inputs: { review_tier: "complex", writer_model: OPUS }, review: () => keepGoing });
+      assert.equal((await goalSelect.run(again.ctx)).status, "needs_human");
+      assert.deepEqual(again.fresh, ["tool:resolve-models-2-again-1:1"], "turn 1's reviews are replayed; turn 2's policy is read again and it closes again before anything runs");
+      assert.equal(ledgerOf(again).decisions.length, 2);
+
+      // With Sol taken off the panel again, the resumed run carries on from turn 2.
+      writeJson(run.policyPath, chainPolicy);
+      const restored = resumeOf(run, "panel change", { policy: null, inputs: { review_tier: "complex", writer_model: OPUS }, review: (name) => (name.endsWith("-1") ? keepGoing : approve) });
+      assert.equal((await goalSelect.run(restored.ctx)).status, "complete");
+      assert.deepEqual(freshStages(restored), ["orchestrator-2", "completion-reviewer-2", "evidence-reviewer-2", "risk-reviewer-2"]);
+      assert.equal(writerNamed(orchestrators(restored).at(-1)), `${SOL}:xhigh`, "still on the fallback it moved to in turn 1");
+    });
+
+    it("closes before review when what a writer did cannot be established, says what could not be read, and goes on when the run is resumed", async () => {
+      const writer = { requested: KIMI, turns: [ok(KIMI)] };
+      for (const [label, launch, unread] of [
+        ["a writer that had not ended when the stage returned", { ...writer, delivered: false }, /^it has no delivery record: it had not ended when the stage returned$/],
+        ["a delivery record that cannot be read", { ...writer, delivered: "{ not json" }, /^its delivery record could not be read \(task0001_worker_0_meta\.json\)$/],
+        ["a delivery record that names no transcript", { ...writer, delivered: JSON.stringify({ status: "ok", model: "kimi-coding/k3" }) }, /^its delivery record names no transcript/],
+        ["a transcript that is not there", { ...writer, transcript: false }, /^its transcript could not be read \(.*task0001-0\.jsonl\)$/],
+        ["a transcript with no turn of the agent's own", { requested: KIMI, turns: [], forkedFrom: SOL }, /^its transcript holds no turn of its own$/],
+      ]) {
+        const options = { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [launch] } };
+        const first = chainRun(`unknown: ${label}`, options);
+        const closed = await goalSelect.run(first.ctx);
+        assert.equal(closed.status, "needs_human", label);
+        assert.deepEqual(stageNames(first), ["orchestrator-1"], `${label}: no reviewer was dispatched and the writer was not moved`);
+        const [entry] = ledgerOf(first).delegations;
+        assert.match(entry.unknown, unread, label);
+        assert.equal(closed.remaining_work, `Turn 1 was not sent to review: what worker task0001 (turn 1, asked for ${KIMI}) did is not established: ${entry.unknown}. Check what was changed in the checkout and on which model. Resuming this run reads the evidence again, and sends the turn to review unless a reviewer's own line is then found to have written.`, label);
+        assert.deepEqual([ledgerOf(first).decisions[0].pre_review, ledgerOf(first).decisions[0].pre_review_tasks], ["unknown", ["task0001:0"]], label);
+
+        const second = resumeOf(first, `unknown: ${label}`, options);
+        assert.equal((await goalSelect.run(second.ctx)).status, "complete", `${label}: the resume is the word that it was looked at`);
+        assert.deepEqual(freshStages(second), ["completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1"], label);
+        const ledger = ledgerOf(second);
+        assert.deepEqual([ledger.delegations[0].acknowledged, ledger.decisions.map((decision) => decision.decision)], [true, ["complete"]], label);
+        assert.ok(ledger.lifecycle.some((event) => event.event === "reopened" && event.summary.startsWith("Reopened after a closure before review (unknown)")), label);
+      }
+    });
+
+    it("reads an unknown writer's evidence again on resume, and closes for good if a reviewer's own line turns out to have written", async () => {
+      const options = { inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": [{ requested: KIMI, turns: [ok(KIMI)], delivered: false }] } };
+      const first = chainRun("unknown then crossing", options);
+      assert.equal((await goalSelect.run(first.ctx)).status, "needs_human");
+      assert.equal(ledgerOf(first).decisions[0].pre_review, "unknown");
+      // The agent ends after the stage has returned: Kimi's window closed and it finished on Sol.
+      first.made.agent("task0001", 0, JSON.parse(first.record.get("stage:orchestrator-1:1")).sessionFile, { turns: [ok(KIMI), failed(KIMI, usageLimit), ok(SOL)], thinking: "high" });
+
+      const second = resumeOf(first, "unknown then crossing", options);
+      const result = await goalSelect.run(second.ctx);
+      assert.equal(result.status, "needs_human");
+      assert.deepEqual(second.fresh, [], "no reviewer was dispatched");
+      const ledger = ledgerOf(second);
+      assert.deepEqual([ledger.delegations[0].unknown, ledger.delegations[0].acknowledged, ledger.delegations[0].wrote], [undefined, undefined, ["kimi-coding/k3", SOL]]);
+      assert.deepEqual(ledger.decisions.map((decision) => decision.pre_review), ["lineage"]);
+      assert.ok(result.remaining_work.includes(`wrote files on ${SOL}, a model line that is on the review panel as completion`), result.remaining_work);
+
+      // Read again and found healthy: nothing to acknowledge, and the turn is reviewed.
+      const healthy = chainRun("unknown then read", { ...options, inputs: { review_tier: "complex", writer_model: KIMI } });
+      assert.equal((await goalSelect.run(healthy.ctx)).status, "needs_human");
+      healthy.made.agent("task0001", 0, JSON.parse(healthy.record.get("stage:orchestrator-1:1")).sessionFile, { turns: [ok(KIMI)] });
+      const read = resumeOf(healthy, "unknown then read", { ...options, inputs: { review_tier: "complex", writer_model: KIMI } });
+      assert.equal((await goalSelect.run(read.ctx)).status, "complete");
+      assert.deepEqual([ledgerOf(read).delegations[0].unknown, ledgerOf(read).delegations[0].acknowledged, ledgerOf(read).delegations[0].wrote], [undefined, undefined, ["kimi-coding/k3"]]);
+    });
+
+    it("counts an unasked agent as a writer of unknown outcome only when its transcript shows it writing, and a stage whose own transcript cannot be read as one", async () => {
+      // A helper that had not ended, or whose record cannot be read, wrote nothing that is known: the run goes on.
+      for (const [label, launch] of [
+        ["not ended, no transcript to be found", { agent: "codebase-locator", turns: [reading(SOL)], delivered: false }],
+        ["not ended, reading so far", { agent: "codebase-locator", turns: [reading(SOL)], delivered: false, inStageFolder: true }],
+        ["an unreadable record", { agent: "sol-reviewer", turns: [reading(SOL)], delivered: "{" }],
+      ]) {
+        const run = chainRun(`helper unknown: ${label}`, { inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": [{ requested: KIMI, turns: [ok(KIMI)] }, launch] } });
+        assert.equal((await goalSelect.run(run.ctx)).status, "complete", label);
+        assert.deepEqual([ledgerOf(run).delegations[1].writer, ledgerOf(run).delegations[1].unknown], [false, undefined], label);
+        assert.match(ledgerOf(run).delegations[1].summary, /; outcome not established: /, "the ledger still says what it could not read");
+      }
+      // An agent started afresh keeps its transcript in the stage's folder: one still running there has already written.
+      const writing = chainRun("unasked, still writing", { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": [{ turns: [ok(GLM)], delivered: false, inStageFolder: true }] } });
+      assert.equal((await goalSelect.run(writing.ctx)).status, "needs_human");
+      assert.deepEqual([ledgerOf(writing).delegations[0].writer, ledgerOf(writing).delegations[0].wrote, ledgerOf(writing).delegations[0].unknown], [true, ["zai/glm-5.3"], "it has no delivery record: it had not ended when the stage returned"]);
+
+      const lost = join(root, `lost-${randomUUID()}.jsonl`);
+      const options = { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": { sessionFile: lost } } };
+      const first = chainRun("stage transcript unreadable", options);
+      const closed = await goalSelect.run(first.ctx);
+      assert.equal(closed.status, "needs_human");
+      assert.equal(closed.remaining_work.startsWith(`Turn 1 was not sent to review: what orchestrator-1 delegated is not established: the stage's transcript could not be read (${lost}).`), true, closed.remaining_work);
+      assert.deepEqual(stageNames(first), ["orchestrator-1"]);
+      const second = resumeOf(first, "stage transcript unreadable", options);
+      assert.equal((await goalSelect.run(second.ctx)).status, "complete");
+      assert.equal(ledgerOf(second).delegations[0].acknowledged, true);
+
+      // A transcript cut off mid-line is not read in part: the stage that returns it closes the same way.
+      const tornTranscript = join(root, `torn-${randomUUID()}.jsonl`);
+      writeFileSync(tornTranscript, '{"type":"session","version":3}\n{"type":"message","message":{"role":"assist');
+      assert.equal(writerFallback.delegatedTasks(tornTranscript, clone), undefined);
+      assert.deepEqual(writerFallback.delegatedTasks(undefined, clone), [], "a stage with no transcript at all, as under a test adapter, has nothing to audit");
+      const torn = chainRun("stage transcript torn", { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": { sessionFile: tornTranscript } } });
+      const tornResult = await goalSelect.run(torn.ctx);
+      assert.equal(tornResult.status, "needs_human");
+      assert.equal(tornResult.remaining_work.startsWith(`Turn 1 was not sent to review: what orchestrator-1 delegated is not established: the stage's transcript could not be read (${tornTranscript}).`), true, tornResult.remaining_work);
+      assert.deepEqual([ledgerOf(torn).decisions[0].pre_review, stageNames(torn)], ["unknown", ["orchestrator-1"]]);
+    });
+
+    it("passes over a transcript line that is JSON but no entry, and closes before review, not as an orchestrator failure, when the audit itself fails", async () => {
+      // Lines such as null, a number or a string among the good ones, in the stage's transcript and the agent's.
+      const withOddLines = (file) => {
+        const [head, ...rest] = readFileSync(file, "utf8").trimEnd().split("\n");
+        writeFileSync(file, `${[head, "null", "7", ...rest.slice(0, 1), '"text"', "true", ...rest.slice(1), "null"].join("\n")}\n`);
+      };
+      const healthy = chainRun("odd lines", { inputs: { review_tier: "standard", writer_model: KIMI } });
+      const { file } = healthy.made.stage("orchestrator-1", [{ requested: KIMI, turns: [ok(KIMI)] }, { agent: "codebase-locator", turns: [reading(SOL)] }]);
+      withOddLines(file);
+      withOddLines(join(healthy.made.dir, "agents", "task0001-0.jsonl"));
+      const read = chainRun("odd lines", { policy: null, inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": { sessionFile: file } }, made: healthy.made });
+      assert.equal((await goalSelect.run(read.ctx)).status, "complete");
+      assert.deepEqual(ledgerOf(read).delegations.map((entry) => [entry.agent, entry.wrote, entry.unknown]), [["worker", ["kimi-coding/k3"], undefined], ["codebase-locator", [], undefined]]);
+
+      // The same lines do not hide a reviewer's line that wrote.
+      const crossing = chainRun("odd lines crossing", { inputs: { review_tier: "standard", writer_model: KIMI } });
+      const crossed = crossing.made.stage("orchestrator-1", [{ requested: KIMI, turns: [ok(KIMI), ok(SOL)], thinking: "high" }]).file;
+      withOddLines(crossed);
+      withOddLines(join(crossing.made.dir, "agents", "task0001-0.jsonl"));
+      const closedForLineage = chainRun("odd lines crossing", { policy: null, inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": { sessionFile: crossed } }, made: crossing.made });
+      assert.equal((await goalSelect.run(closedForLineage.ctx)).status, "needs_human");
+      assert.equal(ledgerOf(closedForLineage).decisions[0].pre_review, "lineage");
+
+      // A launch record no real run writes: expanding it throws inside the
+      // audit. The turn closes as one whose writers are not established,
+      // with the marker a resume checks, and the resume audits it again.
+      const options = { inputs: { review_tier: "complex", writer_model: KIMI } };
+      const broken = chainRun("audit throws", options);
+      const unauditable = broken.made.stage("orchestrator-1", [{ requested: KIMI, turns: [ok(KIMI)] }]).file;
+      writeFileSync(
+        unauditable,
+        `${readFileSync(unauditable, "utf8")
+          .trimEnd()
+          .split("\n")
+          .map((text) => {
+            const entry = JSON.parse(text);
+            const launch = entry.message?.content?.find?.((part) => part.type === "toolCall" && part.name === "subagent" && part.arguments.action === undefined);
+            if (launch !== undefined) launch.arguments = { tasks: [{ agent: "worker", task: "Do the work.", model: KIMI, count: 2 ** 32 }] };
+            return JSON.stringify(entry);
+          })
+          .join("\n")}\n`,
+      );
+      assert.throws(() => writerFallback.delegatedTasks(unauditable, clone), RangeError);
+      const first = chainRun("audit throws", { ...options, policy: null, script: { "orchestrator-1": { sessionFile: unauditable } }, made: broken.made });
+      const closed = await goalSelect.run(first.ctx);
+      assert.equal(closed.status, "needs_human");
+      assert.match(closed.remaining_work, /^Turn 1 was not sent to review: what orchestrator-1 delegated is not established: the audit of the stage's transcript failed \(Invalid array length\)\./);
+      assert.deepEqual([ledgerOf(first).decisions[0].pre_review, ledgerOf(first).decisions[0].pre_review_tasks, stageNames(first)], ["unknown", ["stage:orchestrator-1"], ["orchestrator-1"]]);
+      const second = resumeOf(first, "audit throws", { ...options, policy: null, script: { "orchestrator-1": { sessionFile: unauditable } } });
+      assert.equal((await goalSelect.run(second.ctx)).status, "complete", "a person's resume answers for it, as for any writer whose outcome is not established");
+      assert.equal(ledgerOf(second).delegations[0].acknowledged, true);
+    });
+
+    it("reads the policy afresh on each resume of a closure for a reviewer's own line, after a reading that failed its checks too", async () => {
+      const options = { inputs: { review_tier: "standard", writer_model: KIMI }, script: { "orchestrator-1": [{ turns: [ok(SOL)], thinking: "high" }] } };
+      const first = chainRun("bad re-read", options);
+      assert.equal((await goalSelect.run(first.ctx)).status, "needs_human");
+      assert.equal(ledgerOf(first).decisions[0].pre_review, "lineage");
+
+      // Broken: the panel is given the launch writer's own line, which the
+      // lineage check refuses once the reading is made and recorded.
+      writeJson(first.policyPath, { ...chainPolicy, review_tiers: { ...chainPolicy.review_tiers, standard: { ...chainPolicy.review_tiers.standard, reviewer_model: KIMI } } });
+      const second = resumeOf(first, "bad re-read", { ...options, policy: null });
+      await assert.rejects(goalSelect.run(second.ctx), /^Error: Review tier standard puts the writer's model \(kimi-coding\/k3:max\) on the review panel/);
+      assert.deepEqual(second.fresh, ["tool:resolve-models-1-again-1:1"]);
+      const kept = ledgerOf(second);
+      assert.deepEqual([kept.status, kept.decisions.length, kept.decisions[0].pre_review, kept.model_reads], ["needs_human", 1, "lineage", { 1: 1 }], "the closure stands and the reading is counted");
+
+      // Corrected: a tier whose panel does not hold Sol. The reading that failed is not the one replayed.
+      writeJson(first.policyPath, { ...chainPolicy, review_tier: "complex" });
+      const third = resumeOf(second, "bad re-read", { ...options, policy: null });
+      assert.equal((await goalSelect.run(third.ctx)).status, "complete");
+      assert.deepEqual(third.fresh, ["tool:resolve-models-1-again-2:1", "stage:completion-reviewer-1:1", "stage:evidence-reviewer-1:1", "stage:risk-reviewer-1:1"]);
+      assert.deepEqual(ledgerOf(third).decisions.map((decision) => [decision.turn, decision.decision, decision.pre_review]), [[1, "complete", undefined]]);
+    });
+
+    it("replays a turn whose models were resolved by the earlier engine with no chain, and audits only that turn's own tasks", async () => {
+      const outage = "Codex error: The usage limit has been reached";
+      const options = {
+        inputs: { review_tier: "complex", writer_model: KIMI },
+        review: (name) => (name.endsWith("-1") ? keepGoing : approve),
+        script: {
+          "orchestrator-1": [{ requested: KIMI, turns: [ok(KIMI), failed(KIMI, usageLimit), ok(SOL)], thinking: "high" }],
+          "orchestrator-2": () => {
+            throw new Error(outage);
+          },
+        },
+      };
+      const first = chainRun("earlier engine", options);
+      await assert.rejects(goalSelect.run(first.ctx), /usage limit has been reached/);
+      assert.deepEqual(first.fresh.filter((key) => key.startsWith("tool:resolve-models")), ["tool:resolve-models-1:1", "tool:resolve-models-2:1"]);
+
+      // What the earlier engine left: recorded model resolutions without
+      // writerFallbacks, and a ledger without delegations or writer moves.
+      for (const key of ["tool:resolve-models-1:1", "tool:resolve-models-2:1"]) {
+        const { writerFallbacks, ...resolved } = JSON.parse(first.record.get(key));
+        assert.deepEqual(writerFallbacks, standingOrder);
+        first.record.set(key, JSON.stringify(resolved));
+      }
+      const statePath = join(JSON.parse(first.record.get("tool:artifact-root:1")), "goal-ledger-state.json");
+      const { delegations, writer_moves: _moves, ...earlier } = JSON.parse(readFileSync(statePath, "utf8"));
+      assert.equal(delegations.length, 1);
+      writeJson(statePath, earlier);
+
+      // Resumed on the changed engine. Turn 2's models were resolved before
+      // the change, so its writer has no chain though the policy file now
+      // names one; turn 1 is decided, and its Sol-written task is not turn 2's.
+      const second = resumeOf(first, "earlier engine", { ...options, script: { "orchestrator-2": [{ requested: KIMI, turns: [failed(KIMI, usageLimit)] }] } });
+      await assert.rejects(goalSelect.run(second.ctx), (error) => {
+        assert.ok(error.message.includes(`No fallback writer is left after ${KIMI} (the policy allows none for ${KIMI}).`), error.message);
+        return true;
+      });
+      assert.deepEqual(second.fresh, ["stage:orchestrator-2:1"], "both recorded resolutions and every stage of turn 1 were replayed");
+      assert.deepEqual(stageNames(second), ["orchestrator-1", "completion-reviewer-1", "evidence-reviewer-1", "risk-reviewer-1", "orchestrator-2"]);
+      assert.equal(typeof orchestrators(second)[1].options.isFallbackModelAllowed, "function", "the gate needs nothing the earlier engine did not record");
+      assert.deepEqual(ledgerOf(second).delegations.map((entry) => [entry.turn, entry.requested, entry.error]), [[2, KIMI, usageLimit]]);
+
+      // Resumed again: turn 2 continues from its launch writer, and turn 3,
+      // resolved by the changed engine, has the chain.
+      const third = resumeOf(second, "earlier engine", { ...options, review: (name) => (name.endsWith("-3") ? approve : keepGoing), script: { "orchestrator-3": [{ requested: KIMI, turns: [failed(KIMI, usageLimit)] }] } });
+      assert.equal((await goalSelect.run(third.ctx)).status, "complete");
+      assert.deepEqual(orchestrators(third).map((stage) => [stage.name, writerNamed(stage)]), [["orchestrator-1", KIMI], ["orchestrator-2", KIMI], ["orchestrator-2-continued-1", KIMI], ["orchestrator-3", KIMI], ["orchestrator-3-continued-1", GLM]]);
+    });
+
+    it("reads delegated tasks from a stage's transcript: parallel launches, an agent not yet delivered, and nothing for a stage that delegated nothing", () => {
+      const made = transcripts();
+      const { file, ids } = made.stage("orchestrator-1", [
+        { requested: KIMI, turns: [ok(KIMI)] },
+        { agent: "m2.authorized-writer", requested: GLM, turns: [ok(GLM)], delivered: false },
+      ]);
+      const [done, running] = writerFallback.delegatedTasks(file, clone);
+      assert.deepEqual([done.task, done.agent, done.requested, done.started, done.resolved, done.models, done.wrote, done.unread], [`${ids[0]}:0`, "worker", KIMI, "kimi-coding/k3", "kimi-coding/k3", ["kimi-coding/k3"], ["kimi-coding/k3"], undefined]);
+      assert.deepEqual([running.agent, running.requested, running.resolved, running.models, running.error, running.unread], ["m2.authorized-writer", GLM, "zai/glm-5.3", [], undefined, "it has no delivery record: it had not ended when the stage returned"], "its task record still names the model");
+      assert.equal(writerFallback.describeDelegatedTask(running), `m2.authorized-writer ${ids[1]} asked for ${GLM}, produced no turn, wrote no file, ended on ${GLM}; outcome not established: it has no delivery record: it had not ended when the stage returned`);
+
+      const parallel = join(made.dir, "parallel.jsonl");
+      const record = (index, agent, ran) => ({ launchOperationId: `para0001:${index}`, agentName: agent, model: ran, thinking: "max" });
+      writeFileSync(
+        parallel,
+        [
+          { type: "session", version: 3, id: "parallel", timestamp: "2026-10-09T01:00:00.000Z" },
+          { type: "message", message: { role: "assistant", content: [{ type: "toolCall", id: "call-parallel", name: "subagent", arguments: { tasks: [{ agent: "worker", task: "a", model: KIMI, count: 2 }, { agent: "debugger", task: "b" }] } }] } },
+          { type: "message", message: { role: "toolResult", toolCallId: "call-parallel", toolName: "subagent", details: { taskRecords: [record(0, "worker", "kimi-coding/k3"), record(1, "worker", "kimi-coding/k3"), record(2, "debugger", SOL)] } } },
+          { type: "message", message: { role: "toolResult", toolCallId: "status-unknown", toolName: "subagent", details: { taskRecords: [{ launchOperationId: "gone0001:0", agentName: "worker", model: SOL }] } } },
+        ]
+          .map((entry) => JSON.stringify(entry))
+          .join("\n"),
+      );
+      assert.deepEqual(writerFallback.delegatedTasks(parallel, clone).map((task) => [task.task, task.agent, task.requested, task.resolved]), [
+        ["para0001:0", "worker", KIMI, "kimi-coding/k3"],
+        ["para0001:1", "worker", KIMI, "kimi-coding/k3"],
+        ["para0001:2", "debugger", undefined, SOL],
+      ]);
+      assert.deepEqual(writerFallback.delegatedTaskIds(parallel), ["para0001:0", "para0001:1", "para0001:2"]);
+      assert.deepEqual(writerFallback.delegatedTaskIds(join(made.dir, "missing.jsonl")), []);
+      assert.equal(writerFallback.delegatedTasks(join(made.dir, "missing.jsonl"), clone), undefined, "a transcript that should be there and is not is not an empty one");
+    });
+
+    it("Atomic's runtime hands the orchestrator's fallback gate to its stage session", async () => {
+      const seen = [];
+      const adapters = { prompt: { prompt: async (_text, meta) => (seen.push([meta.stageName, meta.stageOptions?.isFallbackModelAllowed]), "done") } };
+      await run(goalSelect, { objective: "probe", branch_checkout_dir: "seed feature", review_tier: "standard" }, { durability: { mode: "memory" }, cwd: seed, adapters });
+      const [[name, gate]] = seen;
+      assert.equal(name, "orchestrator-1");
+      assert.equal(gate(model(SOL), "high"), false, "the function itself reaches the session options, not a copy of the stage's data");
+      assert.equal(gate(model(GLM), "max"), true);
+    });
+
+    it("Atomic's runtime ends a run stopped this way as failed with the reason, and kills one that throws the same text", async () => {
+      const reason = `goal-select stopped in turn 1 with the work unfinished: worker on ${SONNET} stopped on a model error: invalid api key.`;
+      const stopping = (name, stop) =>
+        workflow({
+          name,
+          description: "",
+          inputs: {},
+          outputs: { done: Type.Optional(Type.Boolean()) },
+          run: async (ctx) => {
+            await ctx.task("orchestrator-1", { prompt: "delegate" });
+            return stop(ctx);
+          },
+        });
+      const options = { durability: { mode: "memory" }, cwd: root, adapters: { prompt: { prompt: async () => "done" } } };
+      const stopped = await run(stopping("goal-select-stop-probe", (ctx) => writerFallback.stopResumable(ctx, reason)), {}, options);
+      assert.deepEqual([stopped.status, stopped.exited, stopped.exitReason], ["failed", true, reason]);
+      const thrown = await run(stopping("goal-select-throw-probe", () => { throw new Error(reason); }), {}, options);
+      assert.equal(thrown.status, "killed", "a thrown error that quotes a rejected credential is not resumable, which is why the stop is an exit");
     });
   });
 
