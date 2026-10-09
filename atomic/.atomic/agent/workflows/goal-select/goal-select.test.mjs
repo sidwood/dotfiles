@@ -30,8 +30,8 @@ const presetLibrary = join(sharedDir, "goal-select-models");
 const sharedPolicy = {
   defaults: { orchestrator_model: "openai/gpt-6.1-sol:medium", reverify_model: "openai/gpt-6-astra:high", review_tier: "complex" },
   review_tiers: {
-    simple: { panel: 1, reviewer_model: "openai/gpt-6.1-sol:high", max_turns: 3 },
-    standard: { panel: 2, reviewer_model: "openai/gpt-6.1-sol:high", risk_reviewer_model: "openai/gpt-6-astra:xhigh", max_turns: 3 },
+    simple: { panel: 1, reviewer_model: "openai/gpt-6.1-sol:xhigh", max_turns: 3 },
+    standard: { panel: 2, reviewer_model: "openai/gpt-6.1-sol:xhigh", risk_reviewer_model: "openai/gpt-6-astra:xhigh", max_turns: 3 },
     complex: { panel: 3, reviewer_model: "openai/gpt-6-astra:high", risk_reviewer_model: "openai/gpt-6-astra:xhigh", max_turns: 3 },
   },
 };
