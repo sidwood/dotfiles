@@ -28,7 +28,7 @@ const presetLibrary = join(sharedDir, "goal-select-models");
 // The shared policy as the dotfiles ship it: launch-form defaults and the
 // three review tiers, with no top-level override.
 const sharedPolicy = {
-  defaults: { orchestrator_model: "openai/gpt-6.1-sol:medium", review_tier: "complex" },
+  defaults: { orchestrator_model: "openai/gpt-6.1-sol:medium", reverify_model: "openai/gpt-6-astra:high", review_tier: "complex" },
   review_tiers: {
     simple: { panel: 1, reviewer_model: "openai/gpt-6.1-sol:high", max_turns: 3 },
     standard: { panel: 2, reviewer_model: "openai/gpt-6.1-sol:high", risk_reviewer_model: "openai/gpt-6-astra:xhigh", max_turns: 3 },
@@ -981,8 +981,17 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       });
       assert.deepEqual(modelStages(refused.calls), [], "no stage of turn 1 ran");
 
-      const allowed = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai/gpt-6-astra:xhigh" } });
+      const allowed = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai/another-model:xhigh" } });
       assert.equal((await goalSelect.run(allowed.ctx)).status, "complete", "another model from the same provider may review");
+
+      // The shared defaults re-verify on Astra, so Astra cannot write on any tier.
+      const astra = sharedPolicy.defaults.reverify_model;
+      const reverifier = fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone, review_tier: "simple", writer_model: "openai/gpt-6-astra:xhigh" } });
+      await assert.rejects(goalSelect.run(reverifier.ctx), (error) => {
+        assert.equal(error.message, `Review tier simple re-verifies findings on the writer's model (${astra}); choose another reverify_model or writer.`);
+        return true;
+      });
+      assert.deepEqual(modelStages(reverifier.calls), [], "no stage of turn 1 ran");
 
       const policyPath = join(clone, ".atomic", "tiers lineage.jsonc");
       const midRun = tierRun("lineage", {
@@ -1000,7 +1009,8 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       const blockingFirst = (name) => (name === "reviewer-1" ? blocking(readme) : approve);
       const reverifyModels = (calls) => modelStages(calls).filter((stage) => stage.name.startsWith("reverify-")).map((stage) => [stage.options.model, stage.options.fallbackModels]);
 
-      const unpinned = tierRun("reverify unpinned", { inputs: { review_tier: "simple", writer_model: "test/writer:high" }, review: blockingFirst });
+      // A policy with a defaults block of its own does not inherit the shared pin.
+      const unpinned = tierRun("reverify unpinned", { policy: { ...tierPolicy, defaults: {} }, inputs: { review_tier: "simple", writer_model: "test/writer:high" }, review: blockingFirst });
       await goalSelect.run(unpinned.ctx);
       assert.ok(reverifyModels(unpinned.calls).length > 0, "the blocking finding was re-verified");
       for (const [model, fallbacks] of reverifyModels(unpinned.calls)) {
@@ -1010,6 +1020,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
 
       const tierPinned = { review_tiers: { ...tierPolicy.review_tiers, simple: { ...tierPolicy.review_tiers.simple, reverify_model: "test/tier-reverify:medium" } } };
       for (const [label, policy, expected] of [
+        ["shared defaults", tierPolicy, sharedPolicy.defaults.reverify_model],
         ["tier", tierPinned, "test/tier-reverify:medium"],
         ["defaults", { ...tierPolicy, defaults: { reverify_model: "test/default-reverify" } }, "test/default-reverify"],
         ["top level over tier", { ...tierPinned, reverify_model: "test/override-reverify" }, "test/override-reverify"],

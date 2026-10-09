@@ -10,6 +10,11 @@
 {
   "defaults": {
     "orchestrator_model": "openai/gpt-6.1-sol:medium",
+    // Findings are re-verified on Astra whatever the tier. Left unset, the
+    // re-verifier is the launching session's model, which is Sol here, and
+    // Sol would then weigh findings against work a Sol writer wrote. No
+    // tier has an Astra writer.
+    "reverify_model": "openai/gpt-6-astra:high",
     "review_tier": "complex"
   },
   "review_tiers": {
