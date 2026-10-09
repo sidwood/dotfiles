@@ -1253,7 +1253,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     // The standing order, as the shared policy carries it.
     const standingOrder = {
       "xai/grok-4.7": [KIMI, GLM, SONNET],
-      "kimi-coding/k3": [GLM, SONNET],
+      "kimi-coding/k3": [GLM, GROK, SONNET],
       "zai/glm-5.3": [SONNET],
       "anthropic/claude-opus-5-5": [`${SOL}:xhigh`],
     };
@@ -1450,7 +1450,8 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
         ["simple", OPUS, []],
         ["complex", GROK, [KIMI, GLM, SONNET]],
         ["standard", GROK, [KIMI, GLM, SONNET]],
-        ["simple", KIMI, [GLM, SONNET]],
+        ["simple", KIMI, [GLM, GROK, SONNET]],
+        ["standard", KIMI, [GLM, GROK, SONNET]],
         ["complex", GLM, [SONNET]],
         ["complex", SONNET, []],
         ["complex", `${SOL}:xhigh`, []],
@@ -1673,7 +1674,9 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
         "orchestrator-1-continued-1": [{ requested: GLM, turns: [failed(GLM, "500 upstream error")] }],
         "orchestrator-1-continued-2": [{ requested: SONNET, turns: [ok(SONNET), failed(SONNET, "invalid api key")] }],
       };
-      const first = chainRun("exhausted", { inputs: { review_tier: "complex", writer_model: KIMI }, script, exit: true });
+      // A chain of two, so the stop comes in three stages however long the standing order grows.
+      const policy = { ...chainPolicy, writer_fallbacks: { ...standingOrder, "kimi-coding/k3": [GLM, SONNET] } };
+      const first = chainRun("exhausted", { policy, inputs: { review_tier: "complex", writer_model: KIMI }, script, exit: true });
       await assert.rejects(goalSelect.run(first.ctx), (error) => {
         assert.deepEqual(error.exit, first.exits[0]);
         return true;
@@ -1691,7 +1694,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.equal(stopped.delegations.length, 3);
       assert.equal(stopped.lifecycle.at(-1).event, "writer_stopped");
 
-      const second = resumeOf(first, "exhausted", { inputs: { review_tier: "complex", writer_model: KIMI }, script, exit: true });
+      const second = resumeOf(first, "exhausted", { policy, inputs: { review_tier: "complex", writer_model: KIMI }, script, exit: true });
       const result = await goalSelect.run(second.ctx);
       assert.equal(result.status, "complete");
       assert.deepEqual(second.exits, []);

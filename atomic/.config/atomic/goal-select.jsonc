@@ -49,7 +49,7 @@
   // fallback.
   "writer_fallbacks": {
     "xai/grok-4.7": ["kimi-coding/k3:max", "zai/glm-5.3:max", "anthropic/claude-sonnet-5-5:max"],
-    "kimi-coding/k3": ["zai/glm-5.3:max", "anthropic/claude-sonnet-5-5:max"],
+    "kimi-coding/k3": ["zai/glm-5.3:max", "xai/grok-4.7:xhigh", "anthropic/claude-sonnet-5-5:max"],
     "zai/glm-5.3": ["anthropic/claude-sonnet-5-5:max"],
     "anthropic/claude-opus-5-5": ["openai/gpt-6.1-sol:xhigh"]
   }
