@@ -32,9 +32,11 @@
       "risk_reviewer_model": "openai/gpt-6-astra:xhigh",
       "max_turns": 3
     },
-    // The full three-role panel, quorum two of three.
+    // Two seats, as the standard tier has, on stronger models: completion and
+    // evidence as one reviewer, risk as the other; both approve. A third seat
+    // on the same model line kept raising the finding the other two raised.
     "complex": {
-      "panel": 3,
+      "panel": 2,
       "reviewer_model": "openai/gpt-6-astra:high",
       "risk_reviewer_model": "openai/gpt-6-astra:xhigh",
       "max_turns": 3

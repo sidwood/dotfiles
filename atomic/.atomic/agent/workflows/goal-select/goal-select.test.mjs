@@ -25,8 +25,10 @@ const home = realpathSync(mkdtempSync(join(tmpdir(), "goal-select-home-")));
 const sharedDir = join(home, ".config", "atomic");
 const sharedDefaultPath = join(sharedDir, "goal-select.jsonc");
 const presetLibrary = join(sharedDir, "goal-select-models");
-// The shared policy as the dotfiles ship it: launch-form defaults and the
-// three review tiers, with no top-level override.
+// The shared policy's dials as these tests use them: launch-form defaults
+// and the three review tiers, with no top-level override. The complex tier
+// keeps three seats here so the three-role panel stays tested; the shipped
+// file gives it two, which the test of the shipped file pins.
 const sharedPolicy = {
   defaults: { orchestrator_model: "openai/gpt-6.1-sol:medium", reverify_model: "openai/gpt-6-astra:high", review_tier: "complex" },
   review_tiers: {
@@ -198,7 +200,7 @@ async function loadGoalSelectFrom(dir) {
 }
 const goalSelect = await loadGoalSelectFrom(root);
 const { branchCloneName, createBranchClone, objectiveSlug, planBranchClone } = await import(new URL("./branch-clone.js", import.meta.url).href);
-const { defaultPolicyPath, modelLine, modelPolicyPaths, parseModelPolicy, policyWriterFallbacks, sharedPolicyDir } = await import(new URL("./model-policy.js", import.meta.url).href);
+const { defaultPolicyPath, modelLine, modelPolicyPaths, parseModelPolicy, policyReviewTier, policyWriterFallbacks, sharedPolicyDir } = await import(new URL("./model-policy.js", import.meta.url).href);
 const writerFallback = await import(new URL("./writer-fallback.js", import.meta.url).href);
 const { Type } = await import("typebox");
 const guard = await import(new URL("../../extensions/goal-select-tracker-guard.ts", import.meta.url).href);
@@ -488,13 +490,17 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.doesNotMatch(goalSelect.description, /goal-select-models\/|sol-astra/);
   });
 
-  it("ships the shared goal-select.jsonc with its defaults and three review tiers", () => {
+  it("ships the shared goal-select.jsonc with its defaults and three review tiers, the complex one with two seats", () => {
     const shipped = fileURLToPath(new URL("../../../../.config/atomic/goal-select.jsonc", import.meta.url));
     const text = readFileSync(shipped, "utf8");
     assert.match(text, /^\s*\/\//m, "the shipped file keeps its comments");
     // Its writer_fallbacks block is checked with the writer fallback chain.
     const { writer_fallbacks: _chains, ...dials } = parseModelPolicy(text);
-    assert.deepEqual(dials, sharedPolicy);
+    const complex = { ...sharedPolicy.review_tiers.complex, panel: 2 };
+    assert.deepEqual(dials, { ...sharedPolicy, review_tiers: { ...sharedPolicy.review_tiers, complex } });
+    const seats = (tier) => policyReviewTier(dials, tier);
+    assert.deepEqual(seats("complex").roles, seats("standard").roles, "the complex tier has the standard tier's two seats");
+    assert.equal(seats("complex").quorum, 2, "and both must approve");
   });
 
   it("resolves an omitted model_policy_path to the shared goal-select.jsonc under resolve_only and on a real turn 1, reading no project file", async () => {
