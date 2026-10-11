@@ -547,6 +547,18 @@ are about 20k tokens before the user's message, so set that default to 262,144
 to match the limit declared in `lmstudio.json`; `lms load qwen/qwen3.8-27b -c
 262144 --gpu max` does the same for a single load.
 
+Sampling comes from LM Studio too, since OpenCode sends no temperature or
+top-p to local providers. Loading from the LM Studio UI applies the model's
+shipped generation defaults, which for Qwen3.8 in thinking mode are the
+model card's recommendation: temperature 1.0, top_p 0.95, top_k 20, min_p 0,
+presence_penalty 0 (0.7, 0.8, 20, 0 and 1.5 with thinking off; never greedy,
+which loops). `lms load` instead applies LM Studio's generic default of
+temperature 0.8. The two runs above were CLI loads at 0.8; a third run at the
+UI defaults took 2 minutes 20 seconds and 24.1k tokens with one search and two
+fetches, the same depth and the same story, plus one mangled URL in its
+citations that the cooler runs did not produce. Both settings work; the UI
+default is the one the model's authors recommend.
+
 #### Finding local models in the TUI
 
 The provider is named **LM Studio (local)**. OpenCode 1.18.30 moves recent and
