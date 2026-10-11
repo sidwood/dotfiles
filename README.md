@@ -528,10 +528,24 @@ one Exa result was 38k to 51k characters and a fetched homepage 51k, so a 64K
 session overflowed after two searches and one fetch.
 
 With all of that in place, a fresh session asked for "the most recent BND
-scandal" found that week's arrest of the agency's former president, cited seven
-articles with URLs and finished at 58% of context. Tab switches to the stock
-Build agent, which keeps the built-in `websearch`. Thinking is off in
-`lmstudio.json` for speed; it is the knob if reliability matters more.
+scandal" found that week's arrest of the agency's former president, cited
+sources inline and finished at 40% of a 64K context in 3 minutes 9 seconds on
+the Framework's Q5 build. Tab switches to the stock Build agent, which keeps
+the built-in `websearch`. Thinking is off for the Framework profiles for speed;
+it is the knob if reliability matters more.
+
+The same task on this Mac against LM Studio's 6-bit MLX build of the same
+model, `lmstudio/qwen/qwen3.8-27b`, with thinking on, did better: 1 minute 42
+seconds and 22.1k tokens at a 131,072-token context, 2 minutes 2 seconds and
+24.2k tokens at 262,144, with one or two searches and two or three fetches each
+time, the same story cited from five sources, and the engine process steady at
+23 GB. Thinking cost only a few seconds per step and the model chose `maxChars`
+on its fetches, which the Framework build never did. The 4-bit build was not
+measured. LM Studio loads a model at its per-model default context, 8,192
+unless changed in the model's Load settings, and the `local` agent's requests
+are about 20k tokens before the user's message, so set that default to 262,144
+to match the limit declared in `lmstudio.json`; `lms load qwen/qwen3.8-27b -c
+262144 --gpu max` does the same for a single load.
 
 #### Finding local models in the TUI
 
