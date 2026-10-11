@@ -443,6 +443,72 @@ request cloud reviews or run remediation; orchestration belongs to the harness
 or a future Atomic workflow. The standalone `frontier-review` utility remains
 available for deliberate use.
 
+#### MCP connectors: Linear and Granola
+
+The shared `opencode.jsonc` registers two remote MCP servers: Linear at
+`https://mcp.linear.app/mcp` and Granola at `https://mcp.granola.ai/mcp`. Both
+authenticate with OAuth and dynamic client registration, so the repository
+holds no key or secret. Sign in once per Mac; the browser flow returns to a
+local callback on port 19876:
+
+```sh
+opencode mcp auth linear
+opencode mcp auth granola
+opencode mcp list
+```
+
+Tokens live in `~/.local/share/opencode/mcp-auth.json`, which Stow does not
+manage; `opencode mcp logout <name>` removes them. Until a server is
+authenticated, `opencode mcp list` reports it as needing authentication and
+its tools stay out of sessions. Tools arrive as `linear_*` and `granola_*`.
+Linear also serves a read-only variant at `https://mcp.linear.app/mcp/readonly`;
+switch the URL to keep sessions from writing to Linear. Granola's free plan
+exposes only the last 30 days of personal notes; folder, search and transcript
+tools need a Business plan.
+
+Every MCP tool definition is sent with every request. Linear exposes dozens of
+tools and Granola six, which is a real cost for local models (see the next
+section on prompt size). To keep them out of ordinary sessions, disable them
+globally and enable them only in the agents that need them, per the OpenCode
+MCP documentation:
+
+```jsonc
+"tools": { "linear_*": false, "granola_*": false }
+```
+
+#### Web search for local models
+
+OpenCode's built-in `websearch` tool is the search tool for every model here,
+local ones included; no MCP server or API key is needed. Shell init exports
+`OPENCODE_ENABLE_EXA=1`, which lists the tool for every provider (OpenCode's own
+Zen models get it unconditionally). Queries go to Exa's hosted MCP endpoint at
+`mcp.exa.ai`. An optional `EXA_API_KEY` in the environment attaches a paid key.
+
+Verified on 2026-10-11 against the Framework's `Qwen3.8-27B-GGUF-UD-Q5_K_XL`
+by capturing the request OpenCode sends to an OpenAI-compatible endpoint. The
+tool list was `bash`, `edit`, `glob`, `grep`, `lsp`, `read`, `skill`, `task`,
+`todowrite`, `webfetch`, `websearch` and `write`. Told to "search the web for"
+something, the model called `websearch` at temperature 0, at the default
+temperature and with thinking on. It does not volunteer a search for a
+question that merely implies one, such as asking for the current weather, and a
+prompt that offers it a way out ("if no search tool is available, say so")
+makes it deny having the tool. Phrase requests as instructions to search.
+
+The same capture explains why small local models are fragile here. The request
+carried about 17,800 tokens before the user's message. The system prompt was
+43.5k characters: OpenCode's default prompt 8.9k, the global `AGENTS.md` 5.1k,
+`tool-awareness.md` 1.2k and the `<available_skills>` list 28k, built from the
+44 skills symlinked under both `~/.claude/skills` and `~/.agents/skills` (OpenCode
+deduplicates the pair). The twelve tool definitions added another 25k
+characters. `--agent local-worker` replaces the default prompt with its own
+half-kilobyte but keeps everything else. An agent whose permission sets
+`skill: deny` loses the skills list and the `skill` tool: the same capture for
+such an agent was 6.7k characters of system prompt and eleven tools. That is
+the per-agent lever if a local role needs it; `local-worker` keeps its skills.
+`OPENCODE_DISABLE_EXTERNAL_SKILLS=1` or `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`
+would skip the skill scans for every session, cloud models included, so
+neither is set here.
+
 #### Finding local models in the TUI
 
 The provider is named **LM Studio (local)**. OpenCode 1.18.30 moves recent and
