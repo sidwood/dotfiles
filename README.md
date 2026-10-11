@@ -478,9 +478,10 @@ MCP documentation:
 
 #### Web search for local models
 
-Two layers make the local Qwen search the web and cite what it finds: the
+Three pieces make the local Qwen search the web and cite what it finds: the
 `local` agent in `agents/local.md`, which `lmstudio.json` makes the default
-agent on this Mac, and the custom `web_search` tool in `tools/web_search.ts`.
+agent on this Mac, and the custom `web_search` and `web_fetch` tools in
+`tools/`.
 Everything below was measured on 2026-10-11 with OpenCode 1.18.20 and the
 Framework's `Qwen3.8-27B-GGUF-UD-Q5_K_XL`, by routing the TUI through a
 logging proxy so the exact requests could be replayed with one change at a time.
@@ -509,6 +510,16 @@ that for both the fallback and the built-in tool. The file imports the plugin
 helper from `~/.config/opencode/node_modules` by absolute path because
 OpenCode loads it from its real path inside this checkout, where no
 `node_modules` exists.
+
+`web_fetch` in `tools/web_fetch.ts` replaces the built-in `webfetch` in the
+same agent for the same reason. The built-in returns the whole page as
+markdown: the Guardian article the model fetched on 2026-10-11 came back as
+16,617 characters, cut at the cap, with the article body never reaching the
+model because the page chrome came first. `web_fetch` runs the pinned
+`defuddle` CLI from `node-clis`, which extracted the same article as 7,886
+characters with title, author and date; long articles page through `offset`,
+and paywalls, blocks and script-only pages are reported as such so the model
+falls back to the search excerpt instead of wasting a turn.
 
 `lmstudio.json` also caps every tool result at 16 KB and 400 lines
 (`tool_output`; the full text goes to OpenCode's tool-output directory and the

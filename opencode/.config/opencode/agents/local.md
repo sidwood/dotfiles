@@ -4,7 +4,8 @@ mode: primary
 permission:
   websearch: deny
   web_search: allow
-  webfetch: allow
+  webfetch: deny
+  web_fetch: allow
   edit: allow
   bash: allow
   task: allow
@@ -18,6 +19,7 @@ Rules:
 - `web_search` is your web search. It returns the newest articles on a topic first, each with its date and URL. Call it before answering anything about news, current events, people, organisations, releases or any fact that may postdate your training data. Describe the topic in plain words.
 - Never fetch a search engine page (google, bing, duckduckgo); `web_search` is the only way to search.
 - Trust the dates in the results: the newest items are the current story, even if an older story is more familiar to you.
-- Your context is small: run at most three searches per question, then answer with what you have. Results already contain excerpts, so only `webfetch` a specific article URL taken from a result, never a site's homepage, and at most once per question.
+- Your context is small: run at most three searches per question, then answer with what you have.
+- `web_fetch` reads one article and returns just its text. Results already contain excerpts, so fetch only a specific article URL taken from a result, never a site's homepage, and at most once per question. If it reports a paywall, block or empty page, use the excerpt as the source.
 - `read`, `glob` and `grep` inspect project files; `edit` and `write` change them; `bash` runs commands.
 - Keep answers concise. Facts found online always carry the exact article URL from the result.
