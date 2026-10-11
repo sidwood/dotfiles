@@ -3,6 +3,9 @@
   "agent": {
     "title": { "disable": true }
   },
+  "default_agent": "local",
+  "tool_output": { "max_lines": 400, "max_bytes": 16384 },
+  "compaction": { "prune": true },
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",

@@ -478,36 +478,49 @@ MCP documentation:
 
 #### Web search for local models
 
-OpenCode's built-in `websearch` tool is the search tool for every model here,
-local ones included; no MCP server or API key is needed. Shell init exports
-`OPENCODE_ENABLE_EXA=1`, which lists the tool for every provider (OpenCode's own
-Zen models get it unconditionally). Queries go to Exa's hosted MCP endpoint at
-`mcp.exa.ai`. An optional `EXA_API_KEY` in the environment attaches a paid key.
+Two layers make the local Qwen search the web and cite what it finds: the
+`local` agent in `agents/local.md`, which `lmstudio.json` makes the default
+agent on this Mac, and the custom `web_search` tool in `tools/web_search.ts`.
+Everything below was measured on 2026-10-11 with OpenCode 1.18.20 and the
+Framework's `Qwen3.8-27B-GGUF-UD-Q5_K_XL`, by routing the TUI through a
+logging proxy so the exact requests could be replayed with one change at a time.
 
-Verified on 2026-10-11 against the Framework's `Qwen3.8-27B-GGUF-UD-Q5_K_XL`
-by capturing the request OpenCode sends to an OpenAI-compatible endpoint. The
-tool list was `bash`, `edit`, `glob`, `grep`, `lsp`, `read`, `skill`, `task`,
-`todowrite`, `webfetch`, `websearch` and `write`. Told to "search the web for"
-something, the model called `websearch` at temperature 0, at the default
-temperature and with thinking on. It does not volunteer a search for a
-question that merely implies one, such as asking for the current weather, and a
-prompt that offers it a way out ("if no search tool is available, say so")
-makes it deny having the tool. Phrase requests as instructions to search.
+OpenCode's built-in `websearch` (Exa, enabled by `OPENCODE_ENABLE_EXA=1` in
+shell init) is in every local session's tool list, yet under OpenCode's default
+coding-agent prompt the model answered news questions with "I don't have web
+search capabilities" in every variant tried: skills list removed, a directive
+appended to `tool-awareness.md`, thinking on. The same request with a short
+tool-aware system prompt in place of the default made it search, which is what
+an agent `prompt` does. Sampled five times on the real request, the default
+prompt scored 0, the committed `local` prompt 4, and with thinking on 5.
 
-The same capture explains why small local models are fragile here. The request
-carried about 17,800 tokens before the user's message. The system prompt was
-43.5k characters: OpenCode's default prompt 8.9k, the global `AGENTS.md` 5.1k,
-`tool-awareness.md` 1.2k and the `<available_skills>` list 28k, built from the
-44 skills symlinked under both `~/.claude/skills` and `~/.agents/skills` (OpenCode
-deduplicates the pair). The twelve tool definitions added another 25k
-characters. `--agent local-worker` replaces the default prompt with its own
-half-kilobyte but keeps everything else. An agent whose permission sets
-`skill: deny` loses the skills list and the `skill` tool: the same capture for
-such an agent was 6.7k characters of system prompt and eleven tools. That is
-the per-agent lever if a local role needs it; `local-worker` keeps its skills.
-`OPENCODE_DISABLE_EXTERNAL_SKILLS=1` or `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`
-would skip the skill scans for every session, cloud models included, so
-neither is set here.
+The agent denies the built-in `websearch` and allows `web_search` instead,
+because the model picks a search tool by name: a custom tool called
+`newssearch` was never chosen (0 of 5; it fetched Google result pages with
+`webfetch` instead), the identical tool named `web_search` was chosen 5 of 5.
+The tool exists because the model stamps its training year onto queries
+("BND scandal 2025") whatever the instructions say, and Exa then returns that
+year's stories. `web_search` strips bare years, queries Bing News and Google
+News RSS (no key, no quota, every item dated), keeps the newest items inside a
+date window computed at call time, trims each to a one-line excerpt, and falls
+back to Exa's hosted MCP endpoint for topics without news coverage. Exa's free
+tier allows about 150 calls a day; an `EXA_API_KEY` in the environment lifts
+that for both the fallback and the built-in tool. The file imports the plugin
+helper from `~/.config/opencode/node_modules` by absolute path because
+OpenCode loads it from its real path inside this checkout, where no
+`node_modules` exists.
+
+`lmstudio.json` also caps every tool result at 16 KB and 400 lines
+(`tool_output`; the full text goes to OpenCode's tool-output directory and the
+model gets a preview) and enables pruning of old tool outputs. Without the cap
+one Exa result was 38k to 51k characters and a fetched homepage 51k, so a 64K
+session overflowed after two searches and one fetch.
+
+With all of that in place, a fresh session asked for "the most recent BND
+scandal" found that week's arrest of the agency's former president, cited seven
+articles with URLs and finished at 58% of context. Tab switches to the stock
+Build agent, which keeps the built-in `websearch`. Thinking is off in
+`lmstudio.json` for speed; it is the knob if reliability matters more.
 
 #### Finding local models in the TUI
 
