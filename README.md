@@ -425,7 +425,8 @@ MLX Python environment is installed.
 
 LM Studio manages its own MLX and llama.cpp runtimes and model loading. The
 local endpoint is `127.0.0.1:1234`; start it in LM Studio or with `lms` before
-selecting a local model. Gemma is the configured local default. Model IDs and context
+selecting a local model. Qwen3.8 Flash Next is the configured local default (see
+below); Gemma and the 27B stay listed. Model IDs and context
 limits and the allowed-model list live in
 `opencode/.config/opencode/lmstudio.json`; match those limits to
 the context actually loaded in LM Studio. Listing a model does not mean it is
@@ -559,13 +560,38 @@ fetches, the same depth and the same story, plus one mangled URL in its
 citations that the cooler runs did not produce. Both settings work; the UI
 default is the one the model's authors recommend.
 
+#### Qwen3.8 Flash Next
+
+`lmstudio/qwen3.8-flash-next` is unsloth's `Qwen3.8-Flash-Next-UD-Q3_K_XL`
+GGUF (90.9 GB on disk, 84.7 GiB loaded on the llama.cpp backend, vision and
+tool use) and the profile's default model since 2026-10-14. It thinks by
+default and streams `reasoning_content`, which OpenCode shows as thought
+steps; the effort presets are disabled as for Gemma. The declared context is
+131,072, not the model's 262,144: on this 128 GB Mac `lms load
+--estimate-only` puts the load at 92.4 GiB for 131,072 and 97.6 GiB for
+262,144, and with the model at LM Studio's 8,192 default the Mac had 14%
+memory free and had already paged out. The "high" guardrail estimate says the
+model fails to load at any context, including the 8,192 it loads at from the
+UI; `lms load qwen3.8-flash-next -c 131072 --gpu max` succeeded in 9 seconds
+regardless. The per-model default for UI loads is
+`~/.lmstudio/.internal/user-concrete-model-default-config/qwen3.8-flash-next.json`,
+written by analogy with the 27B's file beside it and set to 131,072 so the two
+limits match; it has not yet been confirmed by a UI load.
+
+Asked for the most recent UK Budget news from a fresh `local` session, it ran
+two `web_search` calls, no fetch, and answered in 41 seconds at 17.8k tokens
+with six dated article URLs from that day and the day before. Asked next to
+read the Guardian article it had cited, it called `web_fetch` once, which
+returned the 541-word article with title, authors and date, and summarised it
+in 19 seconds, finishing the two-turn session at 19.4k tokens.
+
 #### Finding local models in the TUI
 
 The provider is named **LM Studio (local)**. OpenCode 1.18.30 moves recent and
 favorite models out of their provider section to avoid duplicate entries. Once
-both local models are recent, that section has no remaining entries and is
+all three local models are recent, that section has no remaining entries and is
 hidden. This is TUI behavior, not a missing provider definition, and it has no
-configuration switch. In `/models`, type `LM Studio` to see both models with
+configuration switch. In `/models`, type `LM Studio` to see all three models with
 their provider label. Clearing recent history would restore the section only
 until those models were selected again.
 

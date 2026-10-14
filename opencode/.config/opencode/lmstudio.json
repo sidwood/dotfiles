@@ -15,6 +15,27 @@
         "apiKey": "local"
       },
       "models": {
+        "qwen3.8-flash-next": {
+          "name": "Qwen3.8 Flash Next Q3 (LM Studio)",
+          "reasoning": true,
+          "tool_call": true,
+          "attachment": true,
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          },
+          "variants": {
+            "low": {
+              "disabled": true
+            },
+            "medium": {
+              "disabled": true
+            },
+            "high": {
+              "disabled": true
+            }
+          }
+        },
         "qwen/qwen3.8-27b": {
           "name": "Qwen3.8 27B (LM Studio)",
           "tool_call": true,
@@ -46,6 +67,7 @@
         }
       },
       "whitelist": [
+        "qwen3.8-flash-next",
         "qwen/qwen3.8-27b",
         "google/gemma-4-26b-a4b-qat"
       ]
@@ -93,5 +115,5 @@
       }
     }
   },
-  "model": "lmstudio/google/gemma-4-26b-a4b-qat"
+  "model": "lmstudio/qwen3.8-flash-next"
 }
