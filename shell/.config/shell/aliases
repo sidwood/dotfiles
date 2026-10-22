@@ -43,7 +43,6 @@ alias gbcs='git bc-sync-extras'
 # ------------------------------------------------------------------------------
 
 alias c='opencode'
-alias cf='opencode-framework'
 alias cm='opencode'
 alias claude-danger='claude --dangerously-skip-permissions'
 alias claude-work='CLAUDE_CONFIG_DIR=~/.claude-work claude --dangerously-skip-permissions'
