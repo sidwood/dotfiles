@@ -597,61 +597,23 @@ until those models were selected again.
 
 #### Framework configuration
 
-The active `lmstudio.json` includes a native `framework` provider at
-`http://192.168.4.25:13305/v1`, with an empty client key. The Mac-local default
-and LM Studio model definitions are preserved. Start plain `c`, open `/models`
-and search for `Framework`, or pass the full `--model` ID shown above. Positional
-arguments are project directories, so `c 27b-128k` is not a profile command.
+The active `lmstudio.json` includes **LM Studio (Framework)** using provider ID
+`framework-lmstudio` at `http://100.122.72.1:1234/v1` over Tailscale. Its model is
+`framework-lmstudio/qwen3.8-flash-next@q3_k_xl`, displayed as
+**Qwen3.8 Flash Next Q3**. The Mac-local default and models are preserved.
+Start plain `c`, open `/models`, and search for `Framework`; a recently used
+model appears in Recent instead of a separate provider group. Positional
+arguments are project directories, not profile selectors.
 
-This requires the separately sudo-approved Lemonade client-key removal. The
-server's existing LAN firewall and separate admin key remain in place; no public
-endpoint or SSH tunnel is added. Any allowed LAN device can use the regular API.
-Normal Framework inference needs no `op run`, credential environment or launcher.
+The Framework API is bound to its Tailscale address and requires no API key;
+the client value `local` is a dummy matching the Mac provider. No public endpoint,
+SSH tunnel, `op run`, credential environment or launcher is required. The retired
+Lemonade `framework` provider and its three models were removed from this active
+configuration; stored conversations and model history are preserved.
 
-The retained legacy wrapper's model definitions and request settings live in
-`opencode/.config/opencode/framework.json`. The adjacent
-`framework-profiles.tsv` maps command shortcuts to model IDs; its first row is
-the default. `27b` remains an alias for `27b-64k`.
-
-Create a machine-local credential reference once:
-
-```sh
-cp ~/.config/opencode/framework.env.example ~/.config/opencode/framework.env
-chmod 600 ~/.config/opencode/framework.env
-```
-
-Edit that file to set `FRAMEWORK_BASE_URL` and replace the example
-`FRAMEWORK_API_KEY` locator with your 1Password reference. Keep resolved secrets
-out of the repository. The launcher defaults to `FRAMEWORK_AUTH=1password`,
-using `op run` to resolve this file for the child process. Interactive launches
-preserve direct TTY access with `--no-masking`; automated launches keep masking.
-
-For a server without authentication, set `FRAMEWORK_AUTH=none` and
-`FRAMEWORK_BASE_URL` in the launch environment; no 1Password call is made. For an
-already-resolved credential, use `FRAMEWORK_AUTH=env` with both
-`FRAMEWORK_BASE_URL` and `FRAMEWORK_API_KEY` exported. These two modes do not read
-`framework.env`.
-
-The `framework` provider name and `cf` command can survive a future move to
-LM Studio on the desktop. Update the endpoint, credential mode, model IDs,
-loaded context limits, and server-specific request settings together. The
-macOS dotfiles installer does not manage the desktop's operating system.
-
-Legacy wrapper titles remain disabled to avoid untested concurrent inference.
-Cold long-context requests allow up to an hour; the 128K profile requests
-streaming keepalives. Its previous 121,990-token cold test took 14m 11s and
-retrieved three of six test values, so it remains experimental. A cached
-follow-up took 1.8s. This was not an accuracy comparison against the simpler
-64K test. Lemonade's non-streaming global timeout remains unchanged.
-
-`cf --help` and `cf models` need neither 1Password nor a running server.
-Use either a profile selector or `--model`/`-m`, not both. Prefix a project path
-with `./` when it matches a profile or `models`.
-
-An explicit `OPENCODE_CONFIG` replaces the launcher's choice of overlay, not
-OpenCode's global configuration. Project settings can override that overlay.
-The custom file must define any remote models it needs. All `opencode`
-arguments pass through `c` and `cm` unchanged.
+The retired `cf` launcher and its Lemonade configuration have been removed.
+Use `c` for both machines and select the desired LM Studio provider in `/models`.
+All `opencode` arguments pass through `c` and `cm` unchanged.
 
 #### Migration from the direct MLX launchers
 
