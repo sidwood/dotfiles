@@ -72,47 +72,37 @@
         "google/gemma-4-26b-a4b-qat"
       ]
     },
-    "framework": {
+    "framework-lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Framework Desktop (LAN)",
+      "name": "LM Studio (Framework)",
       "options": {
-        "baseURL": "http://192.168.4.25:13305/v1",
-        "apiKey": "",
-        "timeout": 3600000,
-        "headerTimeout": 3600000,
-        "chunkTimeout": 3600000
+        "baseURL": "http://100.122.72.1:1234/v1",
+        "apiKey": "local"
       },
       "models": {
-        "Qwen3.8-27B-GGUF-UD-Q5_K_XL-128K": {
-          "name": "Qwen3.8 27B Q5 128K",
-          "reasoning": false,
+        "qwen3.8-flash-next@q3_k_xl": {
+          "name": "Qwen3.8 Flash Next Q3",
+          "reasoning": true,
           "tool_call": true,
-          "limit": { "context": 131072, "output": 8192 },
-          "options": {
-            "sse_ping_interval": 1,
-            "chat_template_kwargs": { "enable_thinking": false }
-          }
-        },
-        "Qwen3.8-27B-GGUF-UD-Q5_K_XL": {
-          "name": "Qwen3.8 27B Q5 64K",
-          "reasoning": false,
-          "tool_call": true,
-          "limit": { "context": 65536, "output": 8192 },
-          "options": {
-            "chat_template_kwargs": { "enable_thinking": false }
-          }
-        },
-        "Qwen3.5-122B-A10B-GGUF": {
-          "name": "Qwen3.5 122B A10B Q4",
-          "reasoning": false,
-          "tool_call": true,
-          "limit": { "context": 262144, "output": 8192 },
-          "options": {
-            "sse_ping_interval": 1,
-            "chat_template_kwargs": { "enable_thinking": false }
+          "attachment": true,
+          "limit": {
+            "context": 131072,
+            "output": 16384
+          },
+          "variants": {
+            "low": {
+              "disabled": true
+            },
+            "medium": {
+              "disabled": true
+            },
+            "high": {
+              "disabled": true
+            }
           }
         }
-      }
+      },
+      "whitelist": ["qwen3.8-flash-next@q3_k_xl"]
     }
   },
   "model": "lmstudio/qwen3.8-flash-next"
