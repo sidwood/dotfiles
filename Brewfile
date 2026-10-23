@@ -1,5 +1,6 @@
 tap "1password/tap", trusted: true
 tap "ampcode/tap", trusted: true
+tap "hashicorp/tap", trusted: true
 tap "humanlayer/humanlayer", trusted: true
 tap "jesseduffield/lazydocker", trusted: true
 tap "jesseduffield/lazygit", trusted: true
@@ -33,6 +34,7 @@ brew "gh"
 brew "gifski"
 brew "git-filter-repo"
 brew "git"
+brew "hashicorp/tap/terraform"
 brew "herdr", restart_service: :changed
 brew "heroku"
 brew "himalaya"
