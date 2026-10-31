@@ -426,15 +426,15 @@ MLX Python environment is installed.
 LM Studio manages its own MLX and llama.cpp runtimes and model loading. The
 local endpoint is `127.0.0.1:1234`; start it in LM Studio or with `lms` before
 selecting a local model. Qwen3.8 Flash Next is the configured local default (see
-below); Gemma and the 27B stay listed. Model IDs and context
+below); Gemma 4 12B and 26B and the 27B stay listed. Model IDs and context
 limits and the allowed-model list live in
 `opencode/.config/opencode/lmstudio.json`; match those limits to
 the context actually loaded in LM Studio. Listing a model does not mean it is
 loaded. Local API authentication is currently disabled.
 
 Control Gemma’s thinking toggle in LM Studio. OpenCode’s generated
-`low`/`medium`/`high` effort presets are disabled for this model because it
-does not support those levels.
+`low`/`medium`/`high` effort presets are disabled for both Gemma models
+because they do not support those levels.
 
 The combined local profile disables automatic title generation, retaining the
 Framework's single-request safeguard without depending on a separate Mac helper.
@@ -589,9 +589,9 @@ in 19 seconds, finishing the two-turn session at 19.4k tokens.
 
 The provider is named **LM Studio (local)**. OpenCode 1.18.30 moves recent and
 favorite models out of their provider section to avoid duplicate entries. Once
-all three local models are recent, that section has no remaining entries and is
+all four local models are recent, that section has no remaining entries and is
 hidden. This is TUI behavior, not a missing provider definition, and it has no
-configuration switch. In `/models`, type `LM Studio` to see all three models with
+configuration switch. In `/models`, type `LM Studio` to see all four models with
 their provider label. Clearing recent history would restore the section only
 until those models were selected again.
 
