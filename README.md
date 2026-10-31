@@ -521,6 +521,22 @@ article; `web_search` now decodes them to the publisher's URL through Google's
 own endpoint (about 2 seconds for eight items), and `web_fetch` explains any
 link that still slips through instead of failing blind.
 
+How-to and documentation questions ("how to …", or naming docs, install,
+configure, API and similar) go to Exa first, because the feeds answer them with
+SEO blog posts. Results from sites that refused the reader on 2026-10-31 (FT,
+Telegraph, Sky News, WSJ, Bloomberg, The Economist, NYT and Reuters, HTTP 401
+to 403) are marked paywalled: Gemma 4 12B fetched the first result, which was
+often the FT, and stopped when it was blocked. `web_fetch` reads MSN copies
+("BBC on MSN", common in Bing results) from MSN's JSON, since the pages need
+JavaScript. Each tool result ends with a one-line reminder to use only what it
+says and cite its URL; Gemma ignored the agent prompt's citation rule but
+follows the reminder. The agent may fetch a named site's news front page when
+asked what that site is leading with, because Bing's results for "BBC" were
+mostly live sport. With all of this, Gemma 4 12B read and briefed a London
+article in 3 of 3 runs, listed the BBC front page in 3 of 3, and answered both
+how-to questions from the right docs, with every checked fact traceable to a
+tool result.
+
 `web_fetch` in `tools/web_fetch.ts` replaces the built-in `webfetch` in the
 same agent for the same reason. The built-in returns the whole page as
 markdown: the Guardian article the model fetched on 2026-10-11 came back as

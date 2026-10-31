@@ -23,12 +23,32 @@ const RESOLVE_TIMEOUT_MS = 10_000
 // empty answer is retried without them before falling back to Google.
 const FILLER = /\b(?:today|tonight|latest|recent|current|breaking|top|stories|headlines|local|news)\b/gi
 
+// How-to and documentation questions are answered by reference pages, which
+// the news feeds do not carry ("how to configure LM Studio context length"
+// got SEO blog posts from them, never LM Studio's docs), so these go to Exa
+// first and fall back to the feeds.
+const REFERENCE =
+  /^\s*how\s+(?:to|do|does|can|should)\b|\b(?:docs?|documentation|tutorial|guide|manual|reference|configur\w*|install\w*|set\s?up|api|syntax|example|error)\b/i
+
+// Sites that refused web_fetch's reader on 2026-10-31 (HTTP 401, 402 or 403).
+// Bing often ranks them first, and the model fetches the first result and
+// gives up when it is blocked, so they are marked before it picks.
+const BLOCKS_READERS = /(^|\.)(?:ft\.com|telegraph\.co\.uk|news\.sky\.com|wsj\.com|bloomberg\.com|economist\.com|nytimes\.com|reuters\.com)$/i
+
+function blocksReaders(url: string): boolean {
+  try {
+    return BLOCKS_READERS.test(new URL(url).hostname)
+  } catch {
+    return false
+  }
+}
+
 type Item = { title: string; url: string; source?: string; published?: Date; snippet: string }
 
 // Entities are decoded before tags are stripped because Google News escapes
 // the HTML inside its descriptions, and &amp; goes last so "&amp;nbsp;" ends
 // up as a space rather than a literal entity.
-function unescape(text: string): string {
+function decodeEntities(text: string): string {
   return text
     .replace(/<!\[CDATA\[|\]\]>/g, "")
     .replace(/&lt;/g, "<")
@@ -48,7 +68,7 @@ const letters = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,
 
 function field(block: string, tag: string): string {
   const match = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`))
-  return match ? unescape(match[1]) : ""
+  return match ? decodeEntities(match[1]) : ""
 }
 
 function parseRss(xml: string): Item[] {
@@ -136,7 +156,7 @@ async function search(query: string): Promise<{ items: Item[]; provider: string 
       errors.push(`${provider}: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
-  if (errors.length > 0) throw new Error(`News feeds unavailable (${errors.join("; ")}). Tell the user; do not claim nothing was found.`)
+  if (errors.length > 0) throw new Error(`news feeds unavailable (${errors.join("; ")})`)
   return { items: [], provider: "news feeds" }
 }
 
@@ -196,7 +216,7 @@ async function exaSearch(query: string, today: string, floor: string): Promise<I
 export default tool({
   description:
     "Search the web. Returns the newest articles about a topic first, each with its publication date, source, URL and a one-line excerpt; " +
-    "topics without news coverage fall back to a general web search. " +
+    "how-to and documentation questions, and topics without news coverage, use a general web search. " +
     "Use it for news, current events, people, organisations, releases and any 'latest' or 'most recent' question. " +
     "Describe the topic in plain words; years in the query are ignored because the newest results are returned anyway.",
   args: {
@@ -218,12 +238,26 @@ export default tool({
     // Small models stamp their training year onto queries; the date window below
     // already decides recency, so bare years only narrow the feed search.
     const query = args.query.replace(/\b(?:19|20)\d\d\b/g, " ").replace(/\s+/g, " ").trim() || args.query
-    let { items, provider } = await search(query)
-    let recent = items
-      .filter((item) => !item.published || item.published >= since)
-      .sort((a, b) => (b.published?.getTime() ?? 0) - (a.published?.getTime() ?? 0))
-      .slice(0, MAX_ITEMS)
-    if (recent.length < 2) {
+    let recent: Item[] = []
+    let provider = "news feeds"
+    const failures: string[] = []
+    const reason = (error: unknown) => (error instanceof Error ? error.message : String(error))
+    const tryNews = async () => {
+      try {
+        const news = await search(query)
+        const dated = news.items
+          .filter((item) => !item.published || item.published >= since)
+          .sort((a, b) => (b.published?.getTime() ?? 0) - (a.published?.getTime() ?? 0))
+          .slice(0, MAX_ITEMS)
+        if (dated.length > recent.length) {
+          recent = dated
+          provider = news.provider
+        }
+      } catch (error) {
+        failures.push(reason(error))
+      }
+    }
+    const tryExa = async () => {
       try {
         const general = await exaSearch(query, today, floor)
         if (general.length > recent.length) {
@@ -231,13 +265,16 @@ export default tool({
           provider = "Exa web search"
         }
       } catch (error) {
-        if (recent.length === 0) {
-          return `No news articles found for "${query}" in the last ${days} days, and the general web search failed (${error instanceof Error ? error.message : String(error)}). Tell the user; try other words for the topic.`
-        }
+        failures.push(`general web search: ${reason(error)}`)
       }
     }
+    for (const attempt of REFERENCE.test(query) ? [tryExa, tryNews] : [tryNews, tryExa]) {
+      if (recent.length >= 2) break
+      await attempt()
+    }
     if (recent.length === 0) {
-      return `No articles found for "${query}" in the last ${days} days via ${provider} (today is ${today}). Try other words for the topic.`
+      const failed = failures.length > 0 ? ` Searches failed (${failures.join("; ")}); tell the user, and do not claim nothing exists.` : ""
+      return `No articles found for "${query}" in the last ${days} days (today is ${today}).${failed} Try other words for the topic.`
     }
     if (provider === "Google News") {
       recent = await Promise.all(recent.map(async (item) => ({ ...item, url: await resolveGoogleNews(item.url) })))
@@ -245,8 +282,15 @@ export default tool({
     const lines = recent.map((item, i) => {
       const date = item.published ? item.published.toISOString().slice(0, 10) : "undated"
       const source = item.source ? ` (${item.source})` : ""
-      return `${i + 1}. ${item.title}${source}\n   ${date}  ${item.url}${item.snippet ? `\n   ${item.snippet}` : ""}`
+      const blocked = blocksReaders(item.url) ? " [paywalled: excerpt only, do not fetch]" : ""
+      return `${i + 1}. ${item.title}${source}${blocked}\n   ${date}  ${item.url}${item.snippet ? `\n   ${item.snippet}` : ""}`
     })
-    return `Today is ${today}. Newest articles for "${query}" via ${provider} (last ${days} days):\n\n${lines.join("\n\n")}`
+    const heading =
+      provider === "Exa web search"
+        ? `Web pages for "${query}" via ${provider}`
+        : `Newest articles for "${query}" via ${provider} (last ${days} days)`
+    // Small models skip the system prompt's citation rule but follow one
+    // placed beside the data.
+    return `Today is ${today}. ${heading}:\n\n${lines.join("\n\n")}\n\n[Use only what these results say, and put the URL after each fact you take from them.]`
   },
 })
