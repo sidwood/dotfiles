@@ -15,22 +15,36 @@ const MAX_DAYS = 3650
 const MAX_ITEMS = 8
 const SNIPPET_CHARS = 300
 const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X) opencode-web_search"
+const BROWSER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+const RESOLVE_TIMEOUT_MS = 10_000
+
+// Bing News answers an empty feed when the query carries words like these
+// ("local news London today" returns nothing, "London" returns eleven), so an
+// empty answer is retried without them before falling back to Google.
+const FILLER = /\b(?:today|tonight|latest|recent|current|breaking|top|stories|headlines|local|news)\b/gi
 
 type Item = { title: string; url: string; source?: string; published?: Date; snippet: string }
 
+// Entities are decoded before tags are stripped because Google News escapes
+// the HTML inside its descriptions, and &amp; goes last so "&amp;nbsp;" ends
+// up as a space rather than a literal entity.
 function unescape(text: string): string {
   return text
     .replace(/<!\[CDATA\[|\]\]>/g, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;/g, "'")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&amp;/g, "&")
     .replace(/&nbsp;/g, " ")
     .replace(/\s+/g, " ")
     .trim()
 }
+
+const letters = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "")
 
 function field(block: string, tag: string): string {
   const match = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`))
@@ -49,16 +63,54 @@ function parseRss(xml: string): Item[] {
       if (real && parsed.hostname.endsWith("bing.com")) url = real
     } catch {}
     const published = new Date(field(block, "pubDate"))
+    const description = field(block, "description")
     return [
       {
         title,
         url,
         source: field(block, "News:Source") || field(block, "source") || undefined,
         published: Number.isNaN(published.getTime()) ? undefined : published,
-        snippet: field(block, "description").slice(0, SNIPPET_CHARS),
+        // Google's description is usually just the headline and source again.
+        snippet: letters(description) === letters(title) ? "" : description.slice(0, SNIPPET_CHARS),
       },
     ]
   })
+}
+
+// Google News links are redirects no reader can follow: from the UK they land
+// on a cookie-consent page (SOCS=CAI answers it), and past that the article
+// URL only comes from Google's own decoding endpoint, keyed by a signature and
+// timestamp embedded in the redirect page. Any failure keeps the original link.
+const GOOGLE_HEADERS = { "User-Agent": BROWSER_AGENT, Cookie: "SOCS=CAI" }
+
+async function resolveGoogleNews(url: string): Promise<string> {
+  try {
+    const id = new URL(url).pathname.match(/\/articles\/([^/]+)$/)?.[1]
+    if (!id) return url
+    const page = await fetch(url, { headers: GOOGLE_HEADERS, signal: AbortSignal.timeout(RESOLVE_TIMEOUT_MS) })
+    const html = await page.text()
+    const signature = html.match(/data-n-a-sg="([^"]+)"/)?.[1]
+    const timestamp = html.match(/data-n-a-ts="([^"]+)"/)?.[1]
+    if (!signature || !timestamp) return url
+    const request = [
+      "garturlreq",
+      [["X", "X", ["X", "X"], null, null, 1, 1, "US:en", null, 1, null, null, null, null, null, 0, 1], "X", "X", 1, [1, 1, 1], 1, 1, null, 0, 0, null, 0],
+      id,
+      Number(timestamp),
+      signature,
+    ]
+    const res = await fetch("https://news.google.com/_/DotsSplashUi/data/batchexecute", {
+      method: "POST",
+      headers: { ...GOOGLE_HEADERS, "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: new URLSearchParams({ "f.req": JSON.stringify([[["Fbv4je", JSON.stringify(request), null, "generic"]]]) }),
+      signal: AbortSignal.timeout(RESOLVE_TIMEOUT_MS),
+    })
+    const envelope = JSON.parse((await res.text()).split("\n\n")[1])
+    const real = JSON.parse(envelope[0][2])[1]
+    return typeof real === "string" && /^https?:\/\//.test(real) ? real : url
+  } catch {
+    return url
+  }
 }
 
 async function feed(url: string): Promise<Item[]> {
@@ -68,10 +120,12 @@ async function feed(url: string): Promise<Item[]> {
 }
 
 async function search(query: string): Promise<{ items: Item[]; provider: string }> {
-  const q = encodeURIComponent(query)
+  const bing = (q: string) => `https://www.bing.com/news/search?q=${encodeURIComponent(q)}&format=rss`
+  const shorter = query.replace(FILLER, " ").replace(/\s+/g, " ").trim()
   const providers: [string, string][] = [
-    ["Bing News", `https://www.bing.com/news/search?q=${q}&format=rss`],
-    ["Google News", `https://news.google.com/rss/search?q=${q}&hl=en-GB&gl=GB&ceid=GB:en`],
+    ["Bing News", bing(query)],
+    ...(shorter && shorter !== query ? [["Bing News", bing(shorter)] as [string, string]] : []),
+    ["Google News", `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-GB&gl=GB&ceid=GB:en`],
   ]
   const errors: string[] = []
   for (const [provider, url] of providers) {
@@ -184,6 +238,9 @@ export default tool({
     }
     if (recent.length === 0) {
       return `No articles found for "${query}" in the last ${days} days via ${provider} (today is ${today}). Try other words for the topic.`
+    }
+    if (provider === "Google News") {
+      recent = await Promise.all(recent.map(async (item) => ({ ...item, url: await resolveGoogleNews(item.url) })))
     }
     const lines = recent.map((item, i) => {
       const date = item.published ? item.published.toISOString().slice(0, 10) : "undated"

@@ -512,6 +512,15 @@ helper from `~/.config/opencode/node_modules` by absolute path because
 OpenCode loads it from its real path inside this checkout, where no
 `node_modules` exists.
 
+Bing News returns an empty feed when the query carries words such as
+"today", "local" or "top stories" (on 2026-10-31 "local news London today"
+gave nothing and "London" gave eleven items), so `web_search` retries Bing
+without them before falling back to Google News. Google News links are
+redirects that land on Google's consent page from the UK, so Defuddle saw no
+article; `web_search` now decodes them to the publisher's URL through Google's
+own endpoint (about 2 seconds for eight items), and `web_fetch` explains any
+link that still slips through instead of failing blind.
+
 `web_fetch` in `tools/web_fetch.ts` replaces the built-in `webfetch` in the
 same agent for the same reason. The built-in returns the whole page as
 markdown: the Guardian article the model fetched on 2026-10-11 came back as

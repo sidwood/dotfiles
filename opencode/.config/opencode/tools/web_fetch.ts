@@ -96,6 +96,11 @@ export default tool({
   async execute(args: { url: string; offset?: number; maxChars?: number }) {
     const offset = args.offset ?? 0
     const maxChars = args.maxChars ?? DEFAULT_MAX_CHARS
+    // web_search decodes these; one left over means decoding failed, and the
+    // redirect itself only leads to a Google consent page.
+    if (/^news\.google\.com$/i.test(new URL(args.url).hostname)) {
+      return `${args.url} is a Google News redirect, not the article. Use the search excerpt as the source, or search again with fewer words to get the publisher's own URL.`
+    }
     let article: Article
     try {
       article = await extract(args.url)
