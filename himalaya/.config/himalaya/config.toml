@@ -4,9 +4,20 @@
 # Docs: https://github.com/pimalaya/himalaya/blob/v2.1.0/README.md  (iCloud section)
 #
 # Stow: himalaya/.config/himalaya/config.toml -> ~/.config/himalaya/config.toml
-# Secret: Apple app-specific password via 1Password CLI. Never put the
-# password in this file. `op read` on this item includes a leading space;
-# strip whitespace or IMAP/SMTP AUTH fails.
+# Secret: Apple app-specific password, read from the macOS login Keychain.
+# Never put the password in this file. 1Password stays the source of
+# truth, but `op read` needs an approval per terminal session, which
+# agents and other non-interactive callers re-trigger on every command.
+#
+# Re-seed after rotating the password (one 1Password approval). The `op
+# read` value carries a leading space; strip it or IMAP/SMTP AUTH fails.
+# `security -i` keeps the password out of argv; `-T` lets only
+# /usr/bin/security read the item without a prompt.
+#
+#   pw=$(op read -n --account my.1password.ca \
+#     'op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password' | tr -d '[:space:]')
+#   printf 'add-generic-password -U -a sidwood@me.com -s himalaya-icloud -T /usr/bin/security -w %s\n' \
+#     "$pw" | security -i; unset pw
 
 display-name = "Sid Wood"
 
@@ -16,12 +27,12 @@ email = "sidwood@me.com"
 
 imap.server = "imaps://imap.mail.me.com:993"
 imap.sasl.plain.username = "sidwood"
-imap.sasl.plain.password.command = ["sh", "-c", "op read -n --account my.1password.ca 'op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password' | tr -d '[:space:]'"]
+imap.sasl.plain.password.command = ["security", "find-generic-password", "-a", "sidwood@me.com", "-s", "himalaya-icloud", "-w"]
 
 smtp.server = "smtp://smtp.mail.me.com:587"
 smtp.starttls = true
 smtp.sasl.plain.username = "sidwood@me.com"
-smtp.sasl.plain.password.command = ["sh", "-c", "op read -n --account my.1password.ca 'op://Homelab/moqfghe4lwjon47vfby5r5pg4a/password' | tr -d '[:space:]'"]
+smtp.sasl.plain.password.command = ["security", "find-generic-password", "-a", "sidwood@me.com", "-s", "himalaya-icloud", "-w"]
 
 mailbox.alias.inbox = "INBOX"
 mailbox.alias.sent = "Sent Messages"

@@ -51,7 +51,7 @@ dotfiles/
 ├── ghostty/        # Ghostty terminal config
 ├── git/            # Git config and global ignore
 ├── herdr/          # Herdr workspace manager (Solarized Dark, tmux-first keys)
-├── himalaya/       # Himalaya CLI email config (iCloud via 1Password)
+├── himalaya/       # Himalaya CLI email config (iCloud via Keychain)
 ├── htop/           # htop process viewer config
 ├── humanlayer/     # HumanLayer workspace defaults
 ├── iterm2/         # iTerm2 terminal config (macOS)
