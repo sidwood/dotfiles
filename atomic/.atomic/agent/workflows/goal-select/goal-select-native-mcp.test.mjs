@@ -128,7 +128,7 @@ async function stageSession({ stageName = "orchestrator-1", runId = goalSelectRu
   await resourceLoader.reload();
   const modelRuntime = await atomic.ModelRuntime.create({ credentials: atomic.AuthStorage.inMemory(), modelsPath: null });
   runs += 1;
-  const sessionManager = atomic.SessionManager.create(cwd, join(root, "sessions"), { internal: true, workflow: { runId, stageId: `stage-${runs}`, stageName } });
+  const sessionManager = await atomic.SessionManager.create(cwd, join(root, "sessions"), { internal: true, workflow: { runId, stageId: `stage-${runs}`, stageName } });
   const { session } = await atomic.createAgentSession({
     cwd,
     agentDir: dir,
@@ -331,6 +331,29 @@ describe("goal-select with Atomic's native MCP client (real SDK sessions, local 
     );
   });
 
+  it("trusts a probe the session already records when the guard is loaded afresh, as a released stage reopens", async () => {
+    const spec = intake.trackerIntake({ tracker: "jira" }, cwd);
+    const stageName = intake.trackerStage(spec, guard.TRACKER_INTAKE_STAGE);
+    const { scope } = guard.parseTrackerStage(stageName);
+    const [read] = guard.trackerReadTools(scope);
+    const load = (entries) => {
+      const handlers = {};
+      const appended = [];
+      const pi = { on: (name, handler) => (handlers[name] = handler), registerTool: () => {}, appendEntry: async (type, data) => appended.push({ type: "custom", customType: type, data }) };
+      guard.default(pi);
+      const ctx = { sessionManager: { getHeader: () => ({ workflow: { stageName } }), getEntries: () => [...entries, ...appended] } };
+      return { handlers, ctx, appended };
+    };
+    const fresh = load([]);
+    await fresh.handlers.session_start({}, fresh.ctx);
+    assert.equal((await fresh.handlers.tool_call({ toolName: read, toolCallId: "c1" }, fresh.ctx))?.block, true, "no probe yet: the read is blocked");
+    const probe = { type: "message", message: { role: "toolResult", toolCallId: "c0", toolName: guard.TRACKER_GUARD_TOOL, isError: false, content: [], details: { guard: "active", stage: guard.TRACKER_INTAKE_STAGE } } };
+    const reopened = load([probe]);
+    await reopened.handlers.session_start({}, reopened.ctx);
+    assert.equal(await reopened.handlers.tool_call({ toolName: read, toolCallId: "c2" }, reopened.ctx), undefined, "the recorded probe lets the read run");
+    assert.deepEqual(reopened.appended.map((entry) => entry.data.event), ["loaded", "decision"], "and each entry is written before the handler returns");
+  });
+
   it("fails the guard check when the guard extension is not loaded", async () => {
     const spec = intake.trackerIntake({ tracker: "jira" }, cwd);
     const { session, sessionFile } = await stageSession({ stageName: guard.TRACKER_GUARD_CHECK_STAGE, tools: intake.guardCheckStageOptions(spec).tools, dir: bareAgentDir });
@@ -388,7 +411,7 @@ describe("goal-select's writer fallback gate in Atomic's own sessions (real SDK 
     writeJson(join(fallbackAgentDir, "settings.json"), { retry: { enabled: false } });
     writeFileSync(
       join(fallbackAgentDir, "agents", "scribe.md"),
-      ["---", "name: scribe", "description: Minimal implementation agent for the fallback tests.", "systemPromptMode: replace", "inheritProjectContext: false", "inheritSkills: false", "tools: read, write", "---", "", "You are scribe. Reply briefly.", ""].join("\n"),
+      ["---", "name: scribe", "description: Minimal implementation agent for the fallback tests.", "systemPromptMode: replace", "inheritProjectContext: false", "inheritSkills: false", "tools: read, write, edit", "---", "", "You are scribe. Reply briefly.", ""].join("\n"),
     );
     cores = Object.fromEntries(PROVIDERS.map((provider) => [provider, piAi.createFauxCore({ provider, api: `${provider}-api`, models: [{ id: "m" }] })]));
     writerFallback = await import(new URL("./writer-fallback.js", import.meta.url).href);
@@ -455,7 +478,7 @@ describe("goal-select's writer fallback gate in Atomic's own sessions (real SDK 
     const modelRuntime = await atomic.ModelRuntime.create({ credentials: atomic.AuthStorage.inMemory(), modelsPath: null });
     sessions += 1;
     const runId = "goal-select-fallback-run";
-    const sessionManager = atomic.SessionManager.create(checkout, sessionsDir, { internal: true, workflow: { runId, stageId: `stage-${sessions}`, stageName: "orchestrator-1" } });
+    const sessionManager = await atomic.SessionManager.create(checkout, sessionsDir, { internal: true, workflow: { runId, stageId: `stage-${sessions}`, stageName: "orchestrator-1" } });
     const { session } = await atomic.createAgentSession({
       cwd: checkout,
       agentDir: fallbackAgentDir,
@@ -486,7 +509,8 @@ describe("goal-select's writer fallback gate in Atomic's own sessions (real SDK 
       "fx-chat": (context) => {
         if (!firstUserText(context).includes("Delegate the change.")) {
           if (context.messages.some((message) => message.role === "toolResult")) return piAi.fauxAssistantMessage("written by the orchestrator's model");
-          return piAi.fauxAssistantMessage(files.map((path) => piAi.fauxToolCall("write", { path, content: "changed\n" })), { stopReason: "toolUse" });
+          // A file given as { edit: path } is changed with Atomic's edit tool.
+          return piAi.fauxAssistantMessage(files.map((file) => (typeof file === "string" ? piAi.fauxToolCall("write", { path: file, content: "changed\n" }) : piAi.fauxToolCall("edit", { path: file.edit, edits: [{ oldText: "changed", newText: "edited" }] }))), { stopReason: "toolUse" });
         }
         orchestratorTurns += 1;
         if (orchestratorTurns > 1) return piAi.fauxAssistantMessage("receipt");
@@ -529,20 +553,26 @@ describe("goal-select's writer fallback gate in Atomic's own sessions (real SDK 
     assert.deepEqual(requests, ["fx-writer/m", "fx-next/m"], "no request reached the reviewer's or the orchestrator's model");
   });
 
-  it("left alone, Atomic moves a delegated agent whose provider fails onto the orchestrator's model and reports it as completed", async () => {
+  // Atomic up to 0.9.32 moved such an agent onto the orchestrator's model
+  // and reported it completed; the gate below was built against that. Since
+  // then a subagent launched on a named model runs only that model and its
+  // agent's own fallbackModels, and the gate stays as a second guard.
+  it("left alone, Atomic keeps a delegated agent whose provider fails on its named model and reports it failed", async () => {
     const { text, tasks } = await delegate(undefined);
-    assert.match(text, /written by the orchestrator's model/);
+    assert.match(text, /"kind":"failed"/);
+    assert.doesNotMatch(text, /written by/);
     assert.deepEqual(requests.filter((model) => model === "fx-writer/m").length, 1);
     assert.equal(tasks.length, 1);
     const [task] = tasks;
-    assert.deepEqual([task.agent, task.requested, task.started, task.resolved, task.models, task.wrote, task.error, task.unread], ["scribe", "fx-writer/m", "fx-writer/m", "fx-chat/m", ["fx-chat/m"], ["fx-chat/m"], undefined, undefined], "the transcript audit names the model that wrote, which the request did not");
-    assert.equal(readFileSync(join(checkout, "src", "change.txt"), "utf8"), "changed\n", "Atomic's own write tool wrote the file the audit read from the transcript");
+    assert.deepEqual([task.agent, task.requested, task.resolved, task.models, task.wrote, task.error, task.unread], ["scribe", "fx-writer/m", "fx-writer/m", [], [], usageLimit, undefined], "the transcript audit sees the failed model and no writing");
+    assert.equal(existsSync(join(checkout, "src", "change.txt")), false, "nothing ran that could write the file");
   });
 
-  it("with goal-select's gate on the orchestrator's session, the delegated agent inherits it and stays off the orchestrator's model", async () => {
+  it("with goal-select's gate on the orchestrator's session, the delegated agent still fails on its named model and never reaches the orchestrator's", async () => {
     const { text, tasks } = await delegate(writerFallback.delegatedFallbackGate(turnModels));
-    assert.deepEqual(requests, ["fx-chat/m", "fx-writer/m", "fx-chat/m"], "the orchestrator, the agent's one failed request, the orchestrator again: the agent never ran on fx-chat");
-    assert.match(text, /"kind":"completed"/, "Atomic still reports the stopped agent as completed");
+    assert.deepEqual(requests.slice(0, 2), ["fx-chat/m", "fx-writer/m"], "the orchestrator, then the agent's one failed request");
+    assert.deepEqual(requests.slice(2).filter((model) => model !== "fx-chat/m"), [], "after it only the orchestrator answers");
+    assert.match(text, /"kind":"failed"/, "Atomic reports the stopped agent as failed");
     assert.doesNotMatch(text, /written by/);
     const [task] = tasks;
     assert.deepEqual([task.agent, task.requested, task.resolved, task.models, task.wrote, task.error, task.unread], ["scribe", "fx-writer/m", "fx-writer/m", [], [], usageLimit, undefined], "only the agent's transcript shows that its model failed");
@@ -550,26 +580,28 @@ describe("goal-select's writer fallback gate in Atomic's own sessions (real SDK 
     assert.equal(existsSync(join(fallbackAgentDir, "intercom", "broker.sock")), false, "no Intercom broker was started");
   });
 
-  it("cannot stop Atomic starting an agent on the orchestrator's model when the requested model's provider has no credentials; the audit shows it", async () => {
+  it("fails, rather than starting on the orchestrator's model, an agent whose requested provider has no credentials", async () => {
     const { text, tasks } = await delegate(writerFallback.delegatedFallbackGate(turnModels), `${LOCKED}/m`, ["src/started-elsewhere.txt"]);
-    assert.match(text, /written by the orchestrator's model/, "the agent's first and only model was the orchestrator's: a start, not a fallback");
+    assert.match(text, /"kind":"failed"/);
+    assert.match(text, /no configured API key/);
+    assert.doesNotMatch(text, /written by/);
     assert.equal(requests.includes("fx-writer/m"), false, "the locked provider was never asked");
-    const [task] = tasks;
-    assert.deepEqual([task.requested, task.started, task.resolved, task.models, task.wrote, task.error], [`${LOCKED}/m`, "fx-chat/m", "fx-chat/m", ["fx-chat/m"], ["fx-chat/m"], undefined]);
+    assert.equal(existsSync(join(checkout, "src", "started-elsewhere.txt")), false);
+    assert.deepEqual(tasks.flatMap((task) => task.wrote), [], "no agent wrote");
   });
 
   it("reads from a real transcript which files an agent wrote: those of the checkout that Git keeps, not its notes or scratch", async () => {
     const outside = join(root, "evidence", "review.md");
     mkdirSync(join(root, "evidence"), { recursive: true });
     mkdirSync(join(checkout, ".atomic"), { recursive: true });
-    const notes = await delegate(undefined, "fx-writer/m", [join(checkout, ".atomic", "progress.md"), outside]);
+    const notes = await delegate(undefined, "fx-chat/m", [join(checkout, ".atomic", "progress.md"), outside]);
     assert.match(notes.text, /written by the orchestrator's model/);
     assert.equal(readFileSync(outside, "utf8"), "changed\n");
-    assert.deepEqual([notes.tasks[0].models, notes.tasks[0].wrote], [["fx-chat/m"], []], "it ran on the orchestrator's model and wrote nothing a reviewer reads");
-    const both = await delegate(undefined, "fx-writer/m", [join(checkout, ".atomic", "second-progress.md"), join(checkout, "src", "second.txt")]);
+    assert.deepEqual([notes.tasks[0].models, notes.tasks[0].wrote], [["fx-chat/m"], []], "it ran and wrote nothing a reviewer reads");
+    const both = await delegate(undefined, "fx-chat/m", [join(checkout, ".atomic", "second-progress.md"), join(checkout, "src", "second.txt")]);
     assert.deepEqual(both.tasks[0].wrote, ["fx-chat/m"], "one file of the checkout among its notes is enough");
-    // Atomic refuses to overwrite a file the session has not read; a refused write wrote nothing.
-    const refused = await delegate(undefined, "fx-writer/m", [join(checkout, "src", "second.txt")]);
-    assert.deepEqual([refused.tasks[0].models, refused.tasks[0].wrote], [["fx-chat/m"], []]);
+    const edited = await delegate(undefined, "fx-chat/m", [{ edit: join(checkout, "src", "second.txt") }]);
+    assert.equal(readFileSync(join(checkout, "src", "second.txt"), "utf8"), "edited\n", "Atomic's edit tool changed the file");
+    assert.deepEqual(edited.tasks[0].wrote, ["fx-chat/m"], "an edit by path counts as writing");
   });
 });

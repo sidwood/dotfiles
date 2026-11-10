@@ -1,1 +1,3 @@
-{}
+{
+  "sessions": { "storage": { "dir": "agent/sessions" } }
+}

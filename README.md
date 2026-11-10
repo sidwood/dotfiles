@@ -229,7 +229,7 @@ and [plugin configuration catalog](https://github.com/deepseek-ai/deepseek-harne
 
 Select **Install Atomic with portable defaults** in `./install.sh`, along with
 mise for Node.js and Stow for the reference files. The pinned project is
-`node-clis/atomic` at CLI `0.9.25`. Node.js 22.19 or newer is required; the
+`node-clis/atomic` at CLI `0.9.76`. Node.js 22.19 or newer is required; the
 existing Homebrew/mise setup supplies it, so Atomic needs no new Brewfile entry.
 
 The runtime lives at `${XDG_DATA_HOME:-~/.local/share}/atomic`, with its
@@ -247,9 +247,13 @@ are configured on each Mac. Local OpenAI-compatible endpoints such as LM Studio
 can be declared in `~/.atomic/agent/models.json`; no local provider is enabled
 by the dotfiles starter, so the cloud-only laptop uses the same installation.
 
-- `atomic/.config/atomic/settings.json` is the portable starter, currently `{}`
-  to retain upstream defaults; it is copied to `~/.atomic/agent/settings.json`
-  only when absent. Reinstallation preserves existing settings and symlinks.
+- `atomic/.config/atomic/settings.json` is the portable starter; it is copied
+  to `~/.atomic/agent/settings.json` only when absent. Reinstallation preserves
+  existing settings and symlinks. Its one setting keeps sessions as JSONL files
+  in `~/.atomic/agent/sessions`: Atomic stores them in SQLite by default since
+  0.9.38, and the goal-select workflow below reads transcripts as files. A
+  machine set up before that release needs the same `sessions` key merged into
+  its settings, in each profile (`~/.atomic-work/agent/` too).
 - `atomic/.config/atomic/defaults.md` captures the default-setting tables from
   the installed release's documentation for reference, not as active overrides.
 - `~/.atomic/agent/` remains machine-local: logins (`auth.json`), model choices,

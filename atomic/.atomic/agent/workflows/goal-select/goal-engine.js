@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { keepContext } from "@bastani/atomic/workflows";
+import * as atomicWorkflows from "@bastani/atomic/workflows";
+const { keepContext } = atomicWorkflows;
 import { createRequire } from "node:module";
 import { DEFAULT_MAX_TURNS as TIER_DEFAULT_MAX_TURNS, DEFAULT_REVIEW_TIER, modelLine, modelPolicyFile, parseModelPolicy, policyModel, policyReviewTier, policyTier, sharedPolicyLayers, writerFallbacksFor } from "./model-policy.js";
 import { delegatedFallbackGate, delegatedTaskIds, delegatedTasks, describeDelegatedTask, judgeLines, stopResumable, writerAfter, writerAfterMove, writerCandidates, writerFallbackChain } from "./writer-fallback.js";
@@ -318,13 +319,13 @@ function writerModelNote(model) {
 <keepContext>
 Writer model for this turn: ${model}
 Every change to the checkout in this turn is written by an implementation agent on that model: delegate with the subagent tool and pass model: "${model}". That includes a small fix after a review, a test expectation and a follow-up commit. You plan, delegate, verify and write the receipt; you do not edit files or commit yourself, because the reviewers may share your model line and must not review their own line's work. Do not leave the implementation agent on the builtin worker model. If the agent ends on a different model than the one requested, say so in the receipt.
-This replaces any writer model named earlier in this conversation. When a provider fails (no credit, a usage limit, an outage) the agent's task still comes back as completed, with little or no output and no error. If an agent comes back without its work you may start another on the same writer model, but never finish the work yourself and never start an agent on another model: when the writer model keeps failing, say so in the receipt and end your turn. The workflow reads each agent's transcript, moves the writer to the next model its policy allows and continues this turn. It also closes the run before review if an agent wrote files on a model line that reviews this turn, whatever model that agent was asked for, so name the writer model on every agent that edits or commits.
+This replaces any writer model named earlier in this conversation. When a provider fails (no credit, a usage limit, an outage) the agent's task comes back failed, or with little or no output. If an agent comes back without its work you may start another on the same writer model, but never finish the work yourself and never start an agent on another model: when the writer model keeps failing, say so in the receipt and end your turn. The workflow reads each agent's transcript, moves the writer to the next model its policy allows and continues this turn. It also closes the run before review if an agent wrote files on a model line that reviews this turn, whatever model that agent was asked for, so name the writer model on every agent that edits or commits.
 </keepContext>`;
 }
 // What a continued orchestrator is told about the writer it lost.
 function writerChangeNote(move) {
   const what = move.kind === "fallback"
-    ? `The implementation agent asked for ${move.from} did not do its work on that model, though its task came back as completed (${move.reason}).`
+    ? `The implementation agent asked for ${move.from} did not do its work on that model (${move.reason}).`
     : `This run stopped in this turn because the writer's model was not available and no fallback writer was left (${move.reason}). It has been resumed, so that provider should be available again.`;
   return taggedPrompt([["writer_change", [
     what,
@@ -471,8 +472,13 @@ async function runOrchestratorTurn(ctx, { ledger, ledgerPath, turn, turnModels, 
     let own = [];
     let unread;
     try {
-      const read = delegatedTasks(orchestrator.sessionFile, checkout);
-      if (read === undefined) {
+      // Atomic keeps sessions in SQLite unless settings select JSONL
+      // (`"sessions": { "storage": { "dir": "agent/sessions" } }`); a stage
+      // then has no transcript file, which must not read as no delegations.
+      const read = typeof orchestrator.sessionFile === "string" && orchestrator.sessionFile !== "" ? delegatedTasks(orchestrator.sessionFile, checkout) : undefined;
+      if (read === undefined && typeof orchestrator.sessionFile !== "string") {
+        unread = "the stage has no transcript file: goal-select reads JSONL sessions, so set sessions.storage.dir in Atomic's settings.json";
+      } else if (read === undefined) {
         unread = `the stage's transcript could not be read (${orchestrator.sessionFile})`;
       } else {
         seen = read.map((task) => classifyDelegation(task, writerLines));
@@ -1196,8 +1202,12 @@ function positiveInteger(value, fallback) {
   const floored = Math.floor(value);
   return floored >= 1 ? floored : fallback;
 }
-function forkContinuationOptions(sessionFile) {
-  return sessionFile === undefined || sessionFile.length === 0 ? {} : { context: "fork", forkFromSessionFile: sessionFile };
+// A continued orchestrator forks the stage before it by that stage's session
+// id. Atomic dropped forking by transcript path in 0.9.38 and ignores the
+// old option, which would start the stage with no context at all.
+function forkContinuationOptions(stage) {
+  const id = stage?.sessionId;
+  return typeof id !== "string" || id.length === 0 ? {} : { context: "fork", forkFromSessionId: id };
 }
 function normalizeBranchInput(value, fallback) {
   const trimmed = value?.trim();
@@ -1256,21 +1266,14 @@ var REVIEWER_ROLES = {
 // makes the next resume stop before any stage runs, and the only way
 // forward is a new run that repeats every review.
 const INFRASTRUCTURE_FAILURE_PATTERNS = [
-  /Workflow database checkpoint timed out/i,
   /provider .*(not ready|unavailable|not authenticated)/i,
-  /ownership generation changed/i,
-  /stale (executor|database|execution) writes are refused/i,
   /rate limit|too many requests|\b429\b|\b401\b|unauthorized|authentication failed|invalid (api key|credentials)/i,
-  /Postgres connection pool changed/i,
-  /Postgres dependency invalidated/i,
-  /Connection terminated/i,
-  /Client was closed and is not queryable/i,
   /usage limit has been reached/i,
   /\b(?:ECONNRESET|ECONNREFUSED|EPIPE)\b/,
-  // Atomic's own database probe (1 s to connect, 3 s to answer) gives up on
-  // a healthy server when the machine is saturated.
-  /Managed Postgres(?:QL)?\b/i,
-  /health (?:check|probe)|connection identity check/i,
+  // Atomic's workflow journal and waiting stages since 0.9.38 (SQLite, no
+  // DBOS): matched by class name and code, which failureText adds.
+  /\b(?:StorageUnavailableError|StorageWriterQueueDegradedError|WorkflowInfrastructureError|ProcessCleanupUnconfirmedError|TaskCleanupError|TaskCleanupAdmissionTimeoutError|StageRehydrationError)\b/,
+  /\b(?:write-lock-timeout|task_cleanup_unconfirmed|session-unavailable|session-not-found|results-not-saved)\b/,
   // A resumed stage that cannot reach Atomic's message broker never starts.
   /Intercom could not reach the broker|queued Intercom instructions could not be delivered/i,
   /service (?:is )?(?:temporarily )?unavailable|availability is currently degraded/i
@@ -1279,6 +1282,8 @@ function failureText(err) {
   const parts = [];
   for (let current = err, depth = 0; current !== undefined && current !== null && depth < 5; current = current.cause, depth += 1) {
     parts.push(current instanceof Error ? current.message : String(current));
+    // Atomic's typed errors carry their class and a stable code.
+    for (const tag of [current.name, current.code]) if (typeof tag === "string" && tag !== "" && tag !== "Error") parts.push(tag);
     if (Array.isArray(current.errors)) {
       parts.push(...current.errors.map((inner) => inner instanceof Error ? inner.message : String(inner)));
     }
@@ -1286,7 +1291,8 @@ function failureText(err) {
   return parts.join(`
 `);
 }
-function isInfrastructureFailure(text) {
+function isInfrastructureFailure(text, err) {
+  if (err !== undefined && atomicWorkflows.isRetryableWorkflowError?.(err) === true) return true;
   return INFRASTRUCTURE_FAILURE_PATTERNS.some((pattern) => pattern.test(text));
 }
 // Ledgers written before infrastructure failures were rethrown hold a
@@ -1339,7 +1345,7 @@ async function runGoalWorkflow(ctx, options) {
   let latestReviewArtifactPaths = [];
   let latestReviewReportPath;
   let terminalRemainingWork;
-  let previousOrchestratorSessionFile;
+  let previousOrchestrator;
   // Closes the run for a person: the ledger says why and no later stage runs.
   const closeForHuman = async (turn, baseReason, closure, turnsReached = turn) => {
     terminalRemainingWork = baseReason;
@@ -1439,8 +1445,8 @@ async function runGoalWorkflow(ctx, options) {
     }
     lastTurnModels = turnModels;
     const orchestratorReceiptPath = join3(artifactDir, "orchestrator-receipt.md");
-    const orchestratorForkOptions = forkContinuationOptions(previousOrchestratorSessionFile);
-    const orchestratorPrompt = orchestratorForkOptions.forkFromSessionFile === undefined ? renderGoalOrchestratorPrompt({
+    const orchestratorForkOptions = forkContinuationOptions(previousOrchestrator);
+    const orchestratorPrompt = orchestratorForkOptions.forkFromSessionId === undefined ? renderGoalOrchestratorPrompt({
       ledger,
       ledgerPath,
       blockerThreshold,
@@ -1470,13 +1476,13 @@ async function runGoalWorkflow(ctx, options) {
         turn,
         turnModels,
         replaying: replayingDecidedTurn,
-        forkedFrom: previousOrchestratorSessionFile,
+        forkedFrom: previousOrchestrator?.sessionFile,
         checkout: workflowStartCwd,
         resumedClosure,
         firstStage: (writer) => orchestratorStage(`orchestrator-${turn}`, orchestratorPrompt, orchestratorForkOptions, writer),
         continuedStage: (writer, previous, move, attempt) => {
-          const forkOptions = forkContinuationOptions(previous.sessionFile);
-          const forked = forkOptions.forkFromSessionFile !== undefined;
+          const forkOptions = forkContinuationOptions(previous);
+          const forked = forkOptions.forkFromSessionId !== undefined;
           const prompt = forked ? renderForkedGoalOrchestratorPrompt(ledger, ledgerPath, latestReviewArtifactPaths) : orchestratorPrompt;
           return orchestratorStage(`orchestrator-${turn}-continued-${attempt}`, `${prompt}
 
@@ -1484,7 +1490,7 @@ ${writerChangeNote(move)}`, forked ? forkOptions : orchestratorForkOptions, writ
         }
       }));
     } catch (err) {
-      if (isInfrastructureFailure(failureText(err)))
+      if (isInfrastructureFailure(failureText(err), err))
         throw err;
       const message = err instanceof Error ? err.message : String(err);
       await closeForHuman(turn, `Orchestrator failed before producing a receipt: ${message}`);
@@ -1493,7 +1499,7 @@ ${writerChangeNote(move)}`, forked ? forkOptions : orchestratorForkOptions, writ
     // Outside the try: Atomic's exit is a signal the catch above must not see.
     if (writerStop !== undefined)
       return stopResumable(ctx, writerStop);
-    previousOrchestratorSessionFile = orchestrator.sessionFile;
+    previousOrchestrator = orchestrator;
     if (!replayingDecidedTurn) {
       ledger.turns = turn;
       const delegated = (ledger.delegations ?? []).filter((entry) => entry.turn === turn);
@@ -1564,7 +1570,7 @@ ${writerChangeNote(move)}`, forked ? forkOptions : orchestratorForkOptions, writ
     } catch (err) {
       const failure = reviewerFailureText(err);
       if (isInfrastructureFailure(`${failure}
-${failureText(err)}`))
+${failureText(err)}`, err))
         throw err;
       reviewerBatchFailed = true;
       reviewerExecutionDiagnostic = failure.includes("referenced artifact does not exist") ? `Reviewer execution failed while resolving its reads contract: ${failure}` : `Reviewer execution failed before producing a decision: ${failure}`;

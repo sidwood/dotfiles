@@ -18,7 +18,7 @@ type Tracker = keyof typeof TRACKER_READS;
 export type TrackerScope = { tracker: Tracker; server: string };
 type IntakeStage = { stage: string; scope?: TrackerScope };
 type GuardDecision = { allowed: true } | { allowed: false; reason: string };
-type SessionContext = { sessionManager?: { getHeader?: () => { workflow?: { stageName?: string } } | null } };
+type SessionContext = { sessionManager?: { getHeader?: () => { workflow?: { stageName?: string } } | null; getEntries?: () => unknown[] } };
 
 const SCOPE = /^(jira|linear)-([A-Za-z0-9_-]+)$/;
 const MAX_TOOL_NAME_LENGTH = 64;
@@ -62,10 +62,22 @@ export function intakeStage(ctx: SessionContext): IntakeStage | undefined {
   return parseTrackerStage(ctx.sessionManager?.getHeader?.()?.workflow?.stageName);
 }
 
+// Whether the guard tool already ran in this session: its successful result
+// is in the session, the same evidence goal-select's intake audit reads.
+// Atomic 0.9.72 and later release a waiting stage's session and reopen it
+// from storage, which can load this extension afresh.
+function probedIn(ctx: SessionContext): boolean {
+  const entries = ctx.sessionManager?.getEntries?.() ?? [];
+  return entries.some((entry: any) => {
+    const message = entry?.type === "message" ? entry.message : undefined;
+    return message?.role === "toolResult" && message.toolName === TRACKER_GUARD_TOOL && message.isError !== true && message.details?.guard === "active";
+  });
+}
+
 export default function goalSelectTrackerGuard(pi: ExtensionAPI) {
   let probed = false;
-  pi.on("session_start", (_event, ctx) => {
-    probed = false;
+  pi.on("session_start", async (_event, ctx) => {
+    probed = probedIn(ctx);
     const intake = intakeStage(ctx);
     if (!intake) return;
     const { stage, scope } = intake;
@@ -84,19 +96,20 @@ export default function goalSelectTrackerGuard(pi: ExtensionAPI) {
         };
       },
     });
-    pi.appendEntry(TRACKER_GUARD_ENTRY, { event: "loaded", stage, ...(scope ?? {}) });
+    await pi.appendEntry(TRACKER_GUARD_ENTRY, { event: "loaded", stage, ...(scope ?? {}) });
   });
-  pi.on("tool_call", (event, ctx) => {
+  pi.on("tool_call", async (event, ctx) => {
     const intake = intakeStage(ctx);
     if (!intake) return undefined;
+    probed ||= probedIn(ctx);
     const decision = trackerGuardDecision(event.toolName, intake.scope, probed);
-    pi.appendEntry(TRACKER_GUARD_ENTRY, { event: "decision", toolCallId: event.toolCallId, toolName: event.toolName, ...decision });
+    await pi.appendEntry(TRACKER_GUARD_ENTRY, { event: "decision", toolCallId: event.toolCallId, toolName: event.toolName, ...decision });
     return decision.allowed ? undefined : { block: true, reason: `goal-select tracker intake is read-only: ${decision.reason}.` };
   });
-  pi.on("tool_result", (event, ctx) => {
+  pi.on("tool_result", async (event, ctx) => {
     const scope = intakeStage(ctx)?.scope;
     if (!scope || event.isError || event.structuredContent === undefined || !trackerReadTools(scope).includes(event.toolName)) return undefined;
-    pi.appendEntry(TRACKER_GUARD_ENTRY, { event: "result", toolCallId: event.toolCallId, toolName: event.toolName, result: event.structuredContent });
+    await pi.appendEntry(TRACKER_GUARD_ENTRY, { event: "result", toolCallId: event.toolCallId, toolName: event.toolName, result: event.structuredContent });
     return undefined;
   });
 }

@@ -125,15 +125,19 @@ function requestOf(args, index) {
 }
 
 // The files a tool call writes. Atomic's two file-writing tools name
-// theirs: `write` in its path, `edit` at the head of each section of its
-// input. Nothing is read from the text of a shell command: a command that
-// mentions a commit need not make one, and making one is not writing what
-// it holds. So writing done only through the shell (a redirect, sed -i, a
+// theirs: `write` in its path, and `edit` in its path since Atomic 0.9.72
+// (`{ path, edits }`) or, before that, at the head of each section of its
+// hashline input. Nothing is read from the text of a shell command: a
+// command that mentions a commit need not make one, and making one is not
+// writing what it holds. So writing done only through the shell (a redirect, sed -i, a
 // formatter, git apply) is not seen.
 const EDIT_SECTION = /^\[(.+)#[0-9A-Fa-f]{4}\]\s*$/gmu;
 function writtenBy(call) {
   if (call?.name === "write") return typeof call.arguments?.path === "string" ? [call.arguments.path] : [];
-  if (call?.name === "edit") return typeof call.arguments?.input === "string" ? [...call.arguments.input.matchAll(EDIT_SECTION)].map((match) => match[1]) : [];
+  if (call?.name === "edit") {
+    if (typeof call.arguments?.path === "string") return [call.arguments.path];
+    return typeof call.arguments?.input === "string" ? [...call.arguments.input.matchAll(EDIT_SECTION)].map((match) => match[1]) : [];
+  }
   return undefined;
 }
 
@@ -178,8 +182,9 @@ function reviewable(paths, cwd, checkout, ignored = gitIgnored) {
 
 // What an agent's own transcript shows: the model its first turn went to,
 // the models whose turns ran, those whose turns wrote reviewable files, and
-// the error it ended on. Atomic reports an agent whose model failed as
-// completed, so the transcript is the only record of the failure; and a
+// the error it ended on. Atomic up to 0.9.64 reported an agent whose model
+// failed as completed, and a task result still says little of which models
+// ran, so the transcript is the record; and a
 // launch's task records name the model at the time they were written,
 // which after a foreground wait is the last one, not the first.
 function transcriptOutcome(sessionFile, checkout, ignored) {
@@ -189,7 +194,10 @@ function transcriptOutcome(sessionFile, checkout, ignored) {
   // A forked agent's transcript opens with its parent's turns. Its own
   // begin at the entry that names it, or failing that at its creation time.
   const named = entries.findLastIndex((entry) => entry.type === "session_info" && typeof entry.name === "string" && entry.name.startsWith("subagent-"));
-  const created = entries[0]?.type === "session" && typeof entries[0].timestamp === "string" ? entries[0].timestamp : "";
+  // The header names its creation time `createdAt` since Atomic 0.9.38 and
+  // `timestamp` before.
+  const header = entries[0]?.type === "session" ? entries[0] : undefined;
+  const created = typeof header?.createdAt === "string" ? header.createdAt : typeof header?.timestamp === "string" ? header.timestamp : "";
   const own = (entry, index) => (named === -1 ? typeof entry.timestamp !== "string" || entry.timestamp >= created : index >= named);
   const models = [];
   const calls = new Map();

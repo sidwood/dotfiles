@@ -306,6 +306,14 @@ function minor(file) {
   return { ...review, findings: [{ ...review.findings[0], priority: 2 }] };
 }
 
+// A stage transcript with a header and nothing delegated.
+function quietTranscript(name) {
+  const sessionFile = join(root, "quiet-stages", `${name}-${randomUUID()}.jsonl`);
+  mkdirSync(dirname(sessionFile), { recursive: true });
+  writeFileSync(sessionFile, `${JSON.stringify({ type: "session", version: 4, id: name, createdAt: "2026-11-10T00:00:00.000Z", cwd: root })}\n`);
+  return { sessionFile, sessionId: name };
+}
+
 function fakeContext({ cwd, inputs, onTask = () => ({}), review = () => approve, signal = new AbortController().signal, runId = `goal-select-test-${randomUUID()}`, definition = goalSelect, ui }) {
   const calls = [];
   const ctx = {
@@ -321,7 +329,10 @@ function fakeContext({ cwd, inputs, onTask = () => ({}), review = () => approve,
     },
     async task(name, options) {
       calls.push({ kind: "task", name, options });
-      return { name, text: `${name} done`, ...(await onTask(name, options)) };
+      // An orchestrator stage leaves a transcript, as under Atomic's JSONL
+      // session store; this one delegated nothing.
+      const transcript = name.startsWith("orchestrator-") ? quietTranscript(name) : {};
+      return { name, text: `${name} done`, ...transcript, ...(await onTask(name, options)) };
     },
     async parallel(steps, options) {
       calls.push({ kind: "parallel", steps, options });
@@ -728,7 +739,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       onTask: (name) => {
         if (name === "orchestrator-1") {
           writeJson(policyPath, { orchestrator_model: "test/turn-2-orchestrator" });
-          return { sessionFile };
+          return { sessionFile, sessionId: "orchestrator-1" };
         }
         if (name.startsWith("reverify-")) return { structured: { score: 15, evidence: ["Confirmed."] } };
         return {};
@@ -773,7 +784,8 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.equal(byName["orchestrator-1"].model, "test/routing-orchestrator");
     assert.equal(byName["orchestrator-2"].model, "test/turn-2-orchestrator");
     assert.equal(byName["orchestrator-2"].context, "fork");
-    assert.equal(byName["orchestrator-2"].forkFromSessionFile, sessionFile);
+    assert.equal(byName["orchestrator-2"].forkFromSessionId, "orchestrator-1", "it forks turn 1's stage by session id, as Atomic forks since 0.9.38");
+    assert.equal("forkFromSessionFile" in byName["orchestrator-2"], false);
     assert.equal(byName["pull-request"].model, "test/turn-2-orchestrator");
     assert.equal(toolArgs(calls, "resolve-models-1").path, policyPath);
     assert.equal(toolArgs(calls, "resolve-models-2").path, policyPath);
@@ -1077,7 +1089,12 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
   });
 
   describe("resume after an infrastructure failure", () => {
-    const checkpointTimeout = "Workflow database checkpoint timed out. Restore PostgreSQL and inspect the run before resuming; external outcomes may be unknown.";
+    // Atomic's typed failures since 0.9.38: the SQLite workflow journal and
+    // a waiting stage that cannot reopen. A recorded reason holds the error
+    // as a string, its class name first.
+    const typed = (name, code, message) => Object.assign(new Error(message), { name, code });
+    const journalDown = typed("StorageUnavailableError", "write-lock-timeout", "The workflow journal could not take its write lock in time.");
+    const journalText = String(journalDown);
     const resumable = (overrides) => fakeContext({ cwd: seed, inputs: { branch_checkout_dir: clone }, ...overrides });
     const ledgerState = (calls) => {
       const artifactDir = calls.find((call) => call.kind === "tool" && call.name === "artifact-root").result;
@@ -1087,7 +1104,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     const failReviewersOn = (ctx, turn, message) => {
       const parallel = ctx.parallel;
       ctx.parallel = async (steps, options) => {
-        if (steps[0].name.endsWith(`-${turn}`)) throw new Error(message);
+        if (steps[0].name.endsWith(`-${turn}`)) throw typeof message === "string" ? new Error(message) : message;
         return parallel(steps, options);
       };
     };
@@ -1103,10 +1120,10 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       return resumed;
     };
 
-    it("leaves the ledger active when reviewers die on a database timeout, and a resume under the same run id finishes that turn", async () => {
+    it("leaves the ledger active when reviewers die on a workflow journal failure, and a resume under the same run id finishes that turn", async () => {
       const first = resumable({});
-      failReviewersOn(first.ctx, 1, checkpointTimeout);
-      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      failReviewersOn(first.ctx, 1, journalDown);
+      await assert.rejects(goalSelect.run(first.ctx), /write lock/);
       const state = ledgerState(first.calls);
       const interrupted = state.read();
       assert.equal(interrupted.status, "active");
@@ -1136,11 +1153,11 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.equal(interrupted.turns, 0);
     });
 
-    const healthCheckTimeout = "Managed PostgreSQL did not answer a health check in time. Provider: managed; endpoint: postgresql://127.0.0.1:5439/atomic_workflows_dbos_sys.";
+    const stageGone = String(typed("StageRehydrationError", "session-unavailable", "A woken stage could not reopen its session from the store."));
     const brokerUnreachable = 'atomic-workflows: stage "orchestrator-1" (7da4e207) did not start because its queued Intercom instructions could not be delivered: Intercom could not reach the broker after 5 warm-up attempts.';
     const providerOutage = "Service temporarily unavailable. The model's availability is currently degraded.";
 
-    for (const [what, message] of [["a database health-check timeout", healthCheckTimeout], ["an unreachable message broker", brokerUnreachable], ["a provider outage", providerOutage]]) {
+    for (const [what, message] of [["a stage that could not reopen its session", stageGone], ["an unreachable message broker", brokerUnreachable], ["a provider outage", providerOutage]]) {
       it(`rethrows an orchestrator stopped by ${what} without recording a decision`, async () => {
         const { ctx, calls } = resumable({
           onTask: () => {
@@ -1156,12 +1173,12 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
 
     it("reopens a ledger closed twice by infrastructure failures, once by the failure and once by a resume that could not start", async () => {
       const first = resumable({ review: secondTurnApproves });
-      failReviewersOn(first.ctx, 2, checkpointTimeout);
-      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      failReviewersOn(first.ctx, 2, journalDown);
+      await assert.rejects(goalSelect.run(first.ctx), /write lock/);
       const state = ledgerState(first.calls);
       const closed = state.read();
       closed.status = "needs_human";
-      for (const message of [healthCheckTimeout, brokerUnreachable]) {
+      for (const message of [stageGone, brokerUnreachable]) {
         const reason = `Orchestrator failed before producing a receipt: ${message}`;
         closed.decisions.push({ turn: 2, decision: "needs_human", reason, diagnostics: [reason] });
       }
@@ -1177,8 +1194,8 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
 
     it("keeps a ledger closed when a work failure sits under a later infrastructure failure", async () => {
       const first = resumable({ review: secondTurnApproves });
-      failReviewersOn(first.ctx, 2, checkpointTimeout);
-      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      failReviewersOn(first.ctx, 2, journalDown);
+      await assert.rejects(goalSelect.run(first.ctx), /write lock/);
       const state = ledgerState(first.calls);
       const closed = state.read();
       closed.status = "needs_human";
@@ -1207,13 +1224,13 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
 
     it("reopens a ledger an earlier engine closed on a database timeout, replays the decided turn once and finishes the interrupted one", async () => {
       const first = resumable({ review: secondTurnApproves });
-      failReviewersOn(first.ctx, 2, checkpointTimeout);
-      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      failReviewersOn(first.ctx, 2, journalDown);
+      await assert.rejects(goalSelect.run(first.ctx), /write lock/);
       const state = ledgerState(first.calls);
       const closed = state.read();
       assert.deepEqual(closed.decisions.map((decision) => decision.turn), [1]);
       closed.status = "needs_human";
-      closed.reviews.push({ turn: 2, reviewer: "reviewer-error", parsed: false, parse_diagnostics: [`Reviewer execution failed before producing a decision: ${checkpointTimeout}`] });
+      closed.reviews.push({ turn: 2, reviewer: "reviewer-error", parsed: false, parse_diagnostics: [`Reviewer execution failed before producing a decision: ${journalText}`] });
       closed.decisions.push({ turn: 2, decision: "needs_human", reason: "Reviewer execution failed before quorum could be established. Remaining work: unknown", diagnostics: [] });
       writeJson(state.path, closed);
 
@@ -1241,8 +1258,8 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
 
     it("keeps a ledger closed for a reason of the work closed, starting no new turn", async () => {
       const first = resumable({ review: () => keepGoing });
-      failReviewersOn(first.ctx, 2, checkpointTimeout);
-      await assert.rejects(goalSelect.run(first.ctx), /checkpoint timed out/);
+      failReviewersOn(first.ctx, 2, journalDown);
+      await assert.rejects(goalSelect.run(first.ctx), /write lock/);
       const state = ledgerState(first.calls);
       const closed = state.read();
       closed.status = "needs_human";
@@ -1317,6 +1334,9 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
           ...(actions.refusedWrite ?? []).map((path) => ({ name: "write", arguments: { path, content: "text\n" }, refused: true })),
           ...((actions.edit ?? []).length > 0 ? [{ name: "edit", arguments: { input: actions.edit.map((path) => `[${path}#A1B2]\nreplace 1..1:\n+changed`).join("\n") } }] : []),
           ...((actions.failedEdit ?? []).length > 0 ? [{ name: "edit", arguments: { input: actions.failedEdit.map((path) => `[${path}#A1B2]\nreplace 1..1:\n+changed`).join("\n") }, refused: true }] : []),
+          // Atomic's edit tool since 0.9.72: one path, a list of replacements.
+          ...(actions.pathEdit ?? []).map((path) => ({ name: "edit", arguments: { path, edits: [{ oldText: "a", newText: "b" }] } })),
+          ...(actions.failedPathEdit ?? []).map((path) => ({ name: "edit", arguments: { path, edits: [{ oldText: "a", newText: "b" }] }, refused: true })),
           ...(actions.bash ?? []).map((command) => ({ name: "bash", arguments: { command } })),
         ].map((call) => ({ ...call, id: `call_${(called += 1)}` }));
         return [
@@ -1327,13 +1347,17 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       // `delivered` false leaves no delivery record, as for an agent that has
       // not ended; a string is written as the record, unreadable as JSON.
       // `transcript` false leaves the record naming a file that is not there.
-      function agent(id, index, stageFile, { agent: name = "worker", turns, thinking = "max", forkedFrom, delivered = true, transcript = true, inStageFolder = false }) {
+      // `header: 4` writes the session header as Atomic does since 0.9.38;
+      // `named: false` leaves out the entry that names the agent.
+      function agent(id, index, stageFile, { agent: name = "worker", turns, thinking = "max", forkedFrom, delivered = true, transcript = true, inStageFolder = false, header = 3, named = true }) {
         const file = inStageFolder ? join(stageFile.replace(/\.jsonl$/u, ""), id, `run-${index}`, "session.jsonl") : join(dir, "agents", `${id}-${index}.jsonl`);
         if (transcript) {
           lines(file, [
-            { type: "session", version: 3, id: `${id}-${index}`, timestamp: "2026-10-09T01:00:00.000Z", cwd: clone, ...(forkedFrom ? { parentSession: join(dir, "parent.jsonl") } : {}) },
+            header === 4
+              ? { type: "session", version: 4, id: `${id}-${index}`, createdAt: "2026-10-09T01:00:00.000Z", cwd: clone, ...(forkedFrom ? { parentSessionId: "parent" } : {}) }
+              : { type: "session", version: 3, id: `${id}-${index}`, timestamp: "2026-10-09T01:00:00.000Z", cwd: clone, ...(forkedFrom ? { parentSession: join(dir, "parent.jsonl") } : {}) },
             ...(forkedFrom ? turnEntries(ok(forkedFrom), "2026-10-09T00:59:00.000Z") : []),
-            { type: "session_info", timestamp: "2026-10-09T01:00:00.100Z", name: `subagent-${name}-${id}-${index + 1}` },
+            ...(named ? [{ type: "session_info", timestamp: "2026-10-09T01:00:00.100Z", name: `subagent-${name}-${id}-${index + 1}` }] : []),
             ...turns.flatMap((turn) => turnEntries(turn, "2026-10-09T01:00:01.000Z")),
           ]);
         }
@@ -1413,7 +1437,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
             if (!stage.startsWith("orchestrator-")) return { name: stage, text: `${stage} done` };
             const named = options.prompt.match(/Writer model for this turn: (\S+)\n/)?.[1];
             const launches = typeof script[stage] === "function" ? script[stage](named) : (script[stage] ?? (named === undefined ? [] : [{ requested: named, turns: [ok(named)] }]));
-            return { name: stage, text: `${stage} done`, sessionFile: Array.isArray(launches) ? made.stage(stage, launches).file : launches.sessionFile };
+            return { name: stage, text: `${stage} done`, sessionId: `session-${stage}`, sessionFile: Array.isArray(launches) ? made.stage(stage, launches).file : launches.sessionFile };
           });
         },
         parallel(steps) {
@@ -1655,11 +1679,11 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.ok(stages.every((stage) => stage.options.prompt.includes("never finish the work yourself and never start an agent on another model")), "and is told to leave the move to the workflow");
       assert.ok(stages.every((stage) => stage.options.prompt.includes("name the writer model on every agent that edits or commits")), "and what an unnamed writer costs");
       const continued = stages[1].options;
-      assert.match(continued.prompt, /<writer_change>\nThe implementation agent asked for xai\/grok-4\.7:xhigh did not do its work on that model, though its task came back as completed/);
+      assert.match(continued.prompt, /<writer_change>\nThe implementation agent asked for xai\/grok-4\.7:xhigh did not do its work on that model \(/);
       assert.ok(continued.prompt.includes(noCredit), "the continued stage is told the provider's own error");
-      const sessionOf = (stage) => JSON.parse(run.record.get(`stage:${stage}:1`)).sessionFile;
-      assert.deepEqual([continued.context, continued.forkFromSessionFile], ["fork", sessionOf("orchestrator-1")], "it continues the stage it follows");
-      assert.deepEqual([stages[2].options.context, stages[2].options.forkFromSessionFile], ["fork", sessionOf("orchestrator-1-continued-1")]);
+      const sessionOf = (stage) => JSON.parse(run.record.get(`stage:${stage}:1`)).sessionId;
+      assert.deepEqual([continued.context, continued.forkFromSessionId], ["fork", sessionOf("orchestrator-1")], "it continues the stage it follows, by its session id");
+      assert.deepEqual([stages[2].options.context, stages[2].options.forkFromSessionId], ["fork", sessionOf("orchestrator-1-continued-1")]);
 
       const ledger = ledgerOf(run);
       assert.deepEqual(ledger.writer_moves.map((move) => [move.turn, move.attempt, move.kind, move.from, move.to]), [[1, 0, "fallback", GROK, KIMI], [1, 1, "fallback", KIMI, GLM]]);
@@ -1913,6 +1937,10 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
         ["the same by an absolute path, in an edit", { edit: [join(clone, "..hidden.ts")] }, true],
         ["a write Atomic refused", { refusedWrite: ["src/feature.ts"] }, false],
         ["an edit that failed", { failedEdit: ["src/feature.ts", "apps/api/src/gate.ts"] }, false],
+        ["an edit by path, as Atomic's edit tool takes it since 0.9.72", { pathEdit: ["src/feature.ts"] }, true],
+        ["the same by an absolute path", { pathEdit: [join(clone, "apps", "api", "src", "gate.ts")] }, true],
+        ["an edit by path that failed", { failedPathEdit: ["src/feature.ts"] }, false],
+        ["an edit by path to a file Git ignores, or outside the checkout", { pathEdit: [".atomic/notes/acceptance.md", "/tmp/notes.md"] }, false],
         ["a commit: the text of a command is not authorship, and committing work is not writing it", { bash: ["git add -A; git commit -m 'Close the gate'", `git -C "${clone}" -c user.name=writer commit --amend --no-edit`] }, false],
         ["a command that only mentions a commit, or makes an empty one", { bash: ["git commit --dry-run", "git commit --allow-empty -m probe", "echo 'git commit'"] }, false],
         ["the folder above the checkout, and a file beside it", { write: ["..", "../sibling/notes.ts", join(dirname(clone), "..feature.js")] }, false],
@@ -1927,6 +1955,9 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       }
       assert.deepEqual(wroteOf([ok(KIMI), reading(SOL), did(GROK, { bash: ["git commit -m x"] }), did(GLM, { write: ["docs/more.md"] })]), ["kimi-coding/k3", "zai/glm-5.3"], "each model that wrote, and not one that only read or committed");
       assert.deepEqual(wroteOf([reading(SOL)], { forkedFrom: SOL }), [], "a forked agent's transcript opens with its parent's writing, which is not its own");
+      for (const header of [3, 4]) {
+        assert.deepEqual(wroteOf([reading(SOL)], { forkedFrom: SOL, header, named: false }), [], `with no entry naming the agent, its own turns begin at the header's creation time (v${header} header)`);
+      }
       const { file } = made.stage("evidence-no-checkout", [{ turns: [did(KIMI, { write: ["/tmp/evidence/review.md"] })] }]);
       assert.deepEqual(writerFallback.delegatedTasks(file).at(-1).wrote, ["kimi-coding/k3"], "with no checkout to ask, every file counts");
       const gone = join(root, "removed clone");
@@ -2160,6 +2191,13 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       const second = resumeOf(first, "stage transcript unreadable", options);
       assert.equal((await goalSelect.run(second.ctx)).status, "complete");
       assert.equal(ledgerOf(second).delegations[0].acknowledged, true);
+
+      // A stage with no transcript file at all, as under Atomic's default SQLite session store.
+      const sqlite = chainRun("stage without transcript file", { inputs: { review_tier: "complex", writer_model: KIMI }, script: { "orchestrator-1": {} } });
+      const unfiled = await goalSelect.run(sqlite.ctx);
+      assert.equal(unfiled.status, "needs_human");
+      assert.match(unfiled.remaining_work, /the stage has no transcript file: goal-select reads JSONL sessions, so set sessions\.storage\.dir/);
+      assert.deepEqual(stageNames(sqlite), ["orchestrator-1"], "no reviewer runs on an unaudited turn");
 
       // A transcript cut off mid-line is not read in part: the stage that returns it closes the same way.
       const tornTranscript = join(root, `torn-${randomUUID()}.jsonl`);
@@ -4371,7 +4409,7 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
     "mcp__work_linear__merge_diff",
   ];
 
-  function session(stageName) {
+  async function session(stageName) {
     const handlers = {};
     const entries = [];
     const tools = [];
@@ -4385,7 +4423,7 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
     assert.deepEqual(Object.keys(handlers).sort(), ["session_start", "tool_call", "tool_result"]);
     const header = stageName === undefined ? { type: "session" } : { type: "session", workflow: { runId: "r", stageId: "s", stageName } };
     const ctx = { sessionManager: { getHeader: () => header } };
-    handlers.session_start({ reason: "startup" }, ctx);
+    await handlers.session_start({ reason: "startup" }, ctx);
     let id = 0;
     const fire = (toolName, input = {}) => {
       id += 1;
@@ -4393,13 +4431,13 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
     };
     const result = (toolName, structuredContent, isError = false) => handlers.tool_result({ type: "tool_result", toolName, toolCallId: `t${id}`, input: {}, content: [], isError, structuredContent }, ctx);
     const runProbe = async () => {
-      assert.equal(fire(guard.TRACKER_GUARD_TOOL, {}), undefined);
+      assert.equal((await fire(guard.TRACKER_GUARD_TOOL, {})), undefined);
       return tools[0].execute(`t${id}`, {});
     };
     return { fire, result, entries, tools, runProbe };
   }
 
-  it("names native MCP tools exactly as Atomic does, including server punctuation and over-long names", () => {
+  it("names native MCP tools exactly as Atomic does, including server punctuation and over-long names", async () => {
     assert.equal(guard.mcpToolName("atlassian", "getJiraIssue"), "mcp__atlassian__getJiraIssue");
     assert.equal(guard.mcpToolName("work-linear", "get_issue"), "mcp__work_linear__get_issue");
     const long = guard.mcpToolName("a-very-long-server-name-for-tests-x", "searchJiraIssuesUsingJql");
@@ -4408,7 +4446,7 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
     assert.deepEqual(guard.trackerReadTools(jira), ["mcp__atlassian__getAccessibleAtlassianResources", "mcp__atlassian__getJiraIssue", "mcp__atlassian__searchJiraIssuesUsingJql"]);
   });
 
-  it("reads the tracker and server only from the workflow's stage name, and gives unscoped stages no MCP access", () => {
+  it("reads the tracker and server only from the workflow's stage name, and gives unscoped stages no MCP access", async () => {
     assert.deepEqual(guard.parseTrackerStage("goal-select-tracker-intake-jira-atlassian"), { stage: guard.TRACKER_INTAKE_STAGE, scope: jira });
     assert.deepEqual(guard.parseTrackerStage("goal-select-tracker-fetch-linear-work-linear"), { stage: guard.TRACKER_FETCH_STAGE, scope: linear });
     assert.deepEqual(guard.parseTrackerStage("goal-select-tracker-intake"), { stage: guard.TRACKER_INTAKE_STAGE });
@@ -4418,12 +4456,12 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
     assert.equal(guard.trackerStageName(guard.TRACKER_INTAKE_STAGE, linear), "goal-select-tracker-intake-linear-work-linear");
   });
 
-  it("does nothing outside goal-select's intake stages: no probe tool, no entries, no blocking", () => {
+  it("does nothing outside goal-select's intake stages: no probe tool, no entries, no blocking", async () => {
     for (const stage of [undefined, "orchestrator-1", "completion-reviewer-1", "tracker-intake"]) {
-      const { fire, result, entries, tools } = session(stage);
-      assert.equal(fire("mcp__atlassian__editJiraIssue"), undefined, String(stage));
-      assert.equal(fire("bash", { command: "true" }), undefined, String(stage));
-      assert.equal(result("mcp__atlassian__getJiraIssue", { content: [] }), undefined);
+      const { fire, result, entries, tools } = await session(stage);
+      assert.equal((await fire("mcp__atlassian__editJiraIssue")), undefined, String(stage));
+      assert.equal((await fire("bash", { command: "true" })), undefined, String(stage));
+      assert.equal((await result("mcp__atlassian__getJiraIssue", { content: [] })), undefined);
       assert.deepEqual(tools, [], String(stage));
       assert.deepEqual(entries, [], String(stage));
     }
@@ -4431,22 +4469,22 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
 
   it("holds back discovery and reads until the probe runs, then allows only tool_search and the selected server's three reads", async () => {
     for (const [stage, scope] of [["goal-select-tracker-intake-jira-atlassian", jira], ["goal-select-tracker-fetch-linear-work-linear", linear]]) {
-      const { fire, entries, tools, runProbe } = session(stage);
+      const { fire, entries, tools, runProbe } = await session(stage);
       assert.deepEqual(tools.map((tool) => tool.name), [guard.TRACKER_GUARD_TOOL]);
       assert.deepEqual(entries, [{ type: guard.TRACKER_GUARD_ENTRY, data: { event: "loaded", stage: guard.parseTrackerStage(stage).stage, ...scope } }]);
       for (const early of [guard.TOOL_SEARCH_TOOL, ...guard.trackerReadTools(scope)]) {
-        const outcome = fire(early);
+        const outcome = (await fire(early));
         assert.equal(outcome?.block, true, early);
         assert.match(outcome.reason, /goal_select_tracker_guard must run before any other call/);
       }
       const probe = await runProbe();
       assert.deepEqual(probe.details, { guard: "active", stage: guard.parseTrackerStage(stage).stage, ...scope, read_tools: guard.trackerReadTools(scope) });
-      for (const allowed of [guard.TOOL_SEARCH_TOOL, ...guard.trackerReadTools(scope), "structured_output"]) assert.equal(fire(allowed), undefined, `${stage} ${allowed}`);
+      for (const allowed of [guard.TOOL_SEARCH_TOOL, ...guard.trackerReadTools(scope), "structured_output"]) assert.equal((await fire(allowed)), undefined, `${stage} ${allowed}`);
     }
   });
 
   it("blocks writes, unlisted reads, other servers' reads, the removed gateway, codemode and shell escapes after the probe", async () => {
-    const { fire, entries, runProbe } = session("goal-select-tracker-intake-jira-atlassian");
+    const { fire, entries, runProbe } = await session("goal-select-tracker-intake-jira-atlassian");
     await runProbe();
     const blocked = [
       ...writeTools,
@@ -4466,7 +4504,7 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
       "subagent",
     ];
     for (const toolName of blocked) {
-      const outcome = fire(toolName, { command: "curl -X POST https://example.atlassian.net" });
+      const outcome = (await fire(toolName, { command: "curl -X POST https://example.atlassian.net" }));
       assert.equal(outcome?.block, true, toolName);
       assert.match(outcome.reason, /^goal-select tracker intake is read-only: tool ".*" is not an allow-listed jira read tool of MCP server "atlassian"\.$/);
     }
@@ -4476,22 +4514,22 @@ describe("goal-select-tracker-guard extension (fake extension API; Atomic's tool
   });
 
   it("lets the guard check stage run its probe and nothing else", async () => {
-    const { fire, runProbe } = session(guard.TRACKER_GUARD_CHECK_STAGE);
+    const { fire, runProbe } = await session(guard.TRACKER_GUARD_CHECK_STAGE);
     const probe = await runProbe();
     assert.deepEqual(probe.details, { guard: "active", stage: guard.TRACKER_GUARD_CHECK_STAGE, read_tools: [] });
-    for (const toolName of [guard.TOOL_SEARCH_TOOL, "mcp__atlassian__getJiraIssue"]) assert.equal(fire(toolName)?.block, true, toolName);
+    for (const toolName of [guard.TOOL_SEARCH_TOOL, "mcp__atlassian__getJiraIssue"]) assert.equal((await fire(toolName))?.block, true, toolName);
   });
 
   it("records the complete native result of each allowed read, and nothing for other tools or failed calls", async () => {
-    const { fire, result, entries, runProbe } = session("goal-select-tracker-intake-jira-atlassian");
+    const { fire, result, entries, runProbe } = await session("goal-select-tracker-intake-jira-atlassian");
     await runProbe();
     const full = { content: [{ type: "text", text: "x".repeat(30_000) }], structuredContent: { key: "PROJ-7" } };
-    fire("mcp__atlassian__getJiraIssue");
-    result("mcp__atlassian__getJiraIssue", full);
-    fire(guard.TOOL_SEARCH_TOOL);
-    result(guard.TOOL_SEARCH_TOOL, { loaded: [] });
-    fire("mcp__atlassian__getJiraIssue");
-    result("mcp__atlassian__getJiraIssue", { content: [], isError: true }, true);
+    (await fire("mcp__atlassian__getJiraIssue"));
+    (await result("mcp__atlassian__getJiraIssue", full));
+    (await fire(guard.TOOL_SEARCH_TOOL));
+    (await result(guard.TOOL_SEARCH_TOOL, { loaded: [] }));
+    (await fire("mcp__atlassian__getJiraIssue"));
+    (await result("mcp__atlassian__getJiraIssue", { content: [], isError: true }, true));
     const recorded = entries.filter((entry) => entry.data.event === "result");
     assert.equal(recorded.length, 1);
     assert.deepEqual(recorded[0].data, { event: "result", toolCallId: "t2", toolName: "mcp__atlassian__getJiraIssue", result: full });
