@@ -108,6 +108,13 @@ terminal Herdr above and does not read `config.toml`. Only `keys.json` is
 kept here: the app writes every other file in that folder itself, including
 `settings.json` when its Settings screen changes.
 
+`ctrl-a` is a tmux-style leader, matching the terminal Herdr's prefix keys:
+`ctrl-a c` for a new tab, `ctrl-a h/j/k/l` to move between panes,
+`ctrl-a |` and `ctrl-a -` to split, and so on. Each one is a two-key sequence
+in the `global` section, so the second key must follow within about a
+second. `ctrl-a a` or `ctrl-a ctrl-a` sends a literal `ctrl-a` to the
+terminal program.
+
 The app reloads `keys.json` while it runs, a few seconds after a save. A file
 it cannot parse is ignored and the reason is written to
 `~/.config/herdr-app/keys.error`. `ctrl-alt-shift-escape` in the app sets
