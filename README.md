@@ -51,6 +51,7 @@ dotfiles/
 ├── ghostty/        # Ghostty terminal config
 ├── git/            # Git config and global ignore
 ├── herdr/          # Herdr workspace manager (Solarized Dark, tmux-first keys)
+├── herdr-app/      # Herdr desktop app key bindings
 ├── himalaya/       # Himalaya CLI email config (iCloud via Keychain)
 ├── htop/           # htop process viewer config
 ├── humanlayer/     # HumanLayer workspace defaults
@@ -98,6 +99,20 @@ its lifecycle state and resumable session identity to Herdr. The generated
 file is deliberately not stored here so it stays matched to the installed
 Herdr version. Check it with `herdr integration status`; re-running
 `./install.sh` with Stow selected refreshes it.
+
+### Herdr app
+
+The `herdr-app/` package folds to `~/.config/herdr-app/keys.json`, the key
+bindings of the Herdr desktop app. The app is a separate program from the
+terminal Herdr above and does not read `config.toml`. Only `keys.json` is
+kept here: the app writes every other file in that folder itself, including
+`settings.json` when its Settings screen changes.
+
+The app reloads `keys.json` while it runs, a few seconds after a save. A file
+it cannot parse is ignored and the reason is written to
+`~/.config/herdr-app/keys.error`. `ctrl-alt-shift-escape` in the app sets
+`keys.json` aside and goes back to the defaults; re-run `./install.sh` with
+Stow selected to link this file again.
 
 ### HumanLayer
 
