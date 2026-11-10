@@ -8,37 +8,38 @@
 // Precedence, highest first: a top-level model key in this file or in a
 // project policy file (an override for every run that reads it), the launch
 // inputs, the chosen review tier, then defaults.
+//
+// The fleet's presets (Sid, 2026-11-10). No OpenAI model: that subscription
+// has lapsed. One reviewer in every tier, never on the writer's model line.
+// This file is the preset where Opus 5.5 xhigh reviews:
+//   simple:   Sonnet 5.5 xhigh writes
+//   standard: GLM 5.3 max or Grok 4.7 xhigh writes
+//   complex:  Fable 5.2 xhigh writes
+// When Opus 5.5 xhigh writes (standard or complex), Sonnet 5.5 max reviews,
+// which needs the atomic-fleet-manager skill's
+// templates/policy-presets-opus-writer.jsonc instead of this file.
 {
   "defaults": {
-    "orchestrator_model": "openai/gpt-6.1-sol:medium",
-    // Findings are re-verified on Astra whatever the tier. Left unset, the
-    // re-verifier is the launching session's model, which is Sol here, and
-    // Sol would then weigh findings against work a Sol writer wrote. No
-    // tier has an Astra writer.
-    "reverify_model": "openai/gpt-6-astra:high",
-    "review_tier": "complex"
+    "orchestrator_model": "anthropic/claude-sonnet-5-5:medium",
+    // Findings are re-verified on the reviewer's line, which never writes
+    // under this file.
+    "reverify_model": "anthropic/claude-opus-5-5:high",
+    "review_tier": "standard"
   },
   "review_tiers": {
-    // One reviewer owning contract, evidence and risk together.
     "simple": {
       "panel": 1,
-      "reviewer_model": "openai/gpt-6.1-sol:xhigh",
+      "reviewer_model": "anthropic/claude-opus-5-5:xhigh",
       "max_turns": 3
     },
-    // Completion-and-evidence on Sol, adversarial risk on Astra.
     "standard": {
-      "panel": 2,
-      "reviewer_model": "openai/gpt-6.1-sol:xhigh",
-      "risk_reviewer_model": "openai/gpt-6-astra:xhigh",
+      "panel": 1,
+      "reviewer_model": "anthropic/claude-opus-5-5:xhigh",
       "max_turns": 3
     },
-    // Two seats, as the standard tier has, on stronger models: completion and
-    // evidence as one reviewer, risk as the other; both approve. A third seat
-    // on the same model line kept raising the finding the other two raised.
     "complex": {
-      "panel": 2,
-      "reviewer_model": "openai/gpt-6-astra:high",
-      "risk_reviewer_model": "openai/gpt-6-astra:xhigh",
+      "panel": 1,
+      "reviewer_model": "anthropic/claude-opus-5-5:xhigh",
       "max_turns": 3
     }
   },
@@ -47,15 +48,13 @@
   // order. A model on the chosen tier's review panel, or re-verifying its
   // findings, is passed over: a model line never reviews its own work. With
   // nothing left the run stops and can be resumed once the provider is put
-  // right. Keys are provider/model without an effort. OpenAI writers have no
-  // fallback.
+  // right. Keys are provider/model without an effort. The GLM and Grok
+  // chains are Sid's order of 2026-11-06. Sid has named no fallback for an
+  // Anthropic writer.
   "writer_fallbacks": {
-    // GLM and Grok paused (2026-10-12): both are out for the week. Restore
-    // Grok on Friday 2026-10-16 at 18:29 and GLM on 2026-10-17 at 19:21 BST:
-    //   "xai/grok-4.7": ["zai/glm-5.3:max", "anthropic/claude-sonnet-5-5:max"],
-    //   "zai/glm-5.3": ["xai/grok-4.7:xhigh", "anthropic/claude-sonnet-5-5:max"],
-    "xai/grok-4.7": ["anthropic/claude-sonnet-5-5:max"],
-    "zai/glm-5.3": ["anthropic/claude-sonnet-5-5:max"],
-    "anthropic/claude-opus-5-5": ["openai/gpt-6.1-sol:xhigh"]
+    "zai/glm-5.3": ["xai/grok-4.7:xhigh", "anthropic/claude-sonnet-5-5:xhigh"],
+    "xai/grok-4.7": ["anthropic/claude-sonnet-5-5:xhigh"],
+    "anthropic/claude-sonnet-5-5": [],
+    "anthropic/claude-opus-5-5": []
   }
 }

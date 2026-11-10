@@ -290,27 +290,14 @@ a model choice per role, registered through
 a new `git bc-add` branch clone beside the invoking checkout and rereads a
 JSONC model policy before every turn.
 
-The policy is a preset from the shared library at
-`~/.config/atomic/goal-select-models/`, stowed from this repo and shared by
-every project, checkout and branch clone: `sol-astra.json` (the default),
-`kimi-astra.json`, `kimi-opus.json`, `kimi-sol.json`,
-`grok-opus.json`, `grok-astra.json`, `grok-sol.json`,
-`glm-grock.json`, `glm-astra.json`, `glm-sol.json`, `opus-sol.json`,
-`sol-opus-astra.json`, `opus-fable.json`, `sol-fable.json` and `opus-astra.json`.
-Each preset pins the six role models and `max_turns: 10`.
-The launch form's `model_policy_path`
-defaults to the installed `sol-astra.json` path; pick another preset by
-editing only the filename in that field, and add one by dropping another JSON
-or JSONC file into the directory — no list to update. An explicit absolute or
-relative path, including a legacy project-local
-`.atomic/goal-select-models.json` or `.jsonc`, is still read exactly as
-given.
-
-`grok-opus.json` replaces the former `grok-kimi.json`: Grok 4.7 implements
-and orchestrates at high effort, with Opus 5.5 reviewing at high effort and
-xhigh for risk. `sol-opus-astra.json` is for complicated work: Sol 6.1
-orchestrates at high, Opus 5.5 implements at xhigh, and Astra reviews at xhigh
-for completion and risk, with high for evidence and the shared reviewer fallback.
+The policy is `~/.config/atomic/goal-select.jsonc`, stowed from
+`atomic/.config/atomic/` and shared by every project, checkout and branch
+clone. It holds the fleet's presets of 2026-11-10, where one Opus 5.5 xhigh
+reviewer serves every tier, Sonnet 5.5 medium orchestrates, and no OpenAI
+model appears. Pass another file in the launch form's `model_policy_path` (an
+absolute or relative path, read exactly as given) for a preset with a
+different reviewer: the atomic-fleet-manager skill keeps those as templates,
+for example the one where Opus writes and Sonnet 5.5 max reviews.
 
 The launch form's model inputs and `max_turns` are prefilled from the shared
 default preset. Atomic has no per-launch default hook: input defaults are the

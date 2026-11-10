@@ -26,9 +26,9 @@ const sharedDir = join(home, ".config", "atomic");
 const sharedDefaultPath = join(sharedDir, "goal-select.jsonc");
 const presetLibrary = join(sharedDir, "goal-select-models");
 // The shared policy's dials as these tests use them: launch-form defaults
-// and the three review tiers, with no top-level override. The complex tier
-// keeps three seats here so the three-role panel stays tested; the shipped
-// file gives it two, which the test of the shipped file pins.
+// and the three review tiers, with no top-level override. They keep the
+// two- and three-seat panels so those stay tested; the shipped file gives
+// every tier one seat, which the test of the shipped file pins.
 const sharedPolicy = {
   defaults: { orchestrator_model: "openai/gpt-6.1-sol:medium", reverify_model: "openai/gpt-6-astra:high", review_tier: "complex" },
   review_tiers: {
@@ -36,6 +36,13 @@ const sharedPolicy = {
     standard: { panel: 2, reviewer_model: "openai/gpt-6.1-sol:xhigh", risk_reviewer_model: "openai/gpt-6-astra:xhigh", max_turns: 3 },
     complex: { panel: 3, reviewer_model: "openai/gpt-6-astra:high", risk_reviewer_model: "openai/gpt-6-astra:xhigh", max_turns: 3 },
   },
+};
+// The shared goal-select.jsonc as shipped: the fleet's preset where one Opus
+// reviewer serves every tier (Sid, 2026-11-10).
+const opusSeat = { panel: 1, reviewer_model: "anthropic/claude-opus-5-5:xhigh", max_turns: 3 };
+const shippedPolicy = {
+  defaults: { orchestrator_model: "anthropic/claude-sonnet-5-5:medium", reverify_model: "anthropic/claude-opus-5-5:high", review_tier: "standard" },
+  review_tiers: { simple: opusSeat, standard: opusSeat, complex: opusSeat },
 };
 // Atomic's builtin Goal models: what a stage runs on when nothing assigns one.
 const builtinModels = { orchestrator: "openai/gpt-6-astra:medium", reviewer: "openai/gpt-6-astra:high" };
@@ -490,17 +497,19 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     assert.doesNotMatch(goalSelect.description, /goal-select-models\/|sol-astra/);
   });
 
-  it("ships the shared goal-select.jsonc with its defaults and three review tiers, the complex one with two seats", () => {
+  it("ships the shared goal-select.jsonc with its defaults and three review tiers, each one Opus seat and no OpenAI model", () => {
     const shipped = fileURLToPath(new URL("../../../../.config/atomic/goal-select.jsonc", import.meta.url));
     const text = readFileSync(shipped, "utf8");
     assert.match(text, /^\s*\/\//m, "the shipped file keeps its comments");
+    assert.doesNotMatch(text, /"openai\//, "the OpenAI subscription has lapsed");
     // Its writer_fallbacks block is checked with the writer fallback chain.
     const { writer_fallbacks: _chains, ...dials } = parseModelPolicy(text);
-    const complex = { ...sharedPolicy.review_tiers.complex, panel: 2 };
-    assert.deepEqual(dials, { ...sharedPolicy, review_tiers: { ...sharedPolicy.review_tiers, complex } });
-    const seats = (tier) => policyReviewTier(dials, tier);
-    assert.deepEqual(seats("complex").roles, seats("standard").roles, "the complex tier has the standard tier's two seats");
-    assert.equal(seats("complex").quorum, 2, "and both must approve");
+    assert.deepEqual(dials, shippedPolicy);
+    for (const tier of ["simple", "standard", "complex"]) {
+      const seats = policyReviewTier(dials, tier);
+      assert.equal(seats.roles.length, 1, `${tier} has one seat`);
+      assert.equal(seats.quorum, 1, `${tier}: and it alone approves`);
+    }
   });
 
   it("resolves an omitted model_policy_path to the shared goal-select.jsonc under resolve_only and on a real turn 1, reading no project file", async () => {
@@ -1442,28 +1451,29 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.notEqual(modelLine(`${SOL}:high`), modelLine(`${ASTRA}:high`), "two models of one provider are two lines");
     });
 
-    it("ships the standing order in the shared policy file, where only the complex tier lets Opus fall back to Sol", () => {
+    it("ships Sid's chains in the shared policy file: GLM and Grok end on Sonnet, and nothing falls onto the Opus reviewer", () => {
       const shipped = parseModelPolicy(readFileSync(new URL("../../../../.config/atomic/goal-select.jsonc", import.meta.url), "utf8"));
-      assert.deepEqual(policyWriterFallbacks(shipped.writer_fallbacks, "goal-select.jsonc"), standingOrder);
+      const SONNET_XHIGH = "anthropic/claude-sonnet-5-5:xhigh";
+      assert.deepEqual(policyWriterFallbacks(shipped.writer_fallbacks, "goal-select.jsonc"), {
+        "zai/glm-5.3": [GROK, SONNET_XHIGH],
+        "xai/grok-4.7": [SONNET_XHIGH],
+        "anthropic/claude-sonnet-5-5": [],
+        "anthropic/claude-opus-5-5": [],
+      });
       const turn = (tier, writer) => {
-        const { reviewer_model: reviewer, risk_reviewer_model: risk = reviewer } = shipped.review_tiers[tier];
-        const roles = { simple: ["reviewer"], standard: ["completion", "risk"], complex: ["completion", "evidence", "risk"] }[tier];
-        return { writer, writerFallbacks: shipped.writer_fallbacks[modelLine(writer)] ?? [], roles, reviewer: { model: reviewer }, completion: { model: reviewer }, evidence: { model: reviewer }, risk: { model: risk } };
+        const { reviewer_model: reviewer } = shipped.review_tiers[tier];
+        return { writer, writerFallbacks: shipped.writer_fallbacks[modelLine(writer)] ?? [], roles: ["reviewer"], reviewer: { model: reviewer }, reverify: shipped.defaults.reverify_model };
       };
       for (const [tier, writer, allowed] of [
-        ["complex", OPUS, [`${SOL}:xhigh`]],
-        ["standard", OPUS, []],
-        ["simple", OPUS, []],
-        ["complex", GROK, [KIMI, GLM, SONNET]],
-        ["standard", GROK, [KIMI, GLM, SONNET]],
-        ["simple", KIMI, [GLM, GROK, SONNET]],
-        ["standard", KIMI, [GLM, GROK, SONNET]],
-        ["complex", GLM, [SONNET]],
-        ["complex", SONNET, []],
-        ["complex", `${SOL}:xhigh`, []],
+        ["simple", SONNET_XHIGH, []],
+        ["standard", GLM, [GROK, SONNET_XHIGH]],
+        ["standard", GROK, [SONNET_XHIGH]],
+        ["complex", "anthropic/claude-fable-5-2:xhigh", []],
       ]) {
         assert.deepEqual(writerFallback.writerFallbackChain(turn(tier, writer)).allowed, allowed, `${tier} ${writer}`);
       }
+      const opusWriter = writerFallback.writerFallbackChain({ ...turn("standard", OPUS), writerFallbacks: [SONNET_XHIGH, `${OPUS}`] });
+      assert.deepEqual(opusWriter.refused.map(({ model }) => model), [OPUS], "an Opus writer may never fall onto the Opus reviewer");
     });
 
     it("fails loudly on a malformed writer_fallbacks, naming the file and the entry", () => {
