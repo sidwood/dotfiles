@@ -48,9 +48,17 @@ to assume work has stopped pending his reply.
 
 ## NEVER push the dotfiles repo
 
-Commit in `~/code/dotfiles` freely. **Never `git push` it.** Not when the
-work is finished, not when a commit looks trivially safe, not when asked
-to "wrap up". Sid pushes it himself, always.
+Commit in `~/code/dotfiles` freely. **Never `git push` it** unless Sid
+explicitly asks for that push. Not when the work is finished, not when a
+commit looks trivially safe, not when asked to "wrap up".
+
+After a push Sid asked for, fast-forward `~/code/dotfiles` on the other
+computers in the same turn. They are `work-macbook-pro`, `macbook-pro` and
+`framework`, reachable by those SSH names. Use
+`git merge --ff-only origin/master`; if a clone has local changes in the
+way or has diverged, stop and report it. Also report what a pull leaves
+undone: new files that need Stow links, or a `node-clis/` pin newer than
+the installed CLI.
 
 Stage by path only. `git add -A` there sweeps up unrelated work in
 progress, notably `ssh/` config.
