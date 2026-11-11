@@ -18,8 +18,18 @@
 // When Opus 5.5 xhigh writes (standard or complex), Sonnet 5.5 max reviews,
 // which needs the atomic-fleet-manager skill's
 // templates/policy-presets-opus-writer.jsonc instead of this file.
+//
+// Why the reviewer is the strongest seat (Sid, 2026-11-11). The reviewer is
+// the only stage that checks the writer's work independently, so it must be
+// clearly stronger than the writer. GLM 5.3 max and Grok 4.7 xhigh score as
+// peers on public coding benchmarks, between Haiku 5.5 and Sonnet 5.5, so
+// neither reviews the other. A launch can still swap the reviewer with
+// reviewer_model: do not use it to seat a standard-tier writer.
 {
   "defaults": {
+    // The orchestrator briefs the writer, waits and writes the receipt. It
+    // cannot approve, and nothing makes it re-run the writer's checks, so a
+    // stronger model here does not change what passes review.
     "orchestrator_model": "anthropic/claude-sonnet-5-5:medium",
     // Findings are re-verified on the reviewer's line, which never writes
     // under this file.
