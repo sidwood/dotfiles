@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+#
+# herdr-sort-spaces — alphabetise the Herdr sidebar within each machine.
+#
+# This computer stays first. Other machines keep their current order.
+# Names compare case-insensitively, and "~" sorts after letters.
+# Focus, names, and which spaces exist stay as they are.
+
+set -euo pipefail
+
+usage() {
+  printf '%s\n' \
+    'Usage: herdr-sort-spaces' \
+    '' \
+    'Sort the Herdr sidebar alphabetically within each machine.' \
+    'This computer stays first. Other machines keep their current order.' \
+    'Names compare case-insensitively, and "~" sorts after letters.' \
+    'Does not focus, rename, create, or close a space.'
+  exit "${1:-0}"
+}
+
+case "${1:-}" in
+  -h | --help) usage 0 ;;
+  '') ;;
+  *) usage 2 ;;
+esac
+
+command -v herdr-app >/dev/null 2>&1 || {
+  echo 'herdr-sort-spaces: herdr-app is not on PATH' >&2
+  exit 1
+}
+
+command -v python3 >/dev/null 2>&1 || {
+  echo 'herdr-sort-spaces: python3 is not on PATH' >&2
+  exit 1
+}
+
+exec python3 - <<'PY'
+import json
+import subprocess
+import sys
+
+
+def run(args):
+    result = subprocess.run(args, capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "herdr-app failed").strip()
+        print("herdr-sort-spaces: %s" % detail, file=sys.stderr)
+        sys.exit(result.returncode or 1)
+    return result.stdout
+
+
+def load_spaces():
+    payload = json.loads(run(["herdr-app", "ls"]))
+    return payload["spaces"]
+
+
+def label(space):
+    machine = space.get("machine")
+    if machine:
+        return "%s (%s)" % (space["name"], machine)
+    return space["name"]
+
+
+current = load_spaces()
+groups = []
+seen = {}
+for space in current:
+    machine = space.get("machine")
+    if machine not in seen:
+        seen[machine] = len(groups)
+        groups.append([])
+    groups[seen[machine]].append(space)
+
+target = []
+for items in groups:
+    items.sort(key=lambda space: (space["name"].casefold(), space["id"]))
+    target.extend(items)
+
+order = [space["id"] for space in current]
+target_ids = [space["id"] for space in target]
+
+moves = 0
+for index, space_id in enumerate(target_ids):
+    if order[index] == space_id:
+        continue
+    run(["herdr-app", "do", "space.move", "--id", space_id, "--index", str(index + 1)])
+    found = order.index(space_id)
+    order.pop(found)
+    order.insert(index, space_id)
+    moves += 1
+
+if moves == 0:
+    print("already alphabetical")
+    sys.exit(0)
+
+shown = load_spaces()
+for space in shown:
+    print(label(space))
+
+if [space["id"] for space in shown] != target_ids:
+    print("herdr-sort-spaces: sidebar order changed after the moves", file=sys.stderr)
+    sys.exit(2)
+PY
