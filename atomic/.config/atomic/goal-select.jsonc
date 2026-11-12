@@ -11,7 +11,8 @@
 //
 // The fleet's presets (Sid, 2026-11-10). No OpenAI model: that subscription
 // has lapsed. One reviewer in every tier, never on the writer's model line.
-// This file is the preset where Opus 5.5 xhigh reviews:
+// This file is the preset where Opus 5.5 high reviews (Sid, 2026-11-12:
+// Anthropic recommends high, not xhigh, for an Opus 5.5 reviewer):
 //   simple:   Sonnet 5.5 xhigh writes
 //   standard: GLM 5.3 max or Grok 4.7 xhigh writes
 //   complex:  Fable 5.2 xhigh writes
@@ -39,17 +40,17 @@
   "review_tiers": {
     "simple": {
       "panel": 1,
-      "reviewer_model": "anthropic/claude-opus-5-5:xhigh",
+      "reviewer_model": "anthropic/claude-opus-5-5:high",
       "max_turns": 3
     },
     "standard": {
       "panel": 1,
-      "reviewer_model": "anthropic/claude-opus-5-5:xhigh",
+      "reviewer_model": "anthropic/claude-opus-5-5:high",
       "max_turns": 3
     },
     "complex": {
       "panel": 1,
-      "reviewer_model": "anthropic/claude-opus-5-5:xhigh",
+      "reviewer_model": "anthropic/claude-opus-5-5:high",
       "max_turns": 3
     }
   },
