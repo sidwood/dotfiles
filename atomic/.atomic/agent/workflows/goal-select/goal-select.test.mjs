@@ -39,7 +39,7 @@ const sharedPolicy = {
 };
 // The shared goal-select.jsonc as shipped: the fleet's preset where one Opus
 // reviewer serves every tier (Sid, 2026-11-10).
-const opusSeat = { panel: 1, reviewer_model: "anthropic/claude-opus-5-5:xhigh", max_turns: 3 };
+const opusSeat = { panel: 1, reviewer_model: "anthropic/claude-opus-5-5:high", max_turns: 3 };
 const shippedPolicy = {
   defaults: { orchestrator_model: "anthropic/claude-sonnet-5-5:medium", reverify_model: "anthropic/claude-opus-5-5:high", review_tier: "standard" },
   review_tiers: { simple: opusSeat, standard: opusSeat, complex: opusSeat },
