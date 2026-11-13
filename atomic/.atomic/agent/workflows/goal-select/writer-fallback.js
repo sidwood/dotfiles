@@ -187,6 +187,16 @@ function reviewable(paths, cwd, checkout, ignored = gitIgnored) {
 // ran, so the transcript is the record; and a
 // launch's task records name the model at the time they were written,
 // which after a foreground wait is the last one, not the first.
+// A reply the provider cut short is a model error too: Atomic records a
+// stream that ends before its terminal event as aborted, with the provider's
+// message. Aborts from this side (the orchestrator stopping an agent, a
+// closed session) say so in their message and are not the model's failure.
+function modelError(message) {
+  if (message.stopReason === "error") return cleanModel(message.errorMessage) ?? "the model returned an error";
+  if (message.stopReason !== "aborted") return undefined;
+  const text = cleanModel(message.errorMessage);
+  return text !== undefined && !/aborted|SessionClosed/iu.test(text) ? text : undefined;
+}
 function transcriptOutcome(sessionFile, checkout, ignored) {
   const entries = jsonLines(sessionFile);
   if (entries === undefined) return { unread: `its transcript could not be read (${sessionFile})` };
@@ -218,7 +228,7 @@ function transcriptOutcome(sessionFile, checkout, ignored) {
     if (cleanModel(message.provider) === undefined || cleanModel(message.model) === undefined) continue;
     const model = `${message.provider}/${message.model}`;
     started ??= model;
-    if (message.stopReason === "error") continue;
+    if (modelError(message) !== undefined) continue;
     if (!models.includes(model)) models.push(model);
     for (const part of Array.isArray(message.content) ? message.content : []) {
       const paths = part?.type === "toolCall" ? writtenBy(part) : undefined;
@@ -233,7 +243,7 @@ function transcriptOutcome(sessionFile, checkout, ignored) {
     const files = write.paths.map(() => counted[at++]);
     if (files.includes(true) && !wrote.includes(write.model)) wrote.push(write.model);
   }
-  return { started, models, wrote, error: last.stopReason === "error" ? cleanModel(last.errorMessage) ?? "the model returned an error" : undefined };
+  return { started, models, wrote, error: modelError(last) };
 }
 
 // The agents a stage's transcript shows it launching through the subagent

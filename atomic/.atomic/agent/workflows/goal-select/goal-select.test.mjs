@@ -1301,6 +1301,8 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
     const reading = (model) => [line(model), undefined, { read: ["README.md"] }];
     const did = (model, actions) => [line(model), undefined, actions];
     const failed = (model, error) => [line(model), error];
+    // A turn Atomic recorded as aborted, with the message that ended it.
+    const aborted = (model, error) => [line(model), error, { aborted: true }];
     const model = (id) => ({ provider: id.split("/")[0], id: line(id).split("/").slice(1).join("/") });
     const ledgerOf = (run) => JSON.parse(readFileSync(join(JSON.parse(run.record.get("tool:artifact-root:1")), "goal-ledger-state.json"), "utf8"));
     const orchestrators = (run) => run.stages.filter((stage) => stage.name.startsWith("orchestrator-"));
@@ -1340,7 +1342,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
           ...(actions.bash ?? []).map((command) => ({ name: "bash", arguments: { command } })),
         ].map((call) => ({ ...call, id: `call_${(called += 1)}` }));
         return [
-          message({ role: "assistant", provider: ran.split("/")[0], model: ran.split("/").slice(1).join("/"), content: calls.map(({ id, name, arguments: args }) => ({ type: "toolCall", id, name, arguments: args })), stopReason: error ? "error" : calls.length > 0 ? "toolUse" : "stop", ...(error ? { errorMessage: error } : {}) }, timestamp),
+          message({ role: "assistant", provider: ran.split("/")[0], model: ran.split("/").slice(1).join("/"), content: calls.map(({ id, name, arguments: args }) => ({ type: "toolCall", id, name, arguments: args })), stopReason: error ? (actions.aborted ? "aborted" : "error") : calls.length > 0 ? "toolUse" : "stop", ...(error ? { errorMessage: error } : {}) }, timestamp),
           ...calls.map((call) => message({ role: "toolResult", toolCallId: call.id, toolName: call.name, isError: call.refused === true, content: [] }, timestamp)),
         ];
       }
@@ -1677,6 +1679,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.deepEqual(stages.map(writerNamed), [GROK, KIMI, GLM, GLM], "Grok, then Kimi, then GLM, which also writes turn 2");
       assert.ok(stages.every((stage) => typeof stage.options.isFallbackModelAllowed === "function"), "every orchestrator stage of the run carries the gate");
       assert.ok(stages.every((stage) => stage.options.prompt.includes("never finish the work yourself and never start an agent on another model")), "and is told to leave the move to the workflow");
+      assert.ok(stages.every((stage) => stage.options.prompt.includes("Never end your turn while the writer's task is running")), "and to wait out a writer still thinking");
       assert.ok(stages.every((stage) => stage.options.prompt.includes("name the writer model on every agent that edits or commits")), "and what an unnamed writer costs");
       const continued = stages[1].options;
       assert.match(continued.prompt, /<writer_change>\nThe implementation agent asked for xai\/grok-4\.7:xhigh did not do its work on that model \(/);
@@ -1779,6 +1782,28 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       });
       await assert.rejects(goalSelect.run(run.ctx), /No fallback writer is left after xai\/grok-4\.7:xhigh/);
       assert.deepEqual(orchestrators(run).map(writerNamed), [GROK, KIMI, GLM, SONNET], "one stage per writer the policy allows, then the stop");
+    });
+
+    it("moves the writer when the provider cuts its stream short, and not when this side aborted the agent", async () => {
+      const dropped = "OpenAI Responses stream ended before a terminal response event";
+      const cut = chainRun("stream cut", {
+        inputs: { review_tier: "complex", writer_model: GROK },
+        script: { "orchestrator-1": [{ requested: GROK, turns: [ok(GROK), aborted(GROK, dropped)], thinking: "xhigh" }] },
+      });
+      assert.equal((await goalSelect.run(cut.ctx)).status, "complete");
+      assert.deepEqual(orchestrators(cut).map(writerNamed), [GROK, KIMI]);
+      const [move] = ledgerOf(cut).writer_moves;
+      assert.equal(move.reason, `worker on ${GROK} stopped on a model error: ${dropped}`);
+
+      for (const local of ["Request was aborted", "This operation was aborted", "Request aborted", "SessionClosed"]) {
+        const stopped = chainRun(`aborted here: ${local}`, {
+          inputs: { review_tier: "complex", writer_model: GROK },
+          script: { "orchestrator-1": [{ requested: GROK, turns: [ok(GROK), aborted(GROK, local)], thinking: "xhigh" }] },
+        });
+        assert.equal((await goalSelect.run(stopped.ctx)).status, "complete", local);
+        assert.deepEqual(orchestrators(stopped).map(writerNamed), [GROK], local);
+        assert.deepEqual(ledgerOf(stopped).writer_moves, [], local);
+      }
     });
 
     it("decides a failure over the last launch: one of two parallel writers failing moves the writer, whichever was recorded last", async () => {
