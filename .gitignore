@@ -18,6 +18,9 @@ ruby/.bundle/cache
 shell/.config/shell/local.env
 ssh/.ssh/1Password
 ssh/.ssh/authorized_keys
+ssh/.ssh/config.local
+ssh/.ssh/sids_computers_ed25519
+ssh/.ssh/sids_computers_ed25519.pub
 ssh/.ssh/known_hosts
 ssh/.ssh/known_hosts.old
 TODO.md
