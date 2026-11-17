@@ -5,6 +5,7 @@ tap "humanlayer/humanlayer", trusted: true
 tap "jesseduffield/lazydocker", trusted: true
 tap "jesseduffield/lazygit", trusted: true
 tap "mongodb/brew", trusted: true
+tap "ovh/tap", trusted: true
 tap "qltysh/tap", trusted: true
 tap "xdevplatform/tap", trusted: true
 
@@ -79,6 +80,7 @@ cask "claude-code"
 cask "flutter"
 cask "gcloud-cli"
 cask "grok-build"
+cask "ovhcloud-cli"
 cask "warp-agent-cli"
 cask "xurl"
 
