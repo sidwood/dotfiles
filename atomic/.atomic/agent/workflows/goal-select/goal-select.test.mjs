@@ -1477,11 +1477,11 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       assert.notEqual(modelLine(`${SOL}:high`), modelLine(`${ASTRA}:high`), "two models of one provider are two lines");
     });
 
-    it("ships Sid's chains in the shared policy file: GLM and Grok end on Sonnet, and nothing falls onto the Opus reviewer", () => {
+    it("ships Sid's chains in the shared policy file: GLM falls straight to Sonnet, Grok still ends there, and nothing falls onto the Opus reviewer", () => {
       const shipped = parseModelPolicy(readFileSync(new URL("../../../../.config/atomic/goal-select.jsonc", import.meta.url), "utf8"));
       const SONNET_XHIGH = "anthropic/claude-sonnet-5-5:xhigh";
       assert.deepEqual(policyWriterFallbacks(shipped.writer_fallbacks, "goal-select.jsonc"), {
-        "zai/glm-5.3": [GROK, SONNET_XHIGH],
+        "zai/glm-5.3": [SONNET_XHIGH],
         "xai/grok-4.7": [SONNET_XHIGH],
         "anthropic/claude-sonnet-5-5": [],
         "anthropic/claude-opus-5-5": [],
@@ -1492,7 +1492,7 @@ describe("goal-select branch_checkout_dir (adapter tests: fake workflow context 
       };
       for (const [tier, writer, allowed] of [
         ["simple", SONNET_XHIGH, []],
-        ["standard", GLM, [GROK, SONNET_XHIGH]],
+        ["standard", GLM, [SONNET_XHIGH]],
         ["standard", GROK, [SONNET_XHIGH]],
         ["complex", "anthropic/claude-fable-5-2:xhigh", []],
       ]) {
