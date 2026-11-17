@@ -7,6 +7,7 @@ tap "jesseduffield/lazygit", trusted: true
 tap "mongodb/brew", trusted: true
 tap "ovh/tap", trusted: true
 tap "qltysh/tap", trusted: true
+tap "stablyai/orca", trusted: true
 tap "xdevplatform/tap", trusted: true
 
 # cli tools
@@ -114,6 +115,7 @@ cask "postman"
 cask "raspberry-pi-imager"
 cask "slack"
 cask "spotify"
+cask "stablyai/orca/orca"
 cask "supacode"
 cask "superwhisper"
 cask "sync"

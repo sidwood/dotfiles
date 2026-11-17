@@ -134,6 +134,15 @@ Install the app with Homebrew (`cask "humanlayer"` from the trusted
 `humanlayer/humanlayer` tap). The cask also links `riptided`. Sign-in happens
 in the app on first launch.
 
+### Orca
+
+Orca is not a Stow package. Install it with Homebrew (`cask "stablyai/orca/orca"`
+from the trusted `stablyai/orca` tap). Use the fully qualified cask name; bare
+`orca` is an unrelated Plotly cask. The tap also ships `orca@rc` for release
+candidates, which conflicts with the stable cask. Orca needs macOS 13.4 or later
+and updates itself in-app; `brew upgrade` is usually a no-op unless you pass
+`--greedy`.
+
 ### Node CLIs
 
 Homebrew installs vendor apps. Node CLIs are pinned projects under
