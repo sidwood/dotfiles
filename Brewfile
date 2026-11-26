@@ -131,7 +131,6 @@ cask "vlc"
 cask "warp"
 cask "whatsapp"
 cask "zed"
-cask "zen"
 cask "zoom"
 
 # mac app store applications
