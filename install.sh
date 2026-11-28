@@ -45,7 +45,7 @@ option_keys=()
 # Build menu options
 #
 
-options+=("Install Homebrew packages and applications (including LM Studio).")
+options+=("Install Homebrew applications, services, and system libs.")
 option_keys+=("homebrew")
 options+=("Apply macOS system defaults.")
 option_keys+=("macos")
@@ -53,14 +53,10 @@ options+=("Symlink dotfile packages with GNU Stow.")
 option_keys+=("stow")
 options+=("Enable LM Studio models in OpenCode on this Mac.")
 option_keys+=("opencode_lmstudio")
-options+=("Set up mise with default runtimes.")
+options+=("Install runtimes and CLI tools with mise.")
 option_keys+=("mise")
-options+=("Install DeepSeek Harness with portable defaults.")
-option_keys+=("deepseek_harness")
 options+=("Install Atomic with portable defaults.")
 option_keys+=("atomic")
-options+=("Install pinned Node CLIs.")
-option_keys+=("node_clis")
 options+=("Install vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -209,6 +205,9 @@ stow_dotfiles() {
   backup_config "$HOME/.config/herdr-app/keys.json" "$PWD/herdr-app/.config/herdr-app/keys.json" "Herdr app keys"
   backup_config "$HOME/.config/himalaya/config.toml" "$PWD/himalaya/.config/himalaya/config.toml" "himalaya config"
   backup_config "$HOME/.config/humanlayer/workspace.json" "$PWD/humanlayer/.config/humanlayer/workspace.json" "humanlayer workspace config"
+  backup_config "$HOME/.config/mise/config.toml" "$PWD/mise/.config/mise/config.toml" "mise config"
+  backup_config "$HOME/.config/mise/mise.lock" "$PWD/mise/.config/mise/mise.lock" "mise lockfile"
+  backup_config "$HOME/.config/mise/locks" "$PWD/mise/.config/mise/locks" "mise lock sidecars"
   backup_config "$HOME/.config/opencode/opencode.jsonc" "$PWD/opencode/.config/opencode/opencode.jsonc" "OpenCode config"
   backup_config "$HOME/.config/zed/settings.json" "$PWD/zed/.config/zed/settings.json" "zed settings"
   backup_config "$HOME/.config/zed/keymap.json" "$PWD/zed/.config/zed/keymap.json" "zed keymap"
@@ -294,29 +293,51 @@ install_vim_plugins() {
   vim +PlugInstall +qall
 }
 
+setup_dsh_defaults() {
+  local harness_home="${DSH_HOME:-$HOME/.dsh}"
+  local starter="$PWD/dsh/.config/dsh/settings.yaml"
+  [[ -f "$starter" ]] || return 0
+  command -v dsh >/dev/null 2>&1 || return 0
+
+  (
+    umask 077
+    mkdir -p "$harness_home" || exit 1
+    if [[ ! -e "$harness_home/settings.yaml" && ! -L "$harness_home/settings.yaml" ]]; then
+      cp "$starter" "$harness_home/settings.yaml" || exit 1
+    fi
+  ) || abort 'Could not initialise DeepSeek Harness settings'
+}
+
 setup_mise() {
   command -v mise >/dev/null 2>&1 || abort 'mise required (install Homebrew packages first)'
 
-  echo "Setting up mise runtimes"
+  local mise_config="${XDG_CONFIG_HOME:-$HOME/.config}/mise/config.toml"
+  [[ -r "$mise_config" ]] || abort 'Select the Stow option first so ~/.config/mise/config.toml is linked'
 
-  # Trust mise to run hooks (global settings, no specific config file)
-  mise settings set experimental true 2>/dev/null || true
+  export NPM_CONFIG_USERCONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/npm/npmrc"
 
-  # Install latest LTS/stable versions globally
-  echo "Installing Node.js LTS..."
-  mise use --global node@lts
+  local mise_args=(install)
+  if [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/mise/mise.lock" ]]; then
+    mise_args+=(--locked)
+  fi
 
-  echo "Installing Python..."
-  mise use --global python@latest
+  echo "Installing runtimes and CLI tools with mise"
+  if [[ -n "${GITHUB_REGISTRY_TOKEN:-}" && "$GITHUB_REGISTRY_TOKEN" != op://* ]]; then
+    mise "${mise_args[@]}" || abort 'mise install failed'
+  elif command -v op >/dev/null 2>&1 && [[ -f "$PWD/shell/.config/shell/local.env.tpl" ]]; then
+    op run --env-file="$PWD/shell/.config/shell/local.env.tpl" -- mise "${mise_args[@]}" || abort 'mise install failed (check 1Password CLI auth and GitHub Registry Token)'
+  else
+    mise "${mise_args[@]}" || abort 'mise install failed (set GITHUB_REGISTRY_TOKEN for private packages)'
+  fi
 
-  echo "Installing Ruby..."
-  mise use --global ruby@latest
+  mise reshim
 
-  echo "Installing pnpm..."
-  mise use --global pnpm@latest
-
-  # Activate so subsequent steps in this process can find node/npm
+  # Activate so subsequent steps in this process can find mise-managed tools
   eval "$(mise activate bash)"
+
+  setup_dsh_defaults
+  link_agent_memory
+  install_herdr_integrations
 
   echo "Mise setup complete. Installed versions:"
   mise list
@@ -405,16 +426,8 @@ if is_selected "mise"; then
   setup_mise
 fi
 
-if is_selected "deepseek_harness"; then
-  node_cli_install deepseek-harness
-fi
-
 if is_selected "atomic"; then
   node_cli_install atomic
-fi
-
-if is_selected "node_clis"; then
-  node_cli_install_menu group
 fi
 
 if is_selected "vim"; then

@@ -19,13 +19,15 @@
 ## Source Of Truth
 - User-facing docs: `README.md`
 - Install/uninstall entrypoints: `install.sh`, `uninstall.sh`
-- macOS packages/apps: `Brewfile`
+- macOS apps, casks, services, and system libs: `Brewfile`
+- Runtimes and standalone CLI/TUI tools: `mise/.config/mise/config.toml` (locked in `mise/.config/mise/mise.lock` + `mise/.config/mise/locks/`)
 - macOS defaults: `macos/defaults.sh`
 - Custom executables: `bin/.local/bin/`, sourced helpers in `bin/.local/share/<tool>/`
 - Global agent memory (every repo, every harness): `agents/.config/agents/AGENTS.md`. This file covers the dotfiles repo only.
 
 ## Platform Model
-- Install path: Homebrew via `brew bundle --file=Brewfile`.
+- Applications, vendor CLI casks, launchd services, and OS/C libraries: Homebrew via `brew bundle --file=Brewfile`.
+- Language runtimes, Node CLIs, and standalone dev CLIs/TUIs: `mise` via stowed `mise/.config/mise/config.toml` + `mise.lock` (`mise install --locked`).
 - `install.sh` and `uninstall.sh` abort unless the host is macOS.
 
 ## Stow Model
@@ -62,5 +64,7 @@
 
 ## Operational Notes
 Non-obvious constraints only; the mechanics are in `install.sh`.
-- pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`. The bin directory is `$PNPM_HOME/bin`. Node CLIs in `node-clis/` are not installed there. pnpm honours `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
+- `mise/.config/mise/config.toml` sets `npm.shell_out = true` so `npm:` tools hoist `node_modules` and run native build scripts (`node-pty`, `keytar`, `koffi`). Both `mise` and `pnpm` honour `NPM_CONFIG_USERCONFIG`, so the stowed XDG npmrc covers the private `@sidwood` registry without a second config file.
+- `mise/.config/mise/mise.lock` requires its `mise/.config/mise/locks/` sidecar directory to stay alongside it for locked PyPI installs (`azure-cli`, `git-filter-repo`). Machine-local overrides belong in `~/.config/mise/config.local.toml` (gitignored).
+- pnpm refuses to install globally at all unless `PNPM_HOME` is set and on PATH, and defaults to a non-XDG `~/Library/pnpm` on macOS — hence the export in `profile/.profile`. The bin directory is `$PNPM_HOME/bin`.
 - `install.sh` blocks on 1Password CLI auth in sandboxed or non-interactive environments.

@@ -21,14 +21,12 @@ components to install. It also points this repository's `core.hooksPath` at
 ```
 Select installations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
-> [x] Install Homebrew packages and applications (including LM Studio).
+> [x] Install Homebrew applications, services, and system libs.
   [x] Apply macOS system defaults.
   [x] Symlink dotfile packages with GNU Stow.
   [ ] Enable LM Studio models in OpenCode on this Mac.
-  [x] Set up mise with default runtimes.
-  [x] Install DeepSeek Harness with portable defaults.
+  [x] Install runtimes and CLI tools with mise.
   [x] Install Atomic with portable defaults.
-  [x] Install pinned Node CLIs.
   [x] Install vim plugins.
 ```
 
@@ -46,8 +44,8 @@ dotfiles/
 ├── agents/         # Global agent memory shared by every AI harness
 ├── atomic/         # Atomic starter settings (the CLI project is node-clis/atomic)
 ├── bin/            # Custom executables on PATH via ~/.local/bin
-├── dsh/            # DeepSeek Harness starter settings (the CLI project is node-clis/deepseek-harness)
-├── node-clis/      # Pinned Node CLI projects; not a Stow package
+├── dsh/            # DeepSeek Harness starter settings (installed via mise)
+├── node-clis/      # Pinned Atomic runtime (patched); not a Stow package
 ├── ghostty/        # Ghostty terminal config
 ├── git/            # Git config and global ignore
 ├── herdr/          # Herdr workspace manager (Solarized Dark, tmux-first keys)
@@ -56,6 +54,7 @@ dotfiles/
 ├── htop/           # htop process viewer config
 ├── humanlayer/     # HumanLayer workspace defaults
 ├── iterm2/         # iTerm2 terminal config (macOS)
+├── mise/           # Declarative runtimes, CLI/TUI tools, and lockfile (mise.lock)
 ├── misc/           # Miscellaneous dotfiles (.editorconfig, .agignore, etc.)
 ├── mutt/           # Mutt email client config
 ├── npm/            # NPM configuration
@@ -143,46 +142,39 @@ candidates, which conflicts with the stable cask. Orca needs macOS 13.4 or later
 and updates itself in-app; `brew upgrade` is usually a no-op unless you pass
 `--greedy`.
 
-### Node CLIs
+### Runtimes, CLIs, and `mise`
 
-Homebrew installs vendor apps. Node CLIs are pinned projects under
-`node-clis/`. Install copies a project to
-`${XDG_DATA_HOME:-~/.local/share}/<dir>` and links that runtime's bin into
-`~/.local/bin`. Nothing is installed inside the git checkout, and
-`node_modules` is not committed.
+Homebrew installs GUI apps, macOS CLI casks, launchd services, and system C
+libraries (`Brewfile`). Language runtimes (`node`, `pnpm`, `python`, `ruby`,
+`elixir`, `erlang`, `go`, `uv`), Node/AI CLIs (`opencode`, `gemini`,
+`defuddle`, `firecrawl`, `timecraft`, `dsh`), and standalone dev CLIs/TUIs
+(`neovim`, `lazygit`, `lazydocker`, `yazi`, `fzf`, `ripgrep`, `fd`, `bat`,
+`eza`, `gh`, `jq`, `yq`, `biome`, `shellcheck`, `terraform`, `zoxide`, etc.)
+are declared in `mise/.config/mise/config.toml` and locked for `macos-arm64` in
+`mise/.config/mise/mise.lock` (plus PyPI dependency sidecars under
+`mise/.config/mise/locks/`).
 
-Atomic and Harness load plugins from the `node_modules` directory beside
-themselves. pnpm 11's global install does not lay packages out that way, so
-these projects set `nodeLinker: hoisted`. Build-script approval is
-`allowBuilds` in each project's `pnpm-workspace.yaml`; pnpm 11 does not read
-that list from `package.json` or `.npmrc`. Gemini CLI and firecrawl-cli stay
-here rather than in Homebrew: Gemini's formula is deprecated upstream, and
-firecrawl-cli has no formula. `@sidwood/timecraft` still needs the stowed npmrc.
-`op run` resolves the GitHub token only when it is not already loaded
-from `~/.config/shell/local.env`.
+`mise` honours `NPM_CONFIG_USERCONFIG` (`~/.config/npm/npmrc`) for private
+GitHub Packages (`@sidwood/timecraft`). Put per-machine overrides in
+`~/.config/mise/config.local.toml` (gitignored). To bump tools and refresh the
+committed lockfile:
 
 ```bash
-node-cli-update atomic 0.9.25
+mise upgrade --interactive
+mise lock --global --platform macos-arm64
 ```
 
-That sets the exact version in `node-clis/<tool>`, rewrites the lockfile
-there, and reinstalls the runtime. It does not commit, and it does not call
-Atomic's or Harness's own upgrade command. Refresh `defaults.md` or
-`defaults.web.cordis.yml` from the installed release before committing a
-version change.
+`node-clis/atomic` remains the sole pinned pnpm project in `node-clis/` while it
+carries a local patch (pending extraction to `~/code/dotfiles-atomic`). Update
+its pin with `node-cli-update atomic <version>`.
 
 ### DeepSeek Harness
 
-Select **Set up mise with default runtimes**, **Install DeepSeek Harness with
-portable defaults**, and **Symlink dotfile packages with GNU Stow** in
-`./install.sh` on each Mac. Existing compatible Node installations can skip
-mise. Harness requires Node.js 22.19+ on the 22.x line, or Node.js 24+;
-Homebrew already supplies mise, so no additional Brewfile entry is needed.
-
-The pinned project is `node-clis/deepseek-harness` at CLI `0.1.5-rc.1`. The
-runtime is `${XDG_DATA_HOME:-~/.local/share}/deepseek-harness`, linked as
-`~/.local/bin/dsh`. There is no launcher wrapper, Python environment, model
-download, or background service.
+Select **Symlink dotfile packages with GNU Stow** and **Install runtimes and CLI
+tools with mise** in `./install.sh` on each Mac. `mise` installs
+`npm:@deepseek-ai/dsh` pinned at `0.1.5-rc.1` and `./install.sh` seeds
+`~/.dsh/settings.yaml` if absent and links global agent memory. There is no
+launcher wrapper, Python environment, model download, or background service.
 
 ```bash
 cd ~/code/your-project
@@ -710,10 +702,9 @@ The uninstall script presents a similar interactive menu:
 ```
 Select uninstallations (↑/↓/k/j navigate, Space toggle, Enter confirm):
 
-> [x] Uninstall Homebrew packages and applications.
+> [x] Uninstall Homebrew applications, services, and system libs.
   [x] Reset macOS system defaults.
   [x] Remove dotfile package symlinks with GNU Stow.
-  [x] Uninstall DeepSeek Harness (keep settings and sessions).
   [x] Uninstall Atomic (keep settings and sessions).
   [x] Uninstall vim plugins.
 ```

@@ -34,18 +34,14 @@ option_keys=()
 # Build menu options
 #
 
-options+=("Uninstall Homebrew packages and applications.")
+options+=("Uninstall Homebrew applications, services, and system libs.")
 option_keys+=("homebrew")
 options+=("Reset macOS system defaults.")
 option_keys+=("macos")
 options+=("Remove dotfile package symlinks with GNU Stow.")
 option_keys+=("stow")
-options+=("Uninstall DeepSeek Harness (keep settings and sessions).")
-option_keys+=("deepseek_harness")
 options+=("Uninstall Atomic (keep settings and sessions).")
 option_keys+=("atomic")
-options+=("Uninstall pinned Node CLIs.")
-option_keys+=("node_clis")
 options+=("Uninstall vim plugins.")
 option_keys+=("vim")
 for i in "${!options[@]}"; do
@@ -191,14 +187,6 @@ show_menu
 
 if is_selected "atomic"; then
   node_cli_uninstall atomic
-fi
-
-if is_selected "deepseek_harness"; then
-  node_cli_uninstall deepseek-harness
-fi
-
-if is_selected "node_clis"; then
-  node_cli_uninstall_menu group
 fi
 
 if is_selected "stow"; then
