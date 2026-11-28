@@ -1,78 +1,44 @@
 tap "1password/tap", trusted: true
 tap "ampcode/tap", trusted: true
-tap "hashicorp/tap", trusted: true
 tap "humanlayer/humanlayer", trusted: true
-tap "jesseduffield/lazydocker", trusted: true
-tap "jesseduffield/lazygit", trusted: true
 tap "mongodb/brew", trusted: true
 tap "ovh/tap", trusted: true
 tap "qltysh/tap", trusted: true
 tap "stablyai/orca", trusted: true
 tap "xdevplatform/tap", trusted: true
 
-# cli tools
+# bootstrap, system libs, services & Homebrew-only cli tools
+# (runtimes and standalone dev CLIs/TUIs live in mise/.config/mise/config.toml)
 brew "ampcode"
-brew "awscli"
-brew "azure-cli"
-brew "bat"
 brew "bats-core"
-brew "biome"
 brew "btop"
-brew "cmake"
 brew "cmatrix"
-brew "cocoapods"
 brew "coreutils"
 brew "curl"
-brew "difftastic"
-brew "direnv"
-brew "doctl"
-brew "elixir"
-brew "erlang"
-brew "eza"
-brew "fastfetch"
-brew "fd"
 brew "ffmpeg"
-brew "fzf"
-brew "gh"
 brew "gifski"
-brew "git-filter-repo"
 brew "git"
-brew "hashicorp/tap/terraform"
 brew "herdr", restart_service: :changed
-brew "heroku"
-brew "himalaya"
 brew "htop"
 brew "imagemagick"
-brew "jq"
-brew "lazydocker"
-brew "lazygit"
 brew "libpq"
 brew "make"
 brew "mas"
 brew "mise"
 brew "mongodb-database-tools"
-brew "neovim"
 brew "ollama"
 brew "openssh"
 brew "openssl"
 brew "poppler"
 brew "qlty"
 brew "readline"
-brew "resvg"
-brew "ripgrep"
 brew "sevenzip"
-brew "shellcheck"
 brew "stow"
 brew "the_silver_searcher"
 brew "tmux"
 brew "tree"
-brew "vale"
 brew "vim"
 brew "wget"
-brew "yazi"
-brew "yt-dlp"
-brew "yq"
-brew "zoxide"
 
 # cli applications
 cask "1password-cli"
