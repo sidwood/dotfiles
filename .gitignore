@@ -11,6 +11,8 @@
 alfred/Alfred.alfredpreferences/preferences/local/
 cursor/.config/Cursor/*
 cursor/.config/Cursor/User/*
+herdr/.config/herdr/*
+!herdr/.config/herdr/config.toml
 iterm2/.config/iterm2/AppSupport
 iterm2/.config/iterm2/sockets/
 node_modules/
