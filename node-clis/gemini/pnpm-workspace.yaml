@@ -1,5 +1,0 @@
-nodeLinker: hoisted
-engineStrict: true
-allowBuilds:
-  "@github/keytar": true
-  node-pty: true

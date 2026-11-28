@@ -25,15 +25,6 @@ if (kind === "atomic") {
   if (!resolves(anchor, "@google/genai")) {
     fail("Atomic cannot see @google/genai beside @bastani/pi-ai");
   }
-} else if (kind === "harness") {
-  const anchor = path.join(
-    runtime,
-    "node_modules/@deepseek-ai/dsh-web-app/package.json",
-  );
-  if (!fs.existsSync(anchor)) fail(`missing ${anchor}`);
-  if (!resolves(anchor, "@deepseek-ai/dsh-client-ui-settings-plugins")) {
-    fail("Harness cannot see plugins beside @deepseek-ai/dsh-web-app");
-  }
 } else {
   fail(`unknown plugin check ${kind}`);
 }

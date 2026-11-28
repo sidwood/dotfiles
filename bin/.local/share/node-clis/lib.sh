@@ -90,22 +90,6 @@ node_cli_check_node() {
       node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 19) ? 0 : 1)' || fail=1
       [[ "$fail" -eq 0 ]] || abort 'Atomic requires Node.js 22.19 or newer'
       ;;
-    22or24)
-      node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit((major === 22 && minor >= 19) || major >= 24 ? 0 : 1)' || fail=1
-      [[ "$fail" -eq 0 ]] || abort 'DeepSeek Harness requires Node.js 22.19+ (22.x) or 24+'
-      ;;
-    ge26)
-      node -e 'const [major] = process.versions.node.split(".").map(Number); process.exit(major >= 26 ? 0 : 1)' || fail=1
-      [[ "$fail" -eq 0 ]] || abort 'timecraft requires Node.js 26 or newer'
-      ;;
-    ge20)
-      node -e 'const [major] = process.versions.node.split(".").map(Number); process.exit(major >= 20 ? 0 : 1)' || fail=1
-      [[ "$fail" -eq 0 ]] || abort 'Gemini CLI requires Node.js 20 or newer'
-      ;;
-    ge18)
-      node -e 'const [major] = process.versions.node.split(".").map(Number); process.exit(major >= 18 ? 0 : 1)' || fail=1
-      [[ "$fail" -eq 0 ]] || abort 'firecrawl requires Node.js 18 or newer'
-      ;;
     any) ;;
     *) abort "Unknown Node policy: $nc_node" ;;
   esac
@@ -247,7 +231,7 @@ link_agent_memory() {
 }
 
 node_cli_side_effects() {
-  local repo runtime agent_dir harness_home launcher
+  local repo runtime agent_dir launcher
   repo="$(node_cli_repo_root)"
   runtime="$(node_cli_runtime_path)"
   launcher="$HOME/.local/bin/$nc_launcher"
@@ -265,30 +249,6 @@ node_cli_side_effects() {
       node_cli_plugins "$runtime"
       link_agent_memory
       echo 'Atomic ready: run atomic in a project, then use /login and /model'
-      ;;
-    harness)
-      harness_home="${DSH_HOME:-$HOME/.dsh}"
-      (
-        umask 077
-        mkdir -p "$harness_home" || exit 1
-        if [[ ! -e "$harness_home/settings.yaml" && ! -L "$harness_home/settings.yaml" ]]; then
-          cp "$repo/dsh/.config/dsh/settings.yaml" "$harness_home/settings.yaml" || exit 1
-        fi
-      ) || abort 'Could not initialise DeepSeek Harness settings'
-      DSH_HOME="$harness_home" "$launcher" web --dump-default-config >/dev/null || abort 'Could not initialise the DeepSeek Harness web profile'
-      node_cli_plugins "$runtime"
-      link_agent_memory
-      echo 'DeepSeek Harness ready: run dsh web, then configure a provider in Settings > Models'
-      ;;
-    gemini)
-      node_cli_assert_macho "$runtime/node_modules/node-pty/build/Release/pty.node" 'Gemini node-pty'
-      node_cli_assert_macho "$runtime/node_modules/@github/keytar/build/Release/keytar.node" 'Gemini keytar'
-      link_agent_memory
-      ;;
-    opencode)
-      node_cli_assert_macho "$runtime/node_modules/opencode-ai/bin/opencode.exe" 'OpenCode'
-      "$launcher" --version >/dev/null || abort 'OpenCode executable check failed'
-      link_agent_memory
       ;;
     none) ;;
     *) abort "Unknown Node CLI side effects: $nc_effects" ;;
