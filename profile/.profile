@@ -19,9 +19,6 @@ fi
 # add home .bin to PATH
 export PATH=$HOME/.bin:$PATH
 
-# add mise shims to PATH (for non-interactive shells)
-export PATH=$HOME/.local/share/mise/shims:$PATH
-
 # enable shell history for Erlang & Elixir
 export ERL_AFLAGS="-kernel shell_history enabled"
 
@@ -61,3 +58,7 @@ export PATH="$PATH:$HOME/.kimi-code/bin"
 
 # Custom executables (bin/ stow package) and locally installed tools
 export PATH="$HOME/.local/bin:$PATH"
+
+# mise shims (ahead of ~/.local/bin and Homebrew so non-interactive shells
+# resolve runtimes and mise-managed tools identically to interactive zsh)
+export PATH="$HOME/.local/share/mise/shims:$PATH"

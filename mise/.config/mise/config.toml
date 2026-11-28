@@ -1,0 +1,57 @@
+[settings]
+experimental = true
+idiomatic_version_file_enable_tools = ["node", "pnpm", "python", "ruby"]
+npm.shell_out = true
+
+[tools]
+# Runtimes & package managers
+elixir = "latest"
+erlang = "latest"
+go = "latest"
+node = "lts"
+pnpm = "latest"
+python = "latest"
+ruby = "latest"
+uv = "latest"
+
+# Node & AI CLIs (atomic stays in node-clis/atomic while patched)
+"aqua:anomalyco/opencode" = "latest"
+"npm:@deepseek-ai/dsh" = "0.1.5-rc.1"
+"npm:@google/gemini-cli" = "latest"
+"npm:@sidwood/timecraft" = "latest"
+"npm:defuddle" = "latest"
+"npm:firecrawl-cli" = "latest"
+
+# Language-ecosystem CLIs
+"gem:cocoapods" = "latest"
+"npm:heroku" = "latest"
+"pypi:git-filter-repo" = "latest"
+
+# Standalone dev CLIs & TUIs
+awscli = "latest"
+azure-cli = "latest"
+bat = "latest"
+biome = "latest"
+cmake = "latest"
+difftastic = "latest"
+direnv = "latest"
+doctl = "latest"
+eza = "latest"
+fastfetch = "latest"
+fd = "latest"
+fzf = "latest"
+gh = "latest"
+himalaya = "latest"
+jq = "latest"
+lazydocker = "latest"
+lazygit = "latest"
+neovim = "latest"
+resvg = "latest"
+ripgrep = "latest"
+shellcheck = "latest"
+terraform = "latest"
+vale = "latest"
+yazi = "latest"
+yq = "latest"
+yt-dlp = "latest"
+zoxide = "latest"

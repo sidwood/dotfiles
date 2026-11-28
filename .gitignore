@@ -15,6 +15,7 @@ herdr/.config/herdr/*
 !herdr/.config/herdr/config.toml
 iterm2/.config/iterm2/AppSupport
 iterm2/.config/iterm2/sockets/
+mise/.config/mise/config.local.toml
 node_modules/
 ruby/.bundle/cache
 shell/.config/shell/local.env
