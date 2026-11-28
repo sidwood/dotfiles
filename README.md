@@ -146,8 +146,8 @@ and updates itself in-app; `brew upgrade` is usually a no-op unless you pass
 
 Homebrew installs GUI apps, macOS CLI casks, launchd services, and system C
 libraries (`Brewfile`). Language runtimes (`node`, `pnpm`, `python`, `ruby`,
-`elixir`, `erlang`, `go`, `uv`), Node/AI CLIs (`opencode`, `gemini`,
-`defuddle`, `firecrawl`, `timecraft`, `dsh`), and standalone dev CLIs/TUIs
+`elixir`, `erlang`, `go`, `uv`), Node/AI CLIs (`opencode`, `defuddle`,
+`firecrawl`, `timecraft`, `dsh`), and standalone dev CLIs/TUIs
 (`neovim`, `lazygit`, `lazydocker`, `yazi`, `fzf`, `ripgrep`, `fd`, `bat`,
 `eza`, `gh`, `jq`, `yq`, `biome`, `shellcheck`, `terraform`, `zoxide`, etc.)
 are declared in `mise/.config/mise/config.toml` and locked for `macos-arm64` in
@@ -799,7 +799,6 @@ file:
 ├── ~/.grok/AGENTS.md                        # Grok
 ├── ~/.config/opencode/AGENTS.md             # OpenCode
 ├── ~/.cursor/rules/global-agent-memory.mdc  # Cursor
-├── ~/.gemini/GEMINI.md                      # Gemini CLI
 ├── ~/.dsh/AGENTS.md                         # DeepSeek Harness
 ├── ~/.atomic/agent/AGENTS.md                # Atomic
 └── ~/.pi/agent/AGENTS.md                    # Pi

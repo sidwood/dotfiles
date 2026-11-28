@@ -184,7 +184,7 @@ link_agent_memory() {
   # Paths verified against the tools themselves: codex (binary references
   # ~/.codex/AGENTS.md), grok (its shipped docs/user-guide), opencode (config
   # root ~/.config/opencode), pi (global context lives in agentDir, default
-  # ~/.pi/agent). claude and gemini follow each vendor's documented path.
+  # ~/.pi/agent). claude follows its vendor's documented path.
   # Cursor's home-level rules are .mdc files in ~/.cursor/rules/. The shared
   # file carries no alwaysApply frontmatter, so enable the rule in Cursor.
   #
@@ -198,7 +198,6 @@ link_agent_memory() {
     "grok|$HOME/.grok/AGENTS.md"
     "opencode|$HOME/.config/opencode/AGENTS.md"
     "cursor|$HOME/.cursor/rules/global-agent-memory.mdc"
-    "gemini|$HOME/.gemini/GEMINI.md"
     "pi|$HOME/.pi/agent/AGENTS.md"
     "dsh|${DSH_HOME:-$HOME/.dsh}/AGENTS.md"
     "atomic|${ATOMIC_CODING_AGENT_DIR:-${PI_CODING_AGENT_DIR:-$HOME/.atomic/agent}}/AGENTS.md"
@@ -337,9 +336,6 @@ node_cli_memory_path() {
       ;;
     harness)
       printf '%s\n' "${DSH_HOME:-$HOME/.dsh}/AGENTS.md"
-      ;;
-    gemini)
-      printf '%s\n' "$HOME/.gemini/GEMINI.md"
       ;;
     opencode)
       printf '%s\n' "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/AGENTS.md"

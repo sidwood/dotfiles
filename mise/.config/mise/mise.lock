@@ -249,11 +249,6 @@ version = "0.1.5-rc.1"
 backend = "npm:@deepseek-ai/dsh"
 specifiers = ["0.1.5-rc.1"]
 
-[[tools."npm:@google/gemini-cli"]]
-version = "0.71.1"
-backend = "npm:@google/gemini-cli"
-specifiers = ["latest"]
-
 [[tools."npm:@sidwood/timecraft"]]
 version = "2.0.1"
 backend = "npm:@sidwood/timecraft"

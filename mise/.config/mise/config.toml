@@ -17,7 +17,6 @@ uv = "latest"
 # Node & AI CLIs (atomic stays in node-clis/atomic while patched)
 "aqua:anomalyco/opencode" = "latest"
 "npm:@deepseek-ai/dsh" = "0.1.5-rc.1"
-"npm:@google/gemini-cli" = "latest"
 "npm:@sidwood/timecraft" = "latest"
 "npm:defuddle" = "latest"
 "npm:firecrawl-cli" = "latest"
